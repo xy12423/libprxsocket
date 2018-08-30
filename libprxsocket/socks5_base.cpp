@@ -344,7 +344,7 @@ err_type socks5_base::recv_s5(uint8_t& resp, endpoint& result)
 		case 3:
 			read(*socket.get(), mutable_buffer(resp_head + 5, resp_head[4] + 2));
 			result = endpoint(
-				address_str(resp_head + 5, (int)(uint8_t)(resp_head[4])),
+				address_str(resp_head + 5, (size_t)(uint8_t)(resp_head[4])),
 				((uint8_t)(resp_head[5 + resp_head[4]]) << 8) | (uint8_t)(resp_head[5 + resp_head[4] + 1])
 			);
 			break;

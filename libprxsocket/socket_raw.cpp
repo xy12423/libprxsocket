@@ -432,9 +432,9 @@ void raw_udp_socket::async_send_to(const endpoint& ep, const const_buffer& buffe
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 	async_to_udp_ep(ep, [this, buffer, callback](err_type err, const asio::ip::udp::endpoint& native_ep)
 	{
-		if (ec)
+		if (err)
 		{
-			(*callback)(WARN_OPERATION_FAILURE);
+			(*callback)(-abs(err));
 			return;
 		}
 		socket.async_send_to(asio::buffer(buffer.get_data(), buffer.get_size()),native_ep,

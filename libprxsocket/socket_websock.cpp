@@ -69,7 +69,7 @@ void base64(std::string& dst, const std::string& src)
 
 void base64(std::string& dst, const byte* src, size_t src_size)
 {
-	base64(dst, reinterpret_cast<const char*>(src), src_size);
+	base64(dst, (const char*)src, src_size);
 }
 
 void base64_rev(std::string& dst, const char* data, size_t size)
@@ -205,7 +205,7 @@ void gen_websocket_accept(std::string& dst, const std::string& src_b64)
 	buf.append(uuid, uuid_size);
 	thread_local SHA1 hasher_sha1;
 	char result[20];
-	hasher_sha1.CalculateDigest(reinterpret_cast<byte*>(result), reinterpret_cast<const byte*>(buf.data()), buf.size());
+	hasher_sha1.CalculateDigest((byte*)result, (const byte*)buf.data(), buf.size());
 	base64(dst, result, 20);
 }
 
@@ -221,7 +221,7 @@ void websock_tcp_socket::encode(std::string& dst, const char* src, size_t size)
 	std::lock_guard<std::mutex> lock(enc_mutex);
 	thread_local std::string buf;
 	buf.clear();
-	StringSource ss(reinterpret_cast<const byte*>(src), size, true, new StreamTransformationFilter(e, new StringSink(buf)));
+	StringSource ss((const byte*)src, size, true, new StreamTransformationFilter(e, new StringSink(buf)));
 
 	dst.clear();
 	if (buf.size() <= 125)
@@ -243,9 +243,9 @@ void websock_tcp_socket::encode(std::string& dst, const char* src, size_t size)
 		dst.reserve(14 + buf.size());
 		dst.push_back('\x82');
 		dst.push_back('\xFF');
-		size_t size = buf.size();
+		size_t buf_size = buf.size();
 		for (int shift = 56; shift >= 0; shift -= 8)
-			dst.push_back((uint8_t)(buf.size() >> shift));
+			dst.push_back((uint8_t)(buf_size >> shift));
 	}
 
 	CryptoPP::byte mask[4];
@@ -749,12 +749,13 @@ prx_tcp_socket_base* websock_listener::accept()
 			recved.append(recv_buf.get(), size_read);
 		}
 
-		std::string iv, sec_accept;
 		if (header.at("@ReqMethod") != "GET" || header.at("Connection") != "Upgrade" || header.at("Upgrade") != "websocket" || header.at("Sec-WebSocket-Version") != "13")
 			throw(std::runtime_error("Bad HTTP header"));
 		if (header.at("@ReqTarget") != "/eq" || header.at("Sec-WebSocket-Protocol") != "str")
 			throw(std::runtime_error("Bad HTTP header"));
 
+		iv.clear();
+		sec_accept.clear();
 		std::string &iv_b64 = header.at("Sec-WebSocket-Key");
 		base64_rev(iv, iv_b64.data(), iv_b64.size());
 		gen_websocket_accept(sec_accept, iv_b64);
@@ -826,13 +827,13 @@ void websock_listener::recv_websocket_req(const std::shared_ptr<accept_callback>
 				return;
 			}
 
-			iv.clear();
-			sec_accept.clear();
 			if (header.at("@ReqMethod") != "GET" || header.at("Connection") != "Upgrade" || header.at("Upgrade") != "websocket" || header.at("Sec-WebSocket-Version") != "13")
 				throw(std::runtime_error("Bad HTTP header"));
 			if (header.at("@ReqTarget") != "/ep" || header.at("Sec-WebSocket-Protocol") != "str")
 				throw(std::runtime_error("Bad HTTP header"));
 
+			iv.clear();
+			sec_accept.clear();
 			std::string &iv_b64 = header.at("Sec-WebSocket-Key");
 			base64_rev(iv, iv_b64.data(), iv_b64.size());
 			gen_websocket_accept(sec_accept, iv_b64);

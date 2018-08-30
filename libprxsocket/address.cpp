@@ -65,7 +65,7 @@ size_t address::from_socks5(const char* data)
 	}
 	++data;
 
-	size_t size;
+	size_t size = 0;
 	switch (type)
 	{
 		case V4:
@@ -76,7 +76,7 @@ size_t address::from_socks5(const char* data)
 		}
 		case STR:
 		{
-			size = *data;
+			size = (unsigned char)(*data);
 			++data;
 			m_str = address_str(data, size);
 			size = 2 + size;
@@ -95,6 +95,8 @@ size_t address::from_socks5(const char* data)
 
 void address::to_socks5(std::string& ret) const
 {
+	if (type == UNDEFINED)
+		return;
 	ret.push_back(type);
 	switch (type)
 	{
