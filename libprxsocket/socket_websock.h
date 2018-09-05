@@ -139,6 +139,7 @@ public:
 	virtual void async_bind(const endpoint& endpoint, null_callback&& complete_handler) override { acceptor->async_bind(endpoint, std::move(complete_handler)); }
 
 	virtual err_type listen() override { return acceptor->listen(); }
+	virtual void async_listen(null_callback&& complete_handler) override { acceptor->async_listen(std::move(complete_handler)); }
 
 	virtual prx_tcp_socket_base* accept() override;
 	virtual void async_accept(accept_callback&& complete_handler) override;

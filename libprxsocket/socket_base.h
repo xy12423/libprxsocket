@@ -109,6 +109,7 @@ public:
 	virtual void async_bind(const endpoint& endpoint, null_callback&& complete_handler) = 0;
 
 	virtual err_type listen() = 0;
+	virtual void async_listen(null_callback&& complete_handler) = 0;
 
 	virtual prx_tcp_socket_base* accept() = 0;
 	virtual void async_accept(accept_callback&& complete_handler) = 0;

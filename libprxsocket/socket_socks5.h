@@ -111,7 +111,8 @@ public:
 	virtual err_type bind(const endpoint& endpoint) override;
 	virtual void async_bind(const endpoint& endpoint, null_callback&& complete_handler);
 
-	virtual err_type listen() override { return 0; }
+	virtual err_type listen() override;
+	virtual void async_listen(null_callback&& complete_handler) override;
 
 	virtual prx_tcp_socket_base* accept() override;
 	virtual void async_accept(accept_callback&& complete_handler) override;
@@ -124,6 +125,8 @@ private:
 
 	std::function<prx_tcp_socket_base*()> gen_socket;
 	std::unique_ptr<socks5_tcp_socket> cur_socket;
+
+	bool listening = false;
 };
 
 #endif

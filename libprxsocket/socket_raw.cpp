@@ -600,6 +600,12 @@ err_type raw_listener::listen()
 	return (ec ? ERR_OPERATION_FAILURE : 0);
 }
 
+void raw_listener::async_listen(null_callback&& complete_handler)
+{
+	acceptor.listen(asio::socket_base::max_connections, ec);
+	complete_handler(ec ? ERR_OPERATION_FAILURE : 0);
+}
+
 prx_tcp_socket_base* raw_listener::accept()
 {
 	asio::ip::tcp::socket socket(iosrv);

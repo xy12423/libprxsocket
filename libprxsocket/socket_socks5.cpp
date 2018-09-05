@@ -629,31 +629,83 @@ void socks5_listener::async_bind(const endpoint& ep, null_callback&& complete_ha
 	complete_handler(0);
 }
 
-prx_tcp_socket_base* socks5_listener::accept()
+err_type socks5_listener::listen()
 {
 	if (!cur_socket || !cur_socket->is_open())
-		return nullptr;
+		return ERR_OPERATION_FAILURE;
+	if (listening)
+		return 0;
 
 	err_type err = cur_socket->send_s5(cur_socket->BIND, local_ep);
 	if (err)
 	{
 		close();
-		return nullptr;
+		return err;
 	}
 	uint8_t rep;
 	err = cur_socket->recv_s5(rep, cur_socket->local_ep);
 	if (err)
 	{
 		close();
-		return nullptr;
+		return err;
 	}
 	if (rep != 0)
 	{
 		close();
-		return nullptr;
+		return rep;
 	}
 
-	err = cur_socket->recv_s5(rep, cur_socket->remote_ep);
+	listening = true;
+	return 0;
+}
+
+void socks5_listener::async_listen(null_callback&& complete_handler)
+{
+	if (!cur_socket || !cur_socket->is_open())
+	{
+		complete_handler(ERR_OPERATION_FAILURE);
+		return;
+	}
+	if (listening)
+	{
+		complete_handler(0);
+		return;
+	}
+	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+
+	cur_socket->async_send_s5(cur_socket->BIND, local_ep, [this, callback](err_type err) {
+		if (err)
+		{
+			async_close([callback, err](err_type) { (*callback)(err); });
+			return;
+		}
+		cur_socket->async_recv_s5([this, callback](err_type err, uint8_t rep, const endpoint& ep) {
+			if (err)
+			{
+				async_close([callback, err](err_type) { (*callback)(err); });
+				return;
+			}
+			if (rep != 0)
+			{
+				async_close([callback, rep](err_type) { (*callback)(rep); });
+				return;
+			}
+			cur_socket->local_ep = ep;
+
+			listening = true;
+			(*callback)(0);
+		});
+	});
+}
+
+prx_tcp_socket_base* socks5_listener::accept()
+{
+	if (!listening)
+		return nullptr;
+	listening = false;
+
+	uint8_t rep;
+	err_type err = cur_socket->recv_s5(rep, cur_socket->remote_ep);
 	if (err)
 	{
 		close();
@@ -668,54 +720,45 @@ prx_tcp_socket_base* socks5_listener::accept()
 
 	std::unique_ptr<socks5_tcp_socket> ret;
 	ret.swap(cur_socket);
-	open();
+	if (!open())
+		listen();
 	return ret.release();
 }
 
 void socks5_listener::async_accept(accept_callback&& complete_handler)
 {
-	if (!cur_socket || !cur_socket->is_open())
+	if (!listening)
 	{
 		complete_handler(ERR_OPERATION_FAILURE, nullptr);
 		return;
 	}
+	listening = false;
 	std::shared_ptr<accept_callback> callback = std::make_shared<accept_callback>(std::move(complete_handler));
 
-	cur_socket->async_send_s5(cur_socket->BIND, local_ep, [this, callback](err_type err) {
+	cur_socket->async_recv_s5([this, callback](err_type err, uint8_t rep, const endpoint& ep) {
 		if (err)
 		{
 			async_close([callback, err](err_type) { (*callback)(err, nullptr); });
 			return;
 		}
-		cur_socket->async_recv_s5([this, callback](err_type err, uint8_t rep, const endpoint& ep) {
+		else if (rep != 0)
+		{
+			async_close([callback, rep](err_type) { (*callback)(rep, nullptr); });
+			return;
+		}
+		cur_socket->remote_ep = ep;
+		cur_socket->state = cur_socket->STATE_CONNECTED;
+
+		std::shared_ptr<std::unique_ptr<socks5_tcp_socket>> ret = std::make_shared<std::unique_ptr<socks5_tcp_socket>>();
+		ret->swap(cur_socket);
+		async_open([this, ret, callback](err_type err) {
 			if (err)
 			{
-				async_close([callback, err](err_type) { (*callback)(err, nullptr); });
+				(*callback)(0, ret->release());
 				return;
 			}
-			if (rep != 0)
-			{
-				async_close([callback, rep](err_type) { (*callback)(rep, nullptr); });
-				return;
-			}
-			cur_socket->local_ep = ep;
-			cur_socket->async_recv_s5([this, callback](err_type err, uint8_t rep, const endpoint& ep) {
-				if (err)
-				{
-					async_close([callback, err](err_type) { (*callback)(err, nullptr); });
-					return;
-				}
-				else if (rep != 0)
-				{
-					async_close([callback, rep](err_type) { (*callback)(rep, nullptr); });
-					return;
-				}
-				cur_socket->remote_ep = ep;
-				cur_socket->state = cur_socket->STATE_CONNECTED;
-
-				std::shared_ptr<std::unique_ptr<socks5_tcp_socket>> ret = std::make_shared<std::unique_ptr<socks5_tcp_socket>>();
-				ret->swap(cur_socket);
-				async_open([ret, callback](err_type) { (*callback)(0, ret->release()); });
+			async_listen([ret, callback](err_type) {
+				(*callback)(0, ret->release());
 			});
 		});
 	});

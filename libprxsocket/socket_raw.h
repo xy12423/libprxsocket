@@ -102,6 +102,7 @@ public:
 	virtual void async_bind(const endpoint& endpoint, null_callback&& complete_handler) override;
 
 	virtual err_type listen() override;
+	virtual void async_listen(null_callback&& complete_handler) override;
 
 	virtual prx_tcp_socket_base* accept() override;
 	virtual void async_accept(accept_callback&& complete_handler) override;
