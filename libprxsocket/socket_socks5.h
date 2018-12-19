@@ -16,29 +16,30 @@ public:
 	socks5_tcp_socket(const endpoint& _server_ep, std::unique_ptr<prx_tcp_socket_base>&& arg1, const std::string& arg2)
 		:socks5_base(std::move(arg1), arg2), server_ep(_server_ep)
 	{}
-	virtual ~socks5_tcp_socket() { if (state >= STATE_OPEN) socks5_base::close(); }
+	virtual ~socks5_tcp_socket() { if (state >= STATE_OPEN) { error_code ec; socks5_base::close(ec); } }
 
 	virtual bool is_open() override { return state >= STATE_OPEN; }
+	virtual bool is_connected() override { return state >= STATE_CONNECTED; }
 
-	virtual err_type local_endpoint(endpoint& ep) override { if (state < STATE_CONNECTED) return ERR_OPERATION_FAILURE; ep = local_ep; return 0; }
-	virtual err_type remote_endpoint(endpoint& ep) override { if (state < STATE_CONNECTED) return ERR_OPERATION_FAILURE; ep = remote_ep; return 0; }
+	virtual void local_endpoint(endpoint &ep, error_code &ec) override { ec = 0; if (!is_connected()) { ec = ERR_OPERATION_FAILURE; return; } ep = local_ep; }
+	virtual void remote_endpoint(endpoint &ep, error_code &ec) override { ec = 0; if (!is_connected()) { ec = ERR_OPERATION_FAILURE; return; } ep = remote_ep; }
 
-	virtual err_type open() override;
-	virtual void async_open(null_callback&& complete_handler) override;
+	virtual void open(error_code &ec) override;
+	virtual void async_open(null_callback &&complete_handler) override;
 
-	virtual err_type bind(const endpoint& endpoint) override { return ERR_UNSUPPORTED; }
-	virtual void async_bind(const endpoint& endpoint, null_callback&& complete_handler) override { complete_handler(ERR_UNSUPPORTED); }
+	virtual void bind(const endpoint &endpoint, error_code &ec) override { ec = ERR_UNSUPPORTED; }
+	virtual void async_bind(const endpoint &endpoint, null_callback&& complete_handler) override { complete_handler(ERR_UNSUPPORTED); }
 
-	virtual err_type connect(const endpoint& endpoint) override;
-	virtual void async_connect(const endpoint& endpoint, null_callback&& complete_handler) override;
+	virtual void connect(const endpoint &endpoint, error_code &ec) override;
+	virtual void async_connect(const endpoint &endpoint, null_callback &&complete_handler) override;
 
-	virtual err_type send(const const_buffer& buffer, size_t& transferred) override;
-	virtual void async_send(const const_buffer& buffer, transfer_callback&& complete_handler) override;
-	virtual err_type recv(const mutable_buffer& buffer, size_t& transferred) override;
-	virtual void async_recv(const mutable_buffer& buffer, transfer_callback&& complete_handler) override;
+	virtual void send(const const_buffer &buffer, size_t &transferred, error_code &ec) override;
+	virtual void async_send(const const_buffer &buffer, transfer_callback &&complete_handler) override;
+	virtual void recv(const mutable_buffer &buffer, size_t &transferred, error_code &ec) override;
+	virtual void async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler) override;
 
-	virtual err_type close() override { state = STATE_INIT; return socks5_base::close(); }
-	virtual void async_close(null_callback&& complete_handler) override { state = STATE_INIT; socks5_base::async_close(std::move(complete_handler)); }
+	virtual void close(error_code &ec) override { state = STATE_INIT; socks5_base::close(ec); }
+	virtual void async_close(null_callback &&complete_handler) override { state = STATE_INIT; socks5_base::async_close(std::move(complete_handler)); }
 private:
 	endpoint server_ep, local_ep, remote_ep;
 
@@ -59,31 +60,32 @@ public:
 		:socks5_base(std::move(arg1), "\x80", 1), server_ep(_server_ep), udp_recv_buf(std::make_unique<char[]>(udp_buf_size))
 	{
 	}
-	virtual ~socks5_udp_socket() { if (udp_socket) udp_socket->close(); if (state > STATE_INIT) socks5_base::close(); }
+	virtual ~socks5_udp_socket() { error_code ec; if (udp_socket) udp_socket->close(ec); if (state > STATE_INIT) socks5_base::close(ec); }
 
-	virtual bool is_open() override { return state > STATE_INIT; }
+	virtual bool is_open() override { return state >= STATE_ASSOCIATED; }
 
-	virtual err_type local_endpoint(endpoint& ep) override;
+	virtual void local_endpoint(endpoint& ep, error_code &ec) override;
 
-	virtual err_type open() override;
+	virtual void open(error_code &ec) override;
 	virtual void async_open(null_callback&& complete_handler) override;
 
-	virtual err_type bind(const endpoint& endpoint) override;
+	virtual void bind(const endpoint& endpoint, error_code &ec) override;
 	virtual void async_bind(const endpoint& endpoint, null_callback&& complete_handler) override;
 
-	virtual err_type send_to(const endpoint& endpoint, const const_buffer& buffer) override;
+	virtual void send_to(const endpoint& endpoint, const const_buffer& buffer, error_code &ec) override;
 	virtual void async_send_to(const endpoint& endpoint, const const_buffer& buffer, null_callback&& complete_handler) override;
-	virtual err_type recv_from(endpoint& endpoint, const mutable_buffer& buffer, size_t& transferred) override;
+	virtual void recv_from(endpoint& endpoint, const mutable_buffer& buffer, size_t& transferred, error_code &ec) override;
 	virtual void async_recv_from(endpoint& endpoint, const mutable_buffer& buffer, transfer_callback&& complete_handler) override;
 
-	virtual err_type close() override { state = STATE_INIT; return socks5_base::close(); }
+	virtual void close(error_code &ec) override { state = STATE_INIT; return socks5_base::close(ec); }
 	virtual void async_close(null_callback&& complete_handler) override { state = STATE_INIT; socks5_base::async_close(std::move(complete_handler)); }
 private:
-	err_type open(const endpoint& endpoint);
+	void open(const endpoint& endpoint, error_code &ec);
 	void async_open(const endpoint& endpoint, null_callback&& complete_handler);
+	void close() { error_code ec; state = STATE_INIT; return socks5_base::close(ec); }
 	void udp_alive();
 	void async_skip(size_t size, const std::shared_ptr<transfer_callback>& callback);
-	err_type parse_udp(size_t udp_recv_size, endpoint& ep, const mutable_buffer& buffer, size_t& transferred);
+	error_code parse_udp(size_t udp_recv_size, endpoint& ep, const mutable_buffer& buffer, size_t& transferred);
 
 	endpoint server_ep, udp_server_ep, udp_recv_ep, udp_local_ep;
 	std::unique_ptr<prx_udp_socket_base> udp_socket;
@@ -102,24 +104,27 @@ public:
 	virtual ~socks5_listener() {}
 
 	virtual bool is_open() override { return cur_socket && cur_socket->is_open(); }
+	virtual bool is_listening() override { return listening && is_open(); }
 
-	virtual err_type local_endpoint(endpoint& ep) override { ep = local_ep; return 0; }
+	virtual void local_endpoint(endpoint &ep, error_code &ec) override { ep = local_ep; ec = 0; }
 
-	virtual err_type open();
-	virtual void async_open(null_callback&& complete_handler);
+	virtual void open(error_code &ec) override;
+	virtual void async_open(null_callback&& complete_handler) override;
 
-	virtual err_type bind(const endpoint& endpoint) override;
+	virtual void bind(const endpoint& endpoint, error_code &ec) override;
 	virtual void async_bind(const endpoint& endpoint, null_callback&& complete_handler);
 
-	virtual err_type listen() override;
+	virtual void listen(error_code &ec) override;
 	virtual void async_listen(null_callback&& complete_handler) override;
 
-	virtual prx_tcp_socket_base* accept() override;
+	virtual void accept(prx_tcp_socket_base *&socket, error_code &err) override;
 	virtual void async_accept(accept_callback&& complete_handler) override;
 
-	virtual err_type close() override;
+	virtual void close(error_code &err) override;
 	virtual void async_close(null_callback&& complete_handler) override;
 private:
+	void close() { error_code err; close(err); }
+
 	endpoint server_ep, local_ep;
 	std::string methods;
 

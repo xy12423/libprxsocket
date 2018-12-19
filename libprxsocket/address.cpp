@@ -50,7 +50,7 @@ bool address::is_any() const
 	}
 }
 
-size_t address::from_socks5(const char* data)
+size_t address::from_socks5(const char *data)
 {
 	switch (*data)
 	{
@@ -93,7 +93,7 @@ size_t address::from_socks5(const char* data)
 }
 
 
-void address::to_socks5(std::string& ret) const
+void address::to_socks5(std::string &ret) const
 {
 	if (type == UNDEFINED)
 		return;
@@ -107,7 +107,7 @@ void address::to_socks5(std::string& ret) const
 		}
 		case STR:
 		{
-			const std::string& addr = m_str.data();
+			const std::string &addr = m_str.data();
 			assert(addr.size() < std::numeric_limits<unsigned char>::max());
 			uint8_t size = (uint8_t)std::min(addr.size(), (size_t)std::numeric_limits<uint8_t>::max());
 			ret.push_back(size);
@@ -136,7 +136,7 @@ std::string address::to_string() const
 	return std::string();
 }
 
-bool address::operator==(const address& b) const
+bool address::operator==(const address &b) const
 {
 	if (type != b.type)
 		return false;
@@ -153,7 +153,7 @@ bool address::operator==(const address& b) const
 	}
 }
 
-bool address::operator!=(const address & b) const
+bool address::operator!=(const address &b) const
 {
 	if (type != b.type)
 		return true;

@@ -44,34 +44,37 @@ public:
 	virtual ~websock_tcp_socket() {}
 
 	virtual bool is_open() override { return socket->is_open(); }
+	virtual bool is_connected() override { return state >= STATE_OK && socket->is_connected(); }
 
-	virtual err_type local_endpoint(endpoint& ep) override { return socket->local_endpoint(ep); }
-	virtual err_type remote_endpoint(endpoint& ep) override { return socket->remote_endpoint(ep); }
+	virtual void local_endpoint(endpoint& ep, error_code &ec) override { return socket->local_endpoint(ep, ec); }
+	virtual void remote_endpoint(endpoint& ep, error_code &ec) override { return socket->remote_endpoint(ep, ec); }
 
-	virtual err_type open() override { return socket->open(); }
+	virtual void open(error_code &ec) override { return socket->open(ec); }
 	virtual void async_open(null_callback&& complete_handler) override { socket->async_open(std::move(complete_handler)); }
 
-	virtual err_type bind(const endpoint& endpoint) override { return socket->bind(endpoint); }
+	virtual void bind(const endpoint& endpoint, error_code &ec) override { return socket->bind(endpoint, ec); }
 	virtual void async_bind(const endpoint& endpoint, null_callback&& complete_handler) override { socket->async_bind(endpoint, std::move(complete_handler)); }
 
-	virtual err_type connect(const endpoint& endpoint) override;
+	virtual void connect(const endpoint& endpoint, error_code &ec) override;
 	virtual void async_connect(const endpoint& endpoint, null_callback&& complete_handler) override;
 
-	virtual err_type send(const const_buffer& buffer, size_t& transferred) override;
+	virtual void send(const const_buffer& buffer, size_t& transferred, error_code &ec) override;
 	virtual void async_send(const const_buffer& buffer, transfer_callback&& complete_handler) override;
-	virtual err_type recv(const mutable_buffer& buffer, size_t& transferred) override;
+	virtual void recv(const mutable_buffer& buffer, size_t& transferred, error_code &ec) override;
 	virtual void async_recv(const mutable_buffer& buffer, transfer_callback&& complete_handler) override;
 
-	virtual err_type close() override { state = STATE_INIT; return socket->close(); }
+	virtual void close(error_code &ec) override { state = STATE_INIT; return socket->close(ec); }
 	virtual void async_close(null_callback&& complete_handler) override { state = STATE_INIT; socket->async_close(std::move(complete_handler)); }
 private:
+	void close() { state = STATE_INIT; error_code ec; socket->close(ec); }
+
 	void encode(std::string& dst, const char* src, size_t size);
 	void decode(std::string& dst, const char* src, size_t size);
 
 	void send_websocket_req(const std::shared_ptr<null_callback>& callback);
 	void recv_websocket_resp(const std::shared_ptr<null_callback>& callback, const std::shared_ptr<std::string>& buf);
 
-	err_type recv_data();
+	error_code recv_data();
 	void async_recv_data(null_callback&& complete_handler);
 	void async_recv_data_size_16(const std::shared_ptr<null_callback>& callback);
 	void async_recv_data_size_64(const std::shared_ptr<null_callback>& callback);
@@ -100,18 +103,18 @@ public:
 
 	virtual bool is_open() override;
 
-	virtual err_type open() override;
+	virtual error_code open() override;
 	virtual void async_open(null_callback&& complete_handler) override;
 
-	virtual err_type bind(const endpoint& endpoint) override;
+	virtual error_code bind(const endpoint& endpoint) override;
 	virtual void async_bind(const endpoint& endpoint, null_callback&& complete_handler) override;
 
-	virtual err_type send_to(const endpoint& endpoint, const const_buffer& buffer) override;
+	virtual error_code send_to(const endpoint& endpoint, const const_buffer& buffer) override;
 	virtual void async_send_to(const endpoint& endpoint, const const_buffer& buffer, null_callback&& complete_handler) override;
-	virtual err_type recv_from(endpoint& endpoint, const mutable_buffer& buffer, size_t& transferred) override;
+	virtual error_code recv_from(endpoint& endpoint, const mutable_buffer& buffer, size_t& transferred) override;
 	virtual void async_recv_from(endpoint& endpoint, const mutable_buffer& buffer, transfer_callback&& complete_handler) override;
 
-	virtual err_type close() override;
+	virtual error_code close() override;
 	virtual void async_close(null_callback&& complete_handler) override;
 };
 */
@@ -129,22 +132,23 @@ public:
 	virtual ~websock_listener() {}
 
 	virtual bool is_open() override { return acceptor->is_open(); }
+	virtual bool is_listening() override { return acceptor->is_listening(); }
 
-	virtual err_type local_endpoint(endpoint& ep) { return acceptor->local_endpoint(ep); }
+	virtual void local_endpoint(endpoint& ep, error_code &ec) override { return acceptor->local_endpoint(ep, ec); }
 
-	virtual err_type open() override { return acceptor->open(); }
+	virtual void open(error_code &ec) override { return acceptor->open(ec); }
 	virtual void async_open(null_callback&& complete_handler) override { acceptor->async_open(std::move(complete_handler)); }
 
-	virtual err_type bind(const endpoint& endpoint) override { return acceptor->bind(endpoint); }
+	virtual void bind(const endpoint& endpoint, error_code &ec) override { return acceptor->bind(endpoint, ec); }
 	virtual void async_bind(const endpoint& endpoint, null_callback&& complete_handler) override { acceptor->async_bind(endpoint, std::move(complete_handler)); }
 
-	virtual err_type listen() override { return acceptor->listen(); }
+	virtual void listen(error_code &ec) override { return acceptor->listen(ec); }
 	virtual void async_listen(null_callback&& complete_handler) override { acceptor->async_listen(std::move(complete_handler)); }
 
-	virtual prx_tcp_socket_base* accept() override;
+	virtual void accept(prx_tcp_socket_base *&socket, error_code &ec) override;
 	virtual void async_accept(accept_callback&& complete_handler) override;
 
-	virtual err_type close() override { return acceptor->close(); }
+	virtual void close(error_code &ec) override { return acceptor->close(ec); }
 	virtual void async_close(null_callback&& complete_handler) override { acceptor->async_close(std::move(complete_handler)); }
 private:
 	void recv_websocket_req(const std::shared_ptr<accept_callback>& callback, const std::shared_ptr<std::string>& buf);

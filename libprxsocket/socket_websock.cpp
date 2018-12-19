@@ -282,11 +282,11 @@ void websock_tcp_socket::decode(std::string& dst, const char* src, size_t size)
 	StringSource ss(buf, true, new StreamTransformationFilter(d, new StringSink(dst)));
 }
 
-err_type websock_tcp_socket::connect(const endpoint& ep)
+void websock_tcp_socket::connect(const endpoint& ep, error_code &err)
 {
-	err_type err = socket->connect(ep);
+	socket->connect(ep, err);
 	if (err)
-		return err;
+		return;
 
 	try
 	{
@@ -300,11 +300,11 @@ err_type websock_tcp_socket::connect(const endpoint& ep)
 		http_req.append(iv_b64);
 		http_req.append("\r\nSec-WebSocket-Protocol: str\r\nSec-WebSocket-Version: 13\r\n\r\n");
 
-		err = write(*socket, const_buffer(http_req));
+		write(*socket, const_buffer(http_req), err);
 		if (err)
 		{
-			socket->close();
-			return err;
+			close();
+			return;
 		}
 
 		size_t size_read, size_parsed;
@@ -313,11 +313,11 @@ err_type websock_tcp_socket::connect(const endpoint& ep)
 		while (!parse_http_header(header, size_parsed, recved))
 		{
 			recved.erase(0, size_parsed);
-			err = socket->recv(mutable_buffer(recv_buf.get(), recv_buf_size), size_read);
+			socket->recv(mutable_buffer(recv_buf.get(), recv_buf_size), size_read, err);
 			if (err)
 			{
-				socket->close();
-				return err;
+				close();
+				return;
 			}
 			recved.append(recv_buf.get(), size_read);
 		}
@@ -331,19 +331,19 @@ err_type websock_tcp_socket::connect(const endpoint& ep)
 	}
 	catch (std::exception &)
 	{
-		socket->close();
-		return ERR_OPERATION_FAILURE;
+		close();
+		err = ERR_OPERATION_FAILURE;
+		return;
 	}
 
 	state = STATE_OK;
-	return 0;
 }
 
 void websock_tcp_socket::async_connect(const endpoint& ep, null_callback&& complete_handler)
 {
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 	socket->async_connect(ep,
-		[this, callback](err_type err)
+		[this, callback](error_code err)
 	{
 		if (err)
 		{
@@ -368,15 +368,17 @@ void websock_tcp_socket::send_websocket_req(const std::shared_ptr<null_callback>
 	}
 	catch (std::exception &)
 	{
+		close();
 		(*callback)(ERR_OPERATION_FAILURE);
 		return;
 	}
 
 	async_write(*socket, const_buffer(*http_req),
-		[this, http_req, callback](err_type err)
+		[this, http_req, callback](error_code err)
 	{
 		if (err)
 		{
+			close();
 			(*callback)(err);
 			return;
 		}
@@ -387,11 +389,11 @@ void websock_tcp_socket::send_websocket_req(const std::shared_ptr<null_callback>
 void websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_callback>& callback, const std::shared_ptr<std::string>& buf)
 {
 	socket->async_recv(mutable_buffer(recv_buf.get(), recv_buf_size),
-		[this, callback, buf](err_type err, size_t transferred)
+		[this, callback, buf](error_code err, size_t transferred)
 	{
 		if (err)
 		{
-			socket->close();
+			close();
 			(*callback)(err);
 			return;
 		}
@@ -418,14 +420,16 @@ void websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_callback
 		}
 		catch (std::exception &)
 		{
-			socket->close();
+			close();
 			(*callback)(ERR_OPERATION_FAILURE);
 		}
 	});
 }
 
-err_type websock_tcp_socket::send(const const_buffer& buffer, size_t& transferred)
+void websock_tcp_socket::send(const const_buffer& buffer, size_t& transferred, error_code &err)
 {
+	err = 0;
+
 	std::string buf;
 	transferred = 0;
 	size_t size_trans = std::min(buffer.get_size(), recv_buf_size / 2);
@@ -437,17 +441,16 @@ err_type websock_tcp_socket::send(const const_buffer& buffer, size_t& transferre
 	catch (std::exception &)
 	{
 		close();
-		return ERR_OPERATION_FAILURE;
+		err = ERR_OPERATION_FAILURE;
+		return;
 	}
-	err_type err = write(*socket, const_buffer(buf));
+	write(*socket, const_buffer(buf), err);
 	if (err)
 	{
 		close();
-		return err;
+		return;
 	}
 	transferred = size_trans;
-
-	return 0;
 }
 
 void websock_tcp_socket::async_send(const const_buffer& buffer, transfer_callback&& complete_handler)
@@ -467,7 +470,7 @@ void websock_tcp_socket::async_send(const const_buffer& buffer, transfer_callbac
 
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 	async_write(*socket, const_buffer(*buf),
-		[this, size_trans, buf, callback](err_type err)
+		[this, size_trans, buf, callback](error_code err)
 	{
 		if (err)
 		{
@@ -479,9 +482,10 @@ void websock_tcp_socket::async_send(const const_buffer& buffer, transfer_callbac
 	});
 }
 
-err_type websock_tcp_socket::recv_data()
+error_code websock_tcp_socket::recv_data()
 {
-	err_type err = read(*socket, mutable_buffer(recv_buf.get(), 2));
+	error_code err;
+	read(*socket, mutable_buffer(recv_buf.get(), 2), err);
 	if (err)
 	{
 		close();
@@ -501,7 +505,7 @@ err_type websock_tcp_socket::recv_data()
 	size_t size;
 	if (recv_buf[1] == '\xFF')
 	{
-		err = read(*socket, mutable_buffer(recv_buf.get(), 8));
+		read(*socket, mutable_buffer(recv_buf.get(), 8), err);
 		if (err)
 		{
 			close();
@@ -520,7 +524,7 @@ err_type websock_tcp_socket::recv_data()
 	}
 	else if (recv_buf[1] == '\xFE')
 	{
-		err = read(*socket, mutable_buffer(recv_buf.get(), 2));
+		read(*socket, mutable_buffer(recv_buf.get(), 2), err);
 		if (err)
 		{
 			close();
@@ -539,7 +543,7 @@ err_type websock_tcp_socket::recv_data()
 		return ERR_OPERATION_FAILURE;
 	}
 
-	err = read(*socket, mutable_buffer(recv_buf.get(), size));
+	read(*socket, mutable_buffer(recv_buf.get(), size), err);
 	if (err)
 	{
 		close();
@@ -565,7 +569,7 @@ void websock_tcp_socket::async_recv_data(null_callback&& complete_handler)
 {
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 	async_read(*socket, mutable_buffer(recv_buf.get(), 2),
-		[this, callback](err_type err)
+		[this, callback](error_code err)
 	{
 		if (err)
 		{
@@ -598,7 +602,7 @@ void websock_tcp_socket::async_recv_data(null_callback&& complete_handler)
 void websock_tcp_socket::async_recv_data_size_16(const std::shared_ptr<null_callback>& callback)
 {
 	async_read(*socket, mutable_buffer(recv_buf.get(), 2),
-		[this, callback](err_type err)
+		[this, callback](error_code err)
 	{
 		if (err)
 		{
@@ -614,7 +618,7 @@ void websock_tcp_socket::async_recv_data_size_16(const std::shared_ptr<null_call
 void websock_tcp_socket::async_recv_data_size_64(const std::shared_ptr<null_callback>& callback)
 {
 	async_read(*socket, mutable_buffer(recv_buf.get(), 8),
-		[this, callback](err_type err)
+		[this, callback](error_code err)
 	{
 		if (err)
 		{
@@ -645,7 +649,7 @@ void websock_tcp_socket::async_recv_data_body(const std::shared_ptr<null_callbac
 		return;
 	}
 	async_read(*socket, mutable_buffer(recv_buf.get(), size),
-		[this, size, callback](err_type err)
+		[this, size, callback](error_code err)
 	{
 		if (err)
 		{
@@ -694,16 +698,16 @@ size_t websock_tcp_socket::read_data(char* buf, size_t size)
 	return size_read;
 }
 
-err_type websock_tcp_socket::recv(const mutable_buffer& buffer, size_t& transferred)
+void websock_tcp_socket::recv(const mutable_buffer& buffer, size_t& transferred, error_code &err)
 {
+	err = 0;
 	if (recv_que.empty())
 	{
-		err_type err = recv_data();
+		err = recv_data();
 		if (err)
-			return err;
+			return;
 	}
 	transferred = read_data(buffer.access_data(), buffer.get_size());
-	return 0;
 }
 
 void websock_tcp_socket::async_recv(const mutable_buffer& buffer, transfer_callback&& complete_handler)
@@ -711,7 +715,8 @@ void websock_tcp_socket::async_recv(const mutable_buffer& buffer, transfer_callb
 	if (recv_que.empty())
 	{
 		std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
-		async_recv_data([this, buffer, callback](err_type err) {
+		async_recv_data([this, buffer, callback](error_code err)
+		{
 			if (err)
 			{
 				(*callback)(err, 0);
@@ -725,27 +730,28 @@ void websock_tcp_socket::async_recv(const mutable_buffer& buffer, transfer_callb
 	complete_handler(0, transferred);
 }
 
-prx_tcp_socket_base* websock_listener::accept()
+void websock_listener::accept(prx_tcp_socket_base *&soc, error_code &ec)
 {
-	std::unique_ptr<prx_tcp_socket_base> socket(acceptor->accept());
-	if (!socket)
-		return nullptr;
+	soc = nullptr;
+	ec = ERR_OPERATION_FAILURE;
+
+	prx_tcp_socket_base *soc_;
+	acceptor->accept(soc_, ec);
+	std::unique_ptr<prx_tcp_socket_base> socket(soc_);
+	if (ec)
+		return;
 
 	try
 	{
-		err_type err;
 		size_t size_read, size_parsed;
 		std::string recved;
 		http_header_tp header;
 		while (!parse_http_header(header, size_parsed, recved))
 		{
 			recved.erase(0, size_parsed);
-			err = socket->recv(mutable_buffer(recv_buf.get(), recv_buf_size), size_read);
-			if (err)
-			{
-				socket->close();
-				return nullptr;
-			}
+			socket->recv(mutable_buffer(recv_buf.get(), recv_buf_size), size_read, ec);
+			if (ec)
+				throw(std::runtime_error("websock_listener::accept(): recv() error"));
 			recved.append(recv_buf.get(), size_read);
 		}
 
@@ -770,17 +776,20 @@ prx_tcp_socket_base* websock_listener::accept()
 		http_resp.append(sec_accept);
 		http_resp.append(resp_2, resp_2_size);
 
-		err = write(*socket, const_buffer(http_resp));
-		if (err)
-			return nullptr;
+		write(*socket, const_buffer(http_resp), ec);
+		if (ec)
+			throw(std::runtime_error("websock_listener::accept(): write() error"));
 	}
 	catch (std::exception &)
 	{
-		socket->close();
-		return nullptr;
+		error_code err;
+		socket->close(err);
+		if (!ec)
+			ec= ERR_BAD_ARG_REMOTE;
+		return;
 	}
 
-	return new websock_tcp_socket(std::move(socket), key, iv);
+	soc = new websock_tcp_socket(std::move(socket), key, iv);
 }
 
 void websock_listener::async_accept(accept_callback&& complete_handler)
@@ -790,8 +799,10 @@ void websock_listener::async_accept(accept_callback&& complete_handler)
 		complete_handler(WARN_ALREADY_IN_STATE, nullptr);
 		return;
 	}
+	//TODO: support queue
 	std::shared_ptr<accept_callback> callback = std::make_shared<accept_callback>(std::move(complete_handler));
-	acceptor->async_accept([this, callback](err_type err, prx_tcp_socket_base* _socket) {
+	acceptor->async_accept([this, callback](error_code err, prx_tcp_socket_base* _socket)
+	{
 		std::unique_ptr<prx_tcp_socket_base> socket(_socket);
 		if (err)
 		{
@@ -806,11 +817,14 @@ void websock_listener::async_accept(accept_callback&& complete_handler)
 void websock_listener::recv_websocket_req(const std::shared_ptr<accept_callback>& callback, const std::shared_ptr<std::string>& buf)
 {
 	socket_accept->async_recv(mutable_buffer(recv_buf.get(), recv_buf_size),
-		[this, callback, buf](err_type err, size_t transferred)
+		[this, callback, buf](error_code err, size_t transferred)
 	{
 		if (err)
 		{
-			socket_accept->close();
+			error_code ec;
+			//TODO: check if close continues to use resources
+			//TODO: check if async invalidates callback
+			socket_accept->close(ec);
 			socket_accept.reset();
 			(*callback)(err, nullptr);
 			return;
@@ -840,7 +854,8 @@ void websock_listener::recv_websocket_req(const std::shared_ptr<accept_callback>
 		}
 		catch (std::exception &)
 		{
-			socket_accept->close();
+			error_code ec;
+			socket_accept->close(ec);
 			socket_accept.reset();
 			(*callback)(ERR_OPERATION_FAILURE, nullptr);
 			return;
@@ -866,18 +881,20 @@ void websock_listener::send_websocket_resp(const std::shared_ptr<accept_callback
 	}
 	catch (std::exception &)
 	{
-		socket_accept->close();
+		error_code ec;
+		socket_accept->close(ec);
 		socket_accept.reset();
 		(*callback)(ERR_OPERATION_FAILURE, nullptr);
 		return;
 	}
 
 	async_write(*socket_accept, const_buffer(*http_resp),
-		[this, http_resp, callback](err_type err)
+		[this, http_resp, callback](error_code err)
 	{
 		if (err)
 		{
-			socket_accept->close();
+			error_code ec;
+			socket_accept->close(ec);
 			socket_accept.reset();
 			(*callback)(err, nullptr);
 			return;

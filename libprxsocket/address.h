@@ -2,6 +2,7 @@
 #define _H_ADDRESS
 
 #ifndef _LIBPRXSOCKET_BUILD
+#include <cassert>
 #include <cstdint>
 #include <cstring>
 
@@ -38,8 +39,8 @@ public:
 
 	std::string to_string() const;
 
-	bool operator==(const address_v4& b) const { return m_data.u32 == b.m_data.u32; }
-	bool operator!=(const address_v4& b) const { return m_data.u32 != b.m_data.u32; }
+	bool operator==(const address_v4 &b) const { return m_data.u32 == b.m_data.u32; }
+	bool operator!=(const address_v4 &b) const { return m_data.u32 != b.m_data.u32; }
 };
 
 class address_v6
@@ -66,23 +67,23 @@ public:
 
 	std::string to_string() const;
 
-	bool operator==(const address_v6& b) const { return memcmp(m_data.u8, b.m_data.u8, sizeof(addr_v6_data)) == 0; }
-	bool operator!=(const address_v6& b) const { return memcmp(m_data.u8, b.m_data.u8, sizeof(addr_v6_data)) != 0; }
+	bool operator==(const address_v6 &b) const { return memcmp(m_data.u8, b.m_data.u8, sizeof(addr_v6_data)) == 0; }
+	bool operator!=(const address_v6 &b) const { return memcmp(m_data.u8, b.m_data.u8, sizeof(addr_v6_data)) != 0; }
 };
 
 class address_str
 {
 public:
-	template <typename... T> address_str(T&&... addr) :m_data(std::forward<T>(addr)...) {}
+	template <typename... T> address_str(T &&...addr) :m_data(std::forward<T>(addr)...) {}
 
-	const std::string& data() const { return m_data; }
+	const std::string &data() const { return m_data; }
 
 	bool is_any() const { return false; }
 
 	std::string to_string() const { return m_data; }
 
-	bool operator==(const address_str& b) const { return m_data == b.m_data; }
-	bool operator!=(const address_str& b) const { return m_data != b.m_data; }
+	bool operator==(const address_str &b) const { return m_data == b.m_data; }
+	bool operator!=(const address_str &b) const { return m_data != b.m_data; }
 private:
 	std::string m_data;
 };
@@ -94,30 +95,30 @@ public:
 
 	address() :type(UNDEFINED) {}
 	address(uint32_t addr) : type(V4), m_v4(addr) {}
-	address(const std::string& addr) : type(STR), m_str(addr) {}
-	address(std::string&& addr) : type(STR), m_str(std::move(addr)) {}
-	address(const char* addr) : type(STR), m_str(addr) {}
+	address(const std::string &addr) : type(STR), m_str(addr) {}
+	address(std::string &&addr) : type(STR), m_str(std::move(addr)) {}
+	address(const char *addr) : type(STR), m_str(addr) {}
 
-	address(const address_v4& addr) : type(V4), m_v4(addr) {}
-	address(address_v4&& addr) : type(V4), m_v4(std::move(addr)) {}
-	address(const address_str& addr) : type(STR), m_str(addr) {}
-	address(address_str&& addr) : type(STR), m_str(std::move(addr)) {}
-	address(const address_v6& addr) : type(V6), m_v6(addr) {}
-	address(address_v6&& addr) : type(V6), m_v6(std::move(addr)) {}
+	address(const address_v4 &addr) : type(V4), m_v4(addr) {}
+	address(address_v4 &&addr) : type(V4), m_v4(std::move(addr)) {}
+	address(const address_str &addr) : type(STR), m_str(addr) {}
+	address(address_str &&addr) : type(STR), m_str(std::move(addr)) {}
+	address(const address_v6 &addr) : type(V6), m_v6(addr) {}
+	address(address_v6 &&addr) : type(V6), m_v6(std::move(addr)) {}
 
 	addr_type get_type() const { return type; }
-	const address_v4& v4() const { return m_v4; }
-	const address_v6& v6() const { return m_v6; }
-	const address_str& str() const { return m_str; }
+	const address_v4 &v4() const { return m_v4; }
+	const address_v6 &v6() const { return m_v6; }
+	const address_str &str() const { return m_str; }
 
 	bool is_any() const;
 
-	size_t from_socks5(const char* data);
-	void to_socks5(std::string& ret) const;
+	size_t from_socks5(const char *data);
+	void to_socks5(std::string &ret) const;
 	std::string to_string() const;
 
-	bool operator==(const address& b) const;
-	bool operator!=(const address& b) const;
+	bool operator==(const address &b) const;
+	bool operator!=(const address &b) const;
 private:
 	addr_type type;
 
