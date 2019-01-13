@@ -5,7 +5,7 @@ using namespace CryptoPP;
 
 typedef std::unordered_map<std::string, std::string> http_header_tp;
 
-void ltrim(std::string& str)
+static void ltrim(std::string& str)
 {
 	std::string::iterator itr = str.begin(), itr_end = str.end();
 	for (; itr != itr_end; ++itr)
@@ -15,19 +15,19 @@ void ltrim(std::string& str)
 		str.erase(str.begin(), itr);
 }
 
-void rtrim(std::string& str)
+static void rtrim(std::string& str)
 {
 	while (!str.empty() && isspace(str.back()))
 		str.pop_back();
 }
 
-void trim(std::string& str)
+static void trim(std::string& str)
 {
 	ltrim(str);
 	rtrim(str);
 }
 
-void base64(std::string& dst, const char* data, size_t size)
+static void base64(std::string& dst, const char* data, size_t size)
 {
 	const char *const base64_map = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 	constexpr char base64_pad = '=';
@@ -62,17 +62,17 @@ void base64(std::string& dst, const char* data, size_t size)
 	}
 }
 
-void base64(std::string& dst, const std::string& src)
+static void base64(std::string& dst, const std::string& src)
 {
 	base64(dst, src.data(), src.size());
 }
 
-void base64(std::string& dst, const byte* src, size_t src_size)
+static void base64(std::string& dst, const byte* src, size_t src_size)
 {
 	base64(dst, (const char*)src, src_size);
 }
 
-void base64_rev(std::string& dst, const char* data, size_t size)
+static void base64_rev(std::string& dst, const char* data, size_t size)
 {
 	const uint8_t base64_rev_map[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //00-15
@@ -105,7 +105,7 @@ void base64_rev(std::string& dst, const char* data, size_t size)
 	}
 }
 
-void make_http_header(std::string& dst, const http_header_tp& src)
+static void make_http_header(std::string& dst, const http_header_tp& src)
 {
 	for (const auto& p : src)
 	{
@@ -117,7 +117,7 @@ void make_http_header(std::string& dst, const http_header_tp& src)
 	}
 }
 
-bool parse_http_request(http_header_tp& dst, const std::string& data)
+static bool parse_http_request(http_header_tp& dst, const std::string& data)
 {
 	size_t pos = data.find(' ');
 	if (pos == std::string::npos)
@@ -132,7 +132,7 @@ bool parse_http_request(http_header_tp& dst, const std::string& data)
 	return true;
 }
 
-bool parse_http_status(http_header_tp& dst, const std::string& data)
+static bool parse_http_status(http_header_tp& dst, const std::string& data)
 {
 	constexpr char str[] = "HTTP/1.1";
 	constexpr size_t str_size = sizeof(str) - 1;
@@ -143,7 +143,7 @@ bool parse_http_status(http_header_tp& dst, const std::string& data)
 	return true;
 }
 
-bool parse_http_header(http_header_tp& dst, size_t& size_read, const std::string& src)
+static bool parse_http_header(http_header_tp& dst, size_t& size_read, const std::string& src)
 {
 	size_read = 0;
 	std::string::const_iterator itr = src.cbegin(), itr_end = src.cend();
@@ -195,7 +195,7 @@ bool parse_http_header(http_header_tp& dst, size_t& size_read, const std::string
 	return false;
 }
 
-void gen_websocket_accept(std::string& dst, const std::string& src_b64)
+static void gen_websocket_accept(std::string& dst, const std::string& src_b64)
 {
 	static constexpr char uuid[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 	constexpr size_t uuid_size = sizeof(uuid) - 1;
@@ -209,7 +209,7 @@ void gen_websocket_accept(std::string& dst, const std::string& src_b64)
 	base64(dst, result, 20);
 }
 
-void gen_websocket_accept(std::string& dst, const byte* src, size_t size)
+static void gen_websocket_accept(std::string& dst, const byte* src, size_t size)
 {
 	std::string src_b64;
 	base64(src_b64, src, size);

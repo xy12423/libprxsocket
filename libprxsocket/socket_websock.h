@@ -94,31 +94,6 @@ private:
 	std::mutex enc_mutex, dec_mutex;
 };
 
-/*
-class websock_udp_socket :public prx_udp_socket_base
-{
-public:
-	websock_udp_socket() {}
-	virtual ~websock_udp_socket() {}
-
-	virtual bool is_open() override;
-
-	virtual error_code open() override;
-	virtual void async_open(null_callback&& complete_handler) override;
-
-	virtual error_code bind(const endpoint& endpoint) override;
-	virtual void async_bind(const endpoint& endpoint, null_callback&& complete_handler) override;
-
-	virtual error_code send_to(const endpoint& endpoint, const const_buffer& buffer) override;
-	virtual void async_send_to(const endpoint& endpoint, const const_buffer& buffer, null_callback&& complete_handler) override;
-	virtual error_code recv_from(endpoint& endpoint, const mutable_buffer& buffer, size_t& transferred) override;
-	virtual void async_recv_from(endpoint& endpoint, const mutable_buffer& buffer, transfer_callback&& complete_handler) override;
-
-	virtual error_code close() override;
-	virtual void async_close(null_callback&& complete_handler) override;
-};
-*/
-
 class websock_listener :public prx_listener_base
 {
 private:

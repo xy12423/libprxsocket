@@ -13,7 +13,7 @@ namespace asio = boost::asio;
 class raw_tcp_socket :public prx_tcp_socket_base
 {
 public:
-	raw_tcp_socket(asio::io_context &iosrv) :socket(iosrv), resolver(iosrv) { set_keep_alive(); }
+	raw_tcp_socket(asio::io_context &iosrv) :socket(iosrv), resolver(iosrv) {}
 	raw_tcp_socket(asio::ip::tcp::socket &&native_socket) :socket(std::move(native_socket)), resolver(socket.get_executor().context()) { set_keep_alive(); }
 	virtual ~raw_tcp_socket() {}
 
@@ -46,7 +46,7 @@ private:
 	void connect_addr_str(const std::string &addr, port_type port, error_code &err);
 	void async_connect_addr_str(const std::string &addr, port_type port, const std::shared_ptr<null_callback> &callback);
 
-	boost::system::error_code ec;
+	thread_local static boost::system::error_code ec;
 	asio::ip::tcp::socket socket;
 	asio::ip::tcp::resolver resolver;
 
@@ -80,7 +80,7 @@ private:
 	error_code to_udp_ep(const endpoint &ep, asio::ip::udp::endpoint &result);
 	void async_to_udp_ep(const endpoint &ep, std::function<void(error_code, const asio::ip::udp::endpoint &)> &&complete_handler);
 
-	boost::system::error_code ec;
+	thread_local static boost::system::error_code ec;
 	asio::ip::udp::socket socket;
 	asio::ip::udp::endpoint recv_ep;
 	asio::ip::udp::resolver resolver;
@@ -112,7 +112,7 @@ public:
 	virtual void close(error_code &err) override;
 	virtual void async_close(null_callback &&complete_handler) override;
 private:
-	boost::system::error_code ec;
+	thread_local static boost::system::error_code ec;
 	asio::io_context &iosrv;
 	asio::ip::tcp::acceptor acceptor;
 

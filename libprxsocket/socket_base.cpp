@@ -2,7 +2,7 @@
 #include "socket_base.h"
 
 #ifndef _LIBPRXSOCKET_STRICT
-inline void check_ec(const error_code &ec)
+static inline void check_ec(const error_code &ec)
 {
 	if (ec)
 		throw(socket_exception(ec));
@@ -88,7 +88,7 @@ void read(prx_tcp_socket_base &socket, const mutable_buffer &buffer)
 	check_ec(ec);
 }
 
-void do_async_read(prx_tcp_socket_base &socket, const mutable_buffer &buffer, const std::shared_ptr<null_callback> &callback)
+static void do_async_read(prx_tcp_socket_base &socket, const mutable_buffer &buffer, const std::shared_ptr<null_callback> &callback)
 {
 	socket.async_recv(buffer, [&socket, buffer, callback](error_code err, size_t transferred) {
 		if (err)
@@ -135,7 +135,7 @@ void write(prx_tcp_socket_base &socket, const const_buffer &buffer)
 	check_ec(ec);
 }
 
-void do_async_write(prx_tcp_socket_base &socket, const const_buffer &buffer, const std::shared_ptr<null_callback> &callback)
+static void do_async_write(prx_tcp_socket_base &socket, const const_buffer &buffer, const std::shared_ptr<null_callback> &callback)
 {
 	socket.async_send(buffer, [&socket, buffer, callback](error_code err, size_t transferred) {
 		if (err)

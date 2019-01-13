@@ -16,7 +16,7 @@ public:
 	socks5_tcp_socket(const endpoint& _server_ep, std::unique_ptr<prx_tcp_socket_base>&& arg1, const std::string& arg2)
 		:socks5_base(std::move(arg1), arg2), server_ep(_server_ep)
 	{}
-	virtual ~socks5_tcp_socket() { if (state >= STATE_OPEN) { error_code ec; socks5_base::close(ec); } }
+	virtual ~socks5_tcp_socket() {}
 
 	virtual bool is_open() override { return state >= STATE_OPEN; }
 	virtual bool is_connected() override { return state >= STATE_CONNECTED; }
@@ -60,7 +60,7 @@ public:
 		:socks5_base(std::move(arg1), "\x80", 1), server_ep(_server_ep), udp_recv_buf(std::make_unique<char[]>(udp_buf_size))
 	{
 	}
-	virtual ~socks5_udp_socket() { error_code ec; if (udp_socket) udp_socket->close(ec); if (state > STATE_INIT) socks5_base::close(ec); }
+	virtual ~socks5_udp_socket() {}
 
 	virtual bool is_open() override { return state >= STATE_ASSOCIATED; }
 

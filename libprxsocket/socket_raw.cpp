@@ -1,7 +1,11 @@
 #include "stdafx.h"
 #include "socket_raw.h"
 
-void raw_ep_to_ep(const asio::ip::tcp::endpoint& raw_ep, endpoint& ep)
+thread_local boost::system::error_code raw_tcp_socket::ec;
+thread_local boost::system::error_code raw_udp_socket::ec;
+thread_local boost::system::error_code raw_listener::ec;
+
+static void raw_ep_to_ep(const asio::ip::tcp::endpoint& raw_ep, endpoint& ep)
 {
 	asio::ip::address raw_addr = raw_ep.address();
 	if (raw_addr.is_v4())
@@ -18,7 +22,7 @@ void raw_ep_to_ep(const asio::ip::tcp::endpoint& raw_ep, endpoint& ep)
 	}
 }
 
-void raw_ep_to_ep(const asio::ip::udp::endpoint& raw_ep, endpoint& ep)
+static void raw_ep_to_ep(const asio::ip::udp::endpoint& raw_ep, endpoint& ep)
 {
 	asio::ip::address raw_addr = raw_ep.address();
 	if (raw_addr.is_v4())
@@ -38,7 +42,9 @@ void raw_ep_to_ep(const asio::ip::udp::endpoint& raw_ep, endpoint& ep)
 void raw_tcp_socket::set_keep_alive()
 {
 	asio::ip::tcp::socket::keep_alive option(true);
-	socket.set_option(option);
+	socket.set_option(option, ec);
+	if (ec)
+		return;
 
 	// the timeout value
 	constexpr size_t timeout_milli = 120000;
@@ -90,6 +96,7 @@ void raw_tcp_socket::open(error_code &err)
 		err = (is_open() && !is_connected() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
 		return;
 	}
+	set_keep_alive();
 	binded = false;
 	connected = false;
 }
@@ -117,6 +124,7 @@ void raw_tcp_socket::bind(const endpoint &ep, error_code &err)
 		{
 			socket.close(ec);
 			socket.open(asio::ip::tcp::v4(), ec);
+			set_keep_alive();
 			native_addr = asio::ip::address_v4(addr.v4().to_ulong());
 			break;
 		}
@@ -124,6 +132,7 @@ void raw_tcp_socket::bind(const endpoint &ep, error_code &err)
 		{
 			socket.close(ec);
 			socket.open(asio::ip::tcp::v6(), ec);
+			set_keep_alive();
 			std::array<uint8_t, address_v6::addr_size> addr_byte;
 			memmove(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
 			native_addr = asio::ip::address_v6(addr_byte);
@@ -155,17 +164,20 @@ void raw_tcp_socket::check_protocol(const asio::ip::tcp::endpoint::protocol_type
 		if (!socket.is_open())
 		{
 			socket.open(protocol, ec);
+			set_keep_alive();
 		}
 		else if (socket.local_endpoint().protocol() != protocol)
 		{
 			socket.close(ec);
 			socket.open(protocol, ec);
+			set_keep_alive();
 		}
 	}
 	catch (std::exception &)
 	{
 		socket.close(ec);
 		socket.open(protocol, ec);
+		set_keep_alive();
 	}
 }
 
@@ -564,9 +576,9 @@ void raw_udp_socket::async_send_to(const endpoint& ep, const const_buffer& buffe
 			return;
 		}
 		socket.async_send_to(asio::buffer(buffer.get_data(), buffer.get_size()),native_ep,
-			[this, callback](const boost::system::error_code& ec, size_t)
+			[this, callback](const boost::system::error_code& e, size_t)
 		{
-			if (ec)
+			if (e)
 				(*callback)(socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
 			else
 				(*callback)(0);
@@ -591,9 +603,9 @@ void raw_udp_socket::async_recv_from(endpoint& ep, const mutable_buffer& buffer,
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 	socket.async_receive_from(asio::buffer(buffer.access_data(), buffer.get_size()), recv_ep,
-		[this, &ep, callback](const boost::system::error_code& ec, size_t recved)
+		[this, &ep, callback](const boost::system::error_code& e, size_t recved)
 	{
-		if (ec)
+		if (e)
 		{
 			(*callback)((socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE), recved);
 			return;
@@ -668,9 +680,9 @@ void raw_udp_socket::async_to_udp_ep(const endpoint& ep, std::function<void(erro
 		{
 			auto callback = std::make_shared<std::function<void(error_code, const asio::ip::udp::endpoint&)>>(std::move(complete_handler));
 			resolver.async_resolve(asio::ip::udp::resolver::query(addr.str().data(), std::to_string(ep.get_port())),
-				[this, callback](const boost::system::error_code& ec, asio::ip::udp::resolver::iterator itr)
+				[this, callback](const boost::system::error_code& e, asio::ip::udp::resolver::iterator itr)
 			{
-				if (ec)
+				if (e)
 					(*callback)(ERR_UNRESOLVED_HOST, asio::ip::udp::endpoint());
 				else
 					(*callback)(0, *itr);
@@ -794,9 +806,9 @@ void raw_listener::async_accept(accept_callback &&complete_handler)
 {
 	auto socket = std::make_shared<asio::ip::tcp::socket>(iosrv);
 	auto callback = std::make_shared<accept_callback>(std::move(complete_handler));
-	acceptor.async_accept(*socket, [this, socket, callback](const boost::system::error_code& ec)
+	acceptor.async_accept(*socket, [this, socket, callback](const boost::system::error_code& e)
 	{
-		if (ec)
+		if (e)
 			(*callback)(ERR_OPERATION_FAILURE, nullptr);
 		else
 			(*callback)(0, new raw_tcp_socket(std::move(*socket)));
