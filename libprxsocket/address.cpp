@@ -108,7 +108,7 @@ void address::to_socks5(std::string &ret) const
 		case STR:
 		{
 			const std::string &addr = m_str.data();
-			assert(addr.size() < std::numeric_limits<unsigned char>::max());
+			assert(addr.size() < 0x100);
 			uint8_t size = (uint8_t)std::min(addr.size(), (size_t)std::numeric_limits<uint8_t>::max());
 			ret.push_back(size);
 			ret.append(addr, 0, size);

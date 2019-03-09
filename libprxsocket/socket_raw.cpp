@@ -416,6 +416,7 @@ void raw_tcp_socket::async_close(null_callback&& complete_handler)
 
 void raw_udp_socket::local_endpoint(endpoint& ep, error_code &err)
 {
+	err = 0;
 	try
 	{
 		asio::ip::udp::endpoint raw_ep = socket.local_endpoint();
@@ -449,25 +450,9 @@ void raw_udp_socket::open(error_code &err)
 
 void raw_udp_socket::async_open(null_callback &&complete_handler)
 {
-	if (is_open())
-	{
-		complete_handler(WARN_ALREADY_IN_STATE);
-		return;
-	}
-	socket.open(asio::ip::udp::v4(), ec);
-	if (ec)
-	{
-		complete_handler(ERR_OPERATION_FAILURE);
-		return;
-	}
-	socket.bind(asio::ip::udp::endpoint(asio::ip::udp::v4(), 0), ec);
-	if (ec)
-	{
-		socket.close(ec);
-		complete_handler(ERR_OPERATION_FAILURE);
-		return;
-	}
-	complete_handler(0);
+	error_code err;
+	open(err);
+	complete_handler(err);
 }
 
 void raw_udp_socket::bind(const endpoint &ep, error_code &err)
@@ -513,41 +498,9 @@ void raw_udp_socket::bind(const endpoint &ep, error_code &err)
 
 void raw_udp_socket::async_bind(const endpoint& ep, null_callback&& complete_handler)
 {
-	if (is_open())
-	{
-		complete_handler(ERR_ALREADY_IN_STATE);
-		return;
-	}
-	const address &addr = ep.get_addr();
-	asio::ip::address native_addr;
-	switch (addr.get_type())
-	{
-		case address::V4:
-		{
-			socket.open(asio::ip::udp::v4(), ec);
-			native_addr = asio::ip::address_v4(addr.v4().to_ulong());
-			break;
-		}
-		case address::V6:
-		{
-			socket.open(asio::ip::udp::v4(), ec);
-			std::array<uint8_t, address_v6::addr_size> addr_byte;
-			memmove(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
-			native_addr = asio::ip::address_v6(addr_byte);
-			break;
-		}
-		default:
-			complete_handler(ERR_UNSUPPORTED);
-			return;
-	}
-	socket.bind(asio::ip::udp::endpoint(native_addr, ep.get_port()), ec);
-	if (ec)
-	{
-		socket.close(ec);
-		complete_handler(ERR_OPERATION_FAILURE);
-		return;
-	}
-	complete_handler(0);
+	error_code err;
+	bind(ep, err);
+	complete_handler(err);
 }
 
 void raw_udp_socket::send_to(const endpoint& ep, const const_buffer& buffer, error_code &err)
