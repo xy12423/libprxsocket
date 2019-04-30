@@ -14,7 +14,7 @@ class raw_tcp_socket :public prx_tcp_socket_base
 {
 public:
 	raw_tcp_socket(asio::io_context &iosrv) :socket(iosrv), resolver(iosrv) {}
-	raw_tcp_socket(asio::ip::tcp::socket &&native_socket) :socket(std::move(native_socket)), resolver(socket.get_executor().context()) { set_keep_alive(); }
+	raw_tcp_socket(asio::ip::tcp::socket &&native_socket) :socket(std::move(native_socket)), resolver(socket.get_executor()) { set_keep_alive(); }
 	virtual ~raw_tcp_socket() {}
 
 	virtual bool is_open() override { return socket.is_open(); }
