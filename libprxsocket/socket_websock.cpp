@@ -9,15 +9,14 @@ static void ltrim(std::string& str)
 {
 	std::string::iterator itr = str.begin(), itr_end = str.end();
 	for (; itr != itr_end; ++itr)
-		if (!isspace(*itr))
+		if (!isspace((unsigned char)*itr))
 			break;
-	if (itr != itr_end)
-		str.erase(str.begin(), itr);
+	str.erase(str.begin(), itr);
 }
 
 static void rtrim(std::string& str)
 {
-	while (!str.empty() && isspace(str.back()))
+	while (!str.empty() && isspace((unsigned char)str.back()))
 		str.pop_back();
 }
 

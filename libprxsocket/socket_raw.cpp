@@ -751,7 +751,7 @@ void raw_listener::accept(prx_tcp_socket_base *&new_socket, error_code &err)
 	else
 	{
 		err = 0;
-		new_socket = new raw_tcp_socket(std::move(socket));
+		new_socket = new raw_tcp_socket(std::move(socket), true);
 	}
 }
 
@@ -764,7 +764,7 @@ void raw_listener::async_accept(accept_callback &&complete_handler)
 		if (e)
 			(*callback)(ERR_OPERATION_FAILURE, nullptr);
 		else
-			(*callback)(0, new raw_tcp_socket(std::move(*socket)));
+			(*callback)(0, new raw_tcp_socket(std::move(*socket), true));
 	});
 }
 

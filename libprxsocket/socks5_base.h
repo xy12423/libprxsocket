@@ -51,7 +51,7 @@ public:
 	error_code recv_s5(uint8_t& resp, endpoint& result);
 	void async_recv_s5(socksreq_callback&& complete_handler);
 
-	static error_code parse_udp(const char* recv, size_t recv_size, endpoint& ep, const char*& buffer, size_t& buffer_size);
+	static error_code parse_udp(const char* recv, size_t recv_size, endpoint& ep, const char*& data_start_at, size_t& data_size);
 	
 	prx_tcp_socket_base& access_socket() { return *socket; }
 
