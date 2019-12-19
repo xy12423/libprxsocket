@@ -739,7 +739,7 @@ void raw_listener::async_listen(null_callback&& complete_handler)
 	complete_handler(err);
 }
 
-void raw_listener::accept(prx_tcp_socket_base *&new_socket, error_code &err)
+void raw_listener::accept(std::unique_ptr<prx_tcp_socket_base> &new_socket, error_code &err)
 {
 	asio::ip::tcp::socket socket(iosrv);
 	acceptor.accept(socket, ec);
@@ -751,7 +751,7 @@ void raw_listener::accept(prx_tcp_socket_base *&new_socket, error_code &err)
 	else
 	{
 		err = 0;
-		new_socket = new raw_tcp_socket(std::move(socket), true);
+		new_socket = std::make_unique<raw_tcp_socket>(std::move(socket), true);
 	}
 }
 
@@ -764,7 +764,7 @@ void raw_listener::async_accept(accept_callback &&complete_handler)
 		if (e)
 			(*callback)(ERR_OPERATION_FAILURE, nullptr);
 		else
-			(*callback)(0, new raw_tcp_socket(std::move(*socket), true));
+			(*callback)(0, std::make_unique<raw_tcp_socket>(std::move(*socket), true));
 	});
 }
 

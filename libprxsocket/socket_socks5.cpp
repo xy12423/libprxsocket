@@ -670,7 +670,7 @@ error_code socks5_udp_socket::parse_udp(size_t udp_recv_size, endpoint& ep, cons
 void socks5_listener::open(error_code &err)
 {
 	if (!cur_socket)
-		cur_socket = std::make_unique<socks5_tcp_socket>(server_ep, std::unique_ptr<prx_tcp_socket_base>(gen_socket()), methods);
+		cur_socket = std::make_unique<socks5_tcp_socket>(server_ep, gen_socket(), methods);
 	cur_socket->open(err);
 	if (!err)
 		listening = false;
@@ -679,7 +679,7 @@ void socks5_listener::open(error_code &err)
 void socks5_listener::async_open(null_callback&& complete_handler)
 {
 	if (!cur_socket)
-		cur_socket = std::make_unique<socks5_tcp_socket>(server_ep, std::unique_ptr<prx_tcp_socket_base>(gen_socket()), methods);
+		cur_socket = std::make_unique<socks5_tcp_socket>(server_ep, gen_socket(), methods);
 	auto callback = std::make_shared<null_callback>(std::move(complete_handler));
 	cur_socket->async_open([this, callback](error_code err)
 	{
@@ -790,7 +790,7 @@ void socks5_listener::async_listen(null_callback&& complete_handler)
 	});
 }
 
-void socks5_listener::accept(prx_tcp_socket_base *&socket, error_code &err)
+void socks5_listener::accept(std::unique_ptr<prx_tcp_socket_base> &socket, error_code &err)
 {
 	socket = nullptr;
 	err = ERR_OPERATION_FAILURE;
@@ -822,7 +822,7 @@ void socks5_listener::accept(prx_tcp_socket_base *&socket, error_code &err)
 	if (is_open())
 		listen(ec);
 
-	socket = ret.release();
+	socket = std::move(ret);
 	err = 0;
 }
 
@@ -858,12 +858,12 @@ void socks5_listener::async_accept(accept_callback&& complete_handler)
 		{
 			if (!is_open())
 			{
-				(*callback)(0, ret->release());
+				(*callback)(0, std::move(*ret));
 				return;
 			}
 			async_listen([ret, callback](error_code)
 			{
-				(*callback)(0, ret->release());
+				(*callback)(0, std::move(*ret));
 			});
 		});
 	});

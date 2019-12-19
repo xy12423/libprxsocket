@@ -729,14 +729,13 @@ void websock_tcp_socket::async_recv(const mutable_buffer& buffer, transfer_callb
 	complete_handler(0, transferred);
 }
 
-void websock_listener::accept(prx_tcp_socket_base *&soc, error_code &ec)
+void websock_listener::accept(std::unique_ptr<prx_tcp_socket_base> &soc, error_code &ec)
 {
 	soc = nullptr;
 	ec = ERR_OPERATION_FAILURE;
 
-	prx_tcp_socket_base *soc_;
-	acceptor->accept(soc_, ec);
-	std::unique_ptr<prx_tcp_socket_base> socket(soc_);
+	std::unique_ptr<prx_tcp_socket_base> socket;
+	acceptor->accept(socket, ec);
 	if (ec)
 		return;
 
@@ -788,7 +787,7 @@ void websock_listener::accept(prx_tcp_socket_base *&soc, error_code &ec)
 		return;
 	}
 
-	soc = new websock_tcp_socket(std::move(socket), key, iv);
+	soc = std::make_unique<websock_tcp_socket>(std::move(socket), key, iv);
 }
 
 void websock_listener::async_accept(accept_callback&& complete_handler)
@@ -800,9 +799,8 @@ void websock_listener::async_accept(accept_callback&& complete_handler)
 	}
 	//TODO: support queue
 	std::shared_ptr<accept_callback> callback = std::make_shared<accept_callback>(std::move(complete_handler));
-	acceptor->async_accept([this, callback](error_code err, prx_tcp_socket_base* _socket)
+	acceptor->async_accept([this, callback](error_code err, std::unique_ptr<prx_tcp_socket_base> &&socket)
 	{
-		std::unique_ptr<prx_tcp_socket_base> socket(_socket);
 		if (err)
 		{
 			(*callback)(err, nullptr);
@@ -899,6 +897,6 @@ void websock_listener::send_websocket_resp(const std::shared_ptr<accept_callback
 			return;
 		}
 
-		(*callback)(0, new websock_tcp_socket(std::move(socket_accept), key, iv));
+		(*callback)(0, std::make_unique<websock_tcp_socket>(std::move(socket_accept), key, iv));
 	});
 }

@@ -106,7 +106,7 @@ public:
 	virtual void listen(error_code &err) override;
 	virtual void async_listen(null_callback &&complete_handler) override;
 
-	virtual void accept(prx_tcp_socket_base *&socket, error_code &err) override;
+	virtual void accept(std::unique_ptr<prx_tcp_socket_base> &socket, error_code &err) override;
 	virtual void async_accept(accept_callback &&complete_handler) override;
 
 	virtual void close(error_code &err) override;

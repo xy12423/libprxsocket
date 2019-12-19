@@ -98,7 +98,7 @@ private:
 class socks5_listener :public prx_listener_base
 {
 public:
-	socks5_listener(const endpoint& _server_ep, std::function<prx_tcp_socket_base*()>&& _gen_socket)
+	socks5_listener(const endpoint& _server_ep, std::function<std::unique_ptr<prx_tcp_socket_base>()>&& _gen_socket)
 		:server_ep(_server_ep), local_ep(0ul, 0), methods("\x80\x00", 2), gen_socket(std::move(_gen_socket))
 	{}
 	virtual ~socks5_listener() {}
@@ -117,7 +117,7 @@ public:
 	virtual void listen(error_code &ec) override;
 	virtual void async_listen(null_callback&& complete_handler) override;
 
-	virtual void accept(prx_tcp_socket_base *&socket, error_code &err) override;
+	virtual void accept(std::unique_ptr<prx_tcp_socket_base> &socket, error_code &err) override;
 	virtual void async_accept(accept_callback&& complete_handler) override;
 
 	virtual void close(error_code &err) override;
@@ -128,7 +128,7 @@ private:
 	endpoint server_ep, local_ep;
 	std::string methods;
 
-	std::function<prx_tcp_socket_base*()> gen_socket;
+	std::function<std::unique_ptr<prx_tcp_socket_base>()> gen_socket;
 	std::unique_ptr<socks5_tcp_socket> cur_socket;
 
 	bool listening = false;

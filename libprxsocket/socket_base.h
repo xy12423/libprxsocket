@@ -123,7 +123,7 @@ public:
 class prx_listener_base
 {
 public:
-	typedef std::function<void(error_code, prx_tcp_socket_base*)> accept_callback;
+	typedef std::function<void(error_code, std::unique_ptr<prx_tcp_socket_base> &&)> accept_callback;
 
 	prx_listener_base() = default;
 	prx_listener_base(const prx_listener_base &) = delete;
@@ -144,7 +144,7 @@ public:
 	virtual void listen(error_code &ec) = 0;
 	virtual void async_listen(null_callback &&complete_handler) = 0;
 
-	virtual void accept(prx_tcp_socket_base *&socket, error_code &ec) = 0;
+	virtual void accept(std::unique_ptr<prx_tcp_socket_base> &socket, error_code &ec) = 0;
 	virtual void async_accept(accept_callback &&complete_handler) = 0;
 
 	virtual void close(error_code &ec) = 0;
@@ -155,7 +155,7 @@ public:
 	void open();
 	void bind(const endpoint &endpoint);
 	void listen();
-	void accept(prx_tcp_socket_base *&socket);
+	void accept(std::unique_ptr<prx_tcp_socket_base> &socket);
 	void close();
 #endif
 };

@@ -120,7 +120,7 @@ public:
 	virtual void listen(error_code &ec) override { return acceptor->listen(ec); }
 	virtual void async_listen(null_callback&& complete_handler) override { acceptor->async_listen(std::move(complete_handler)); }
 
-	virtual void accept(prx_tcp_socket_base *&socket, error_code &ec) override;
+	virtual void accept(std::unique_ptr<prx_tcp_socket_base> &socket, error_code &ec) override;
 	virtual void async_accept(accept_callback&& complete_handler) override;
 
 	virtual void close(error_code &ec) override { return acceptor->close(ec); }

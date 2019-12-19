@@ -227,7 +227,7 @@ void prx_listener_base::listen()
 	check_ec(ec);
 }
 
-void prx_listener_base::accept(prx_tcp_socket_base *&socket)
+void prx_listener_base::accept(std::unique_ptr<prx_tcp_socket_base> &socket)
 {
 	error_code ec;
 	accept(socket, ec);
