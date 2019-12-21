@@ -23,7 +23,7 @@ class mutable_buffer :public const_buffer
 public:
 	mutable_buffer(char *_data, size_t _size) :const_buffer(_data, _size) {}
 
-	char* access_data() const { return const_cast<char*>(data); }
+	char *access_data() const { return const_cast<char*>(data); }
 };
 
 #endif

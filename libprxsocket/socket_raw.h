@@ -10,7 +10,7 @@
 namespace asio = boost::asio;
 #endif
 
-class raw_tcp_socket :public prx_tcp_socket_base
+class raw_tcp_socket :public prx_tcp_socket
 {
 public:
 	raw_tcp_socket(asio::io_context &iosrv) :socket(iosrv), resolver(iosrv) {}
@@ -53,7 +53,7 @@ private:
 	bool binded = false, connected = false;
 };
 
-class raw_udp_socket :public prx_udp_socket_base
+class raw_udp_socket :public prx_udp_socket
 {
 public:
 	raw_udp_socket(asio::io_context &iosrv) :socket(iosrv), resolver(iosrv) {}
@@ -86,7 +86,7 @@ private:
 	asio::ip::udp::resolver resolver;
 };
 
-class raw_listener :public prx_listener_base
+class raw_listener :public prx_listener
 {
 public:
 	raw_listener(asio::io_context &_iosrv) :iosrv(_iosrv), acceptor(iosrv) {}
@@ -106,7 +106,7 @@ public:
 	virtual void listen(error_code &err) override;
 	virtual void async_listen(null_callback &&complete_handler) override;
 
-	virtual void accept(std::unique_ptr<prx_tcp_socket_base> &socket, error_code &err) override;
+	virtual void accept(std::unique_ptr<prx_tcp_socket> &socket, error_code &err) override;
 	virtual void async_accept(accept_callback &&complete_handler) override;
 
 	virtual void close(error_code &err) override;

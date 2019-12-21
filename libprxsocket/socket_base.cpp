@@ -8,63 +8,63 @@ static inline void check_ec(const error_code &ec)
 		throw(socket_exception(ec));
 }
 
-void prx_tcp_socket_base::local_endpoint(endpoint &ep)
+void prx_tcp_socket::local_endpoint(endpoint &ep)
 {
 	error_code ec;
 	local_endpoint(ep, ec);
 	check_ec(ec);
 }
 
-void prx_tcp_socket_base::remote_endpoint(endpoint &ep)
+void prx_tcp_socket::remote_endpoint(endpoint &ep)
 {
 	error_code ec;
 	remote_endpoint(ep, ec);
 	check_ec(ec);
 }
 
-void prx_tcp_socket_base::open()
+void prx_tcp_socket::open()
 {
 	error_code ec;
 	open(ec);
 	check_ec(ec);
 }
 
-void prx_tcp_socket_base::bind(const endpoint &ep)
+void prx_tcp_socket::bind(const endpoint &ep)
 {
 	error_code ec;
 	bind(ep, ec);
 	check_ec(ec);
 }
 
-void prx_tcp_socket_base::connect(const endpoint &ep)
+void prx_tcp_socket::connect(const endpoint &ep)
 {
 	error_code ec;
 	connect(ep, ec);
 	check_ec(ec);
 }
 
-void prx_tcp_socket_base::send(const const_buffer &buffer, size_t &transferred)
+void prx_tcp_socket::send(const const_buffer &buffer, size_t &transferred)
 {
 	error_code ec;
 	send(buffer, transferred, ec);
 	check_ec(ec);
 }
 
-void prx_tcp_socket_base::recv(const mutable_buffer &buffer, size_t &transferred)
+void prx_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred)
 {
 	error_code ec;
 	recv(buffer, transferred, ec);
 	check_ec(ec);
 }
 
-void prx_tcp_socket_base::close()
+void prx_tcp_socket::close()
 {
 	error_code ec;
 	close(ec);
 	check_ec(ec);
 }
 
-void read(prx_tcp_socket_base &socket, const mutable_buffer &buffer, error_code &ec)
+void read(prx_tcp_socket &socket, const mutable_buffer &buffer, error_code &ec)
 {
 	char *data = buffer.access_data();
 	size_t size = buffer.get_size();
@@ -81,14 +81,14 @@ void read(prx_tcp_socket_base &socket, const mutable_buffer &buffer, error_code 
 	}
 }
 
-void read(prx_tcp_socket_base &socket, const mutable_buffer &buffer)
+void read(prx_tcp_socket &socket, const mutable_buffer &buffer)
 {
 	error_code ec;
 	read(socket, buffer, ec);
 	check_ec(ec);
 }
 
-static void do_async_read(prx_tcp_socket_base &socket, const mutable_buffer &buffer, const std::shared_ptr<null_callback> &callback)
+static void do_async_read(prx_tcp_socket &socket, const mutable_buffer &buffer, const std::shared_ptr<null_callback> &callback)
 {
 	socket.async_recv(buffer, [&socket, buffer, callback](error_code err, size_t transferred) {
 		if (err)
@@ -105,12 +105,12 @@ static void do_async_read(prx_tcp_socket_base &socket, const mutable_buffer &buf
 	});
 }
 
-void async_read(prx_tcp_socket_base &socket, const mutable_buffer &buffer, null_callback &&complete_handler)
+void async_read(prx_tcp_socket &socket, const mutable_buffer &buffer, null_callback &&complete_handler)
 {
 	do_async_read(socket, buffer, std::make_shared<null_callback>(std::move(complete_handler)));
 }
 
-void write(prx_tcp_socket_base &socket, const const_buffer &buffer, error_code &ec)
+void write(prx_tcp_socket &socket, const const_buffer &buffer, error_code &ec)
 {
 	const char *data = buffer.get_data();
 	size_t size = buffer.get_size();
@@ -128,14 +128,14 @@ void write(prx_tcp_socket_base &socket, const const_buffer &buffer, error_code &
 	return;
 }
 
-void write(prx_tcp_socket_base &socket, const const_buffer &buffer)
+void write(prx_tcp_socket &socket, const const_buffer &buffer)
 {
 	error_code ec;
 	write(socket, buffer, ec);
 	check_ec(ec);
 }
 
-static void do_async_write(prx_tcp_socket_base &socket, const const_buffer &buffer, const std::shared_ptr<null_callback> &callback)
+static void do_async_write(prx_tcp_socket &socket, const const_buffer &buffer, const std::shared_ptr<null_callback> &callback)
 {
 	socket.async_send(buffer, [&socket, buffer, callback](error_code err, size_t transferred) {
 		if (err)
@@ -152,89 +152,89 @@ static void do_async_write(prx_tcp_socket_base &socket, const const_buffer &buff
 	});
 }
 
-void async_write(prx_tcp_socket_base &socket, const const_buffer &buffer, null_callback &&complete_handler)
+void async_write(prx_tcp_socket &socket, const const_buffer &buffer, null_callback &&complete_handler)
 {
 	do_async_write(socket, buffer, std::make_shared<null_callback>(std::move(complete_handler)));
 }
 
-void prx_udp_socket_base::local_endpoint(endpoint &ep)
+void prx_udp_socket::local_endpoint(endpoint &ep)
 {
 	error_code ec;
 	local_endpoint(ep, ec);
 	check_ec(ec);
 }
 
-void prx_udp_socket_base::open()
+void prx_udp_socket::open()
 {
 	error_code ec;
 	open(ec);
 	check_ec(ec);
 }
 
-void prx_udp_socket_base::bind(const endpoint &ep)
+void prx_udp_socket::bind(const endpoint &ep)
 {
 	error_code ec;
 	bind(ep, ec);
 	check_ec(ec);
 }
 
-void prx_udp_socket_base::send_to(const endpoint &ep, const const_buffer &buffer)
+void prx_udp_socket::send_to(const endpoint &ep, const const_buffer &buffer)
 {
 	error_code ec;
 	send_to(ep, buffer, ec);
 	check_ec(ec);
 }
 
-void prx_udp_socket_base::recv_from(endpoint &ep, const mutable_buffer &buffer, size_t &transferred)
+void prx_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_t &transferred)
 {
 	error_code ec;
 	recv_from(ep, buffer, transferred, ec);
 	check_ec(ec);
 }
 
-void prx_udp_socket_base::close()
+void prx_udp_socket::close()
 {
 	error_code ec;
 	close(ec);
 	check_ec(ec);
 }
 
-void prx_listener_base::local_endpoint(endpoint &ep)
+void prx_listener::local_endpoint(endpoint &ep)
 {
 	error_code ec;
 	local_endpoint(ep, ec);
 	check_ec(ec);
 }
 
-void prx_listener_base::open()
+void prx_listener::open()
 {
 	error_code ec;
 	open(ec);
 	check_ec(ec);
 }
 
-void prx_listener_base::bind(const endpoint &ep)
+void prx_listener::bind(const endpoint &ep)
 {
 	error_code ec;
 	bind(ep, ec);
 	check_ec(ec);
 }
 
-void prx_listener_base::listen()
+void prx_listener::listen()
 {
 	error_code ec;
 	listen(ec);
 	check_ec(ec);
 }
 
-void prx_listener_base::accept(std::unique_ptr<prx_tcp_socket_base> &socket)
+void prx_listener::accept(std::unique_ptr<prx_tcp_socket> &socket)
 {
 	error_code ec;
 	accept(socket, ec);
 	check_ec(ec);
 }
 
-void prx_listener_base::close()
+void prx_listener::close()
 {
 	error_code ec;
 	close(ec);

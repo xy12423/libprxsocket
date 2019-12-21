@@ -29,10 +29,10 @@ private:
 public:
 	address_v4() = default;
 	address_v4(uint32_t host_u32) :m_data(boost::endian::native_to_big(host_u32)) {}
-	address_v4(const char* _data) { memmove(m_data.c8, _data, addr_size); }
+	address_v4(const char *_data) { memmove(m_data.c8, _data, addr_size); }
 
-	const char* data() const { return m_data.c8; }
-	const uint8_t* to_bytes() const { return m_data.u8; }
+	const char *data() const { return m_data.c8; }
+	const uint8_t *to_bytes() const { return m_data.u8; }
 	uint32_t to_ulong() const { return boost::endian::big_to_native(m_data.u32); }
 	
 	bool is_any() const { return m_data.u32 == 0ul; }
@@ -57,11 +57,11 @@ private:
 	} m_data;
 public:
 	address_v6() = default;
-	address_v6(const char* _data) { memmove(m_data.c8, _data, addr_size); }
-	address_v6(uint8_t* _data) { memmove(m_data.u8, _data, addr_size); }
+	address_v6(const char *_data) { memmove(m_data.c8, _data, addr_size); }
+	address_v6(uint8_t *_data) { memmove(m_data.u8, _data, addr_size); }
 
-	const char* data() const { return m_data.c8; }
-	const uint8_t* to_bytes() const { return m_data.u8; }
+	const char *data() const { return m_data.c8; }
+	const uint8_t *to_bytes() const { return m_data.u8; }
 
 	bool is_any() const;
 

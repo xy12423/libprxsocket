@@ -34,13 +34,13 @@ public:
 	socket_exception(const error_code &ec) :std::runtime_error("SOCK ERR " + std::to_string(ec)) {}
 };
 
-class prx_tcp_socket_base
+class prx_tcp_socket
 {
 public:
-	prx_tcp_socket_base() = default;
-	prx_tcp_socket_base(const prx_tcp_socket_base &) = delete;
-	prx_tcp_socket_base(prx_tcp_socket_base &&) = default;
-	virtual ~prx_tcp_socket_base() {}
+	prx_tcp_socket() = default;
+	prx_tcp_socket(const prx_tcp_socket &) = delete;
+	prx_tcp_socket(prx_tcp_socket &&) = default;
+	virtual ~prx_tcp_socket() {}
 
 	virtual bool is_open() = 0;
 	virtual bool is_connected() = 0;
@@ -77,20 +77,20 @@ public:
 #endif
 };
 
-void read(prx_tcp_socket_base &socket, const mutable_buffer &buffer, error_code &ec);
-void read(prx_tcp_socket_base &socket, const mutable_buffer &buffer);
-void async_read(prx_tcp_socket_base &socket, const mutable_buffer &buffer, null_callback &&complete_handler);
-void write(prx_tcp_socket_base &socket, const const_buffer &buffer, error_code &ec);
-void write(prx_tcp_socket_base &socket, const const_buffer &buffer);
-void async_write(prx_tcp_socket_base &socket, const const_buffer &buffer, null_callback &&complete_handler);
+void read(prx_tcp_socket &socket, const mutable_buffer &buffer, error_code &ec);
+void read(prx_tcp_socket &socket, const mutable_buffer &buffer);
+void async_read(prx_tcp_socket &socket, const mutable_buffer &buffer, null_callback &&complete_handler);
+void write(prx_tcp_socket &socket, const const_buffer &buffer, error_code &ec);
+void write(prx_tcp_socket &socket, const const_buffer &buffer);
+void async_write(prx_tcp_socket &socket, const const_buffer &buffer, null_callback &&complete_handler);
 
-class prx_udp_socket_base
+class prx_udp_socket
 {
 public:
-	prx_udp_socket_base() = default;
-	prx_udp_socket_base(const prx_udp_socket_base &) = delete;
-	prx_udp_socket_base(prx_udp_socket_base &&) = default;
-	virtual ~prx_udp_socket_base() {}
+	prx_udp_socket() = default;
+	prx_udp_socket(const prx_udp_socket &) = delete;
+	prx_udp_socket(prx_udp_socket &&) = default;
+	virtual ~prx_udp_socket() {}
 
 	virtual bool is_open() = 0;
 
@@ -120,15 +120,15 @@ public:
 #endif
 };
 
-class prx_listener_base
+class prx_listener
 {
 public:
-	typedef std::function<void(error_code, std::unique_ptr<prx_tcp_socket_base> &&)> accept_callback;
+	typedef std::function<void(error_code, std::unique_ptr<prx_tcp_socket> &&)> accept_callback;
 
-	prx_listener_base() = default;
-	prx_listener_base(const prx_listener_base &) = delete;
-	prx_listener_base(prx_listener_base &&) = default;
-	virtual ~prx_listener_base() {}
+	prx_listener() = default;
+	prx_listener(const prx_listener &) = delete;
+	prx_listener(prx_listener &&) = default;
+	virtual ~prx_listener() {}
 
 	virtual bool is_open() = 0;
 	virtual bool is_listening() = 0;
@@ -144,7 +144,7 @@ public:
 	virtual void listen(error_code &ec) = 0;
 	virtual void async_listen(null_callback &&complete_handler) = 0;
 
-	virtual void accept(std::unique_ptr<prx_tcp_socket_base> &socket, error_code &ec) = 0;
+	virtual void accept(std::unique_ptr<prx_tcp_socket> &socket, error_code &ec) = 0;
 	virtual void async_accept(accept_callback &&complete_handler) = 0;
 
 	virtual void close(error_code &ec) = 0;
@@ -155,7 +155,7 @@ public:
 	void open();
 	void bind(const endpoint &endpoint);
 	void listen();
-	void accept(std::unique_ptr<prx_tcp_socket_base> &socket);
+	void accept(std::unique_ptr<prx_tcp_socket> &socket);
 	void close();
 #endif
 };

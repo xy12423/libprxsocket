@@ -5,7 +5,7 @@ thread_local boost::system::error_code raw_tcp_socket::ec;
 thread_local boost::system::error_code raw_udp_socket::ec;
 thread_local boost::system::error_code raw_listener::ec;
 
-static void raw_ep_to_ep(const asio::ip::tcp::endpoint& raw_ep, endpoint& ep)
+static void raw_ep_to_ep(const asio::ip::tcp::endpoint &raw_ep, endpoint &ep)
 {
 	asio::ip::address raw_addr = raw_ep.address();
 	if (raw_addr.is_v4())
@@ -22,7 +22,7 @@ static void raw_ep_to_ep(const asio::ip::tcp::endpoint& raw_ep, endpoint& ep)
 	}
 }
 
-static void raw_ep_to_ep(const asio::ip::udp::endpoint& raw_ep, endpoint& ep)
+static void raw_ep_to_ep(const asio::ip::udp::endpoint &raw_ep, endpoint &ep)
 {
 	asio::ip::address raw_addr = raw_ep.address();
 	if (raw_addr.is_v4())
@@ -65,7 +65,7 @@ void raw_tcp_socket::set_keep_alive()
 #endif
 }
 
-void raw_tcp_socket::local_endpoint(endpoint& ep, error_code &err)
+void raw_tcp_socket::local_endpoint(endpoint &ep, error_code &err)
 {
 	err = 0;
 	try
@@ -76,7 +76,7 @@ void raw_tcp_socket::local_endpoint(endpoint& ep, error_code &err)
 	catch (std::exception &) { err = ERR_OPERATION_FAILURE; }
 }
 
-void raw_tcp_socket::remote_endpoint(endpoint& ep, error_code &err)
+void raw_tcp_socket::remote_endpoint(endpoint &ep, error_code &err)
 {
 	err = 0;
 	try
@@ -150,14 +150,14 @@ void raw_tcp_socket::bind(const endpoint &ep, error_code &err)
 		err = ERR_OPERATION_FAILURE;
 }
 
-void raw_tcp_socket::async_bind(const endpoint& ep, null_callback&& complete_handler)
+void raw_tcp_socket::async_bind(const endpoint &ep, null_callback &&complete_handler)
 {
 	error_code err;
 	bind(ep, err);
 	complete_handler(err);
 }
 
-void raw_tcp_socket::check_protocol(const asio::ip::tcp::endpoint::protocol_type& protocol)
+void raw_tcp_socket::check_protocol(const asio::ip::tcp::endpoint::protocol_type &protocol)
 {
 	try
 	{
@@ -229,7 +229,7 @@ void raw_tcp_socket::connect(const endpoint &ep, error_code &err)
 	connected = true;
 }
 
-void raw_tcp_socket::connect_addr_str(const std::string& addr, port_type port, error_code &err)
+void raw_tcp_socket::connect_addr_str(const std::string &addr, port_type port, error_code &err)
 {
 	auto itr = resolver.resolve(asio::ip::tcp::resolver::query(addr, std::to_string(port)), ec);
 	if (ec)
@@ -238,7 +238,7 @@ void raw_tcp_socket::connect_addr_str(const std::string& addr, port_type port, e
 		return;
 	}
 	asio::connect(socket, itr,
-		[this](const boost::system::error_code&, asio::ip::tcp::resolver::iterator itr)->asio::ip::tcp::resolver::iterator
+		[this](const boost::system::error_code &, asio::ip::tcp::resolver::iterator itr)->asio::ip::tcp::resolver::iterator
 	{
 		if (!binded)
 			check_protocol(itr->endpoint().protocol());
@@ -252,7 +252,7 @@ void raw_tcp_socket::connect_addr_str(const std::string& addr, port_type port, e
 	connected = true;
 }
 
-void raw_tcp_socket::async_connect(const endpoint& ep, null_callback&& complete_handler)
+void raw_tcp_socket::async_connect(const endpoint &ep, null_callback &&complete_handler)
 {
 	if (is_connected())
 	{
@@ -292,7 +292,7 @@ void raw_tcp_socket::async_connect(const endpoint& ep, null_callback&& complete_
 	}
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 	socket.async_connect(asio::ip::tcp::endpoint(native_addr, ep.get_port()),
-		[this, callback](const boost::system::error_code& e)
+		[this, callback](const boost::system::error_code &e)
 	{
 		if (e)
 		{
@@ -304,10 +304,10 @@ void raw_tcp_socket::async_connect(const endpoint& ep, null_callback&& complete_
 	});
 }
 
-void raw_tcp_socket::async_connect_addr_str(const std::string& addr, port_type port, const std::shared_ptr<null_callback>& callback)
+void raw_tcp_socket::async_connect_addr_str(const std::string &addr, port_type port, const std::shared_ptr<null_callback> &callback)
 {
 	resolver.async_resolve(asio::ip::tcp::resolver::query(addr, std::to_string(port)),
-		[this, callback](const boost::system::error_code& e, asio::ip::tcp::resolver::iterator itr)
+		[this, callback](const boost::system::error_code &e, asio::ip::tcp::resolver::iterator itr)
 	{
 		if (e)
 		{
@@ -321,7 +321,7 @@ void raw_tcp_socket::async_connect_addr_str(const std::string& addr, port_type p
 				check_protocol(itr->endpoint().protocol());
 			return itr;
 		},
-			[this, callback](const boost::system::error_code& e, asio::ip::tcp::resolver::iterator)
+			[this, callback](const boost::system::error_code &e, asio::ip::tcp::resolver::iterator)
 		{
 			if (e)
 			{
@@ -334,7 +334,7 @@ void raw_tcp_socket::async_connect_addr_str(const std::string& addr, port_type p
 	});
 }
 
-void raw_tcp_socket::send(const const_buffer& buffer, size_t& transferred, error_code &err)
+void raw_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	transferred = socket.send(asio::buffer(buffer.get_data(), buffer.get_size()), 0, ec);
@@ -346,11 +346,11 @@ void raw_tcp_socket::send(const const_buffer& buffer, size_t& transferred, error
 	}
 }
 
-void raw_tcp_socket::async_send(const const_buffer& buffer, transfer_callback&& complete_handler)
+void raw_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 	socket.async_send(asio::buffer(buffer.get_data(), buffer.get_size()),
-		[this, callback](const boost::system::error_code& e, std::size_t transferred)
+		[this, callback](const boost::system::error_code &e, std::size_t transferred)
 	{
 		if (e)
 		{
@@ -365,7 +365,7 @@ void raw_tcp_socket::async_send(const const_buffer& buffer, transfer_callback&& 
 	});
 }
 
-void raw_tcp_socket::recv(const mutable_buffer& buffer, size_t& transferred, error_code &err)
+void raw_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	transferred = socket.receive(asio::buffer(buffer.access_data(), buffer.get_size()), 0, ec);
@@ -377,11 +377,11 @@ void raw_tcp_socket::recv(const mutable_buffer& buffer, size_t& transferred, err
 	}
 }
 
-void raw_tcp_socket::async_recv(const mutable_buffer& buffer, transfer_callback&& complete_handler)
+void raw_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 	socket.async_receive(asio::buffer(buffer.access_data(), buffer.get_size()),
-		[this, callback](const boost::system::error_code& e, std::size_t transferred)
+		[this, callback](const boost::system::error_code &e, std::size_t transferred)
 	{
 		if (e)
 		{
@@ -405,7 +405,7 @@ void raw_tcp_socket::close(error_code &err)
 	err = 0;
 }
 
-void raw_tcp_socket::async_close(null_callback&& complete_handler)
+void raw_tcp_socket::async_close(null_callback &&complete_handler)
 {
 	socket.shutdown(socket.shutdown_both, ec);
 	socket.close(ec);
@@ -414,7 +414,7 @@ void raw_tcp_socket::async_close(null_callback&& complete_handler)
 	complete_handler(0);
 }
 
-void raw_udp_socket::local_endpoint(endpoint& ep, error_code &err)
+void raw_udp_socket::local_endpoint(endpoint &ep, error_code &err)
 {
 	err = 0;
 	try
@@ -496,14 +496,14 @@ void raw_udp_socket::bind(const endpoint &ep, error_code &err)
 	}
 }
 
-void raw_udp_socket::async_bind(const endpoint& ep, null_callback&& complete_handler)
+void raw_udp_socket::async_bind(const endpoint &ep, null_callback &&complete_handler)
 {
 	error_code err;
 	bind(ep, err);
 	complete_handler(err);
 }
 
-void raw_udp_socket::send_to(const endpoint& ep, const const_buffer& buffer, error_code &err)
+void raw_udp_socket::send_to(const endpoint &ep, const const_buffer &buffer, error_code &err)
 {
 	err = 0;
 	asio::ip::udp::endpoint native_ep;
@@ -518,10 +518,10 @@ void raw_udp_socket::send_to(const endpoint& ep, const const_buffer& buffer, err
 		err = (socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
 }
 
-void raw_udp_socket::async_send_to(const endpoint& ep, const const_buffer& buffer, null_callback&& complete_handler)
+void raw_udp_socket::async_send_to(const endpoint &ep, const const_buffer &buffer, null_callback &&complete_handler)
 {
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	async_to_udp_ep(ep, [this, buffer, callback](error_code err, const asio::ip::udp::endpoint& native_ep)
+	async_to_udp_ep(ep, [this, buffer, callback](error_code err, const asio::ip::udp::endpoint &native_ep)
 	{
 		if (err)
 		{
@@ -529,7 +529,7 @@ void raw_udp_socket::async_send_to(const endpoint& ep, const const_buffer& buffe
 			return;
 		}
 		socket.async_send_to(asio::buffer(buffer.get_data(), buffer.get_size()),native_ep,
-			[this, callback](const boost::system::error_code& e, size_t)
+			[this, callback](const boost::system::error_code &e, size_t)
 		{
 			if (e)
 				(*callback)(socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
@@ -539,7 +539,7 @@ void raw_udp_socket::async_send_to(const endpoint& ep, const const_buffer& buffe
 	});
 }
 
-void raw_udp_socket::recv_from(endpoint& ep, const mutable_buffer& buffer, size_t& transferred, error_code &err)
+void raw_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	asio::ip::udp::endpoint native_ep;
@@ -552,11 +552,11 @@ void raw_udp_socket::recv_from(endpoint& ep, const mutable_buffer& buffer, size_
 	raw_ep_to_ep(native_ep, ep);
 }
 
-void raw_udp_socket::async_recv_from(endpoint& ep, const mutable_buffer& buffer, transfer_callback&& complete_handler)
+void raw_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 	socket.async_receive_from(asio::buffer(buffer.access_data(), buffer.get_size()), recv_ep,
-		[this, &ep, callback](const boost::system::error_code& e, size_t recved)
+		[this, &ep, callback](const boost::system::error_code &e, size_t recved)
 	{
 		if (e)
 		{
@@ -575,14 +575,14 @@ void raw_udp_socket::close(error_code &err)
 	socket.close(ec);
 }
 
-void raw_udp_socket::async_close(null_callback && complete_handler)
+void raw_udp_socket::async_close(null_callback &&complete_handler)
 {
 	socket.shutdown(socket.shutdown_both, ec);
 	socket.close(ec);
 	complete_handler(0);
 }
 
-error_code raw_udp_socket::to_udp_ep(const endpoint& ep, asio::ip::udp::endpoint& result)
+error_code raw_udp_socket::to_udp_ep(const endpoint &ep, asio::ip::udp::endpoint &result)
 {
 	const address &addr = ep.get_addr();
 	switch (addr.get_type())
@@ -612,7 +612,7 @@ error_code raw_udp_socket::to_udp_ep(const endpoint& ep, asio::ip::udp::endpoint
 	return 0;
 }
 
-void raw_udp_socket::async_to_udp_ep(const endpoint& ep, std::function<void(error_code, const asio::ip::udp::endpoint&)>&& complete_handler)
+void raw_udp_socket::async_to_udp_ep(const endpoint &ep, std::function<void(error_code, const asio::ip::udp::endpoint&)> &&complete_handler)
 {
 	const address &addr = ep.get_addr();
 	switch (addr.get_type())
@@ -633,7 +633,7 @@ void raw_udp_socket::async_to_udp_ep(const endpoint& ep, std::function<void(erro
 		{
 			auto callback = std::make_shared<std::function<void(error_code, const asio::ip::udp::endpoint&)>>(std::move(complete_handler));
 			resolver.async_resolve(asio::ip::udp::resolver::query(addr.str().data(), std::to_string(ep.get_port())),
-				[this, callback](const boost::system::error_code& e, asio::ip::udp::resolver::iterator itr)
+				[this, callback](const boost::system::error_code &e, asio::ip::udp::resolver::iterator itr)
 			{
 				if (e)
 					(*callback)(ERR_UNRESOLVED_HOST, asio::ip::udp::endpoint());
@@ -647,7 +647,7 @@ void raw_udp_socket::async_to_udp_ep(const endpoint& ep, std::function<void(erro
 	}
 }
 
-void raw_listener::local_endpoint(endpoint& ep, error_code &err)
+void raw_listener::local_endpoint(endpoint &ep, error_code &err)
 {
 	err = 0;
 	try
@@ -682,7 +682,7 @@ void raw_listener::async_open(null_callback &&complete_handler)
 	}
 }
 
-void raw_listener::bind(const endpoint& ep, error_code &err)
+void raw_listener::bind(const endpoint &ep, error_code &err)
 {
 	err = 0;
 	if (is_listening())
@@ -715,7 +715,7 @@ void raw_listener::bind(const endpoint& ep, error_code &err)
 		err = ERR_OPERATION_FAILURE;
 }
 
-void raw_listener::async_bind(const endpoint& ep, null_callback&& complete_handler)
+void raw_listener::async_bind(const endpoint &ep, null_callback &&complete_handler)
 {
 	error_code err;
 	bind(ep, err);
@@ -732,14 +732,14 @@ void raw_listener::listen(error_code &err)
 		listening = true;
 }
 
-void raw_listener::async_listen(null_callback&& complete_handler)
+void raw_listener::async_listen(null_callback &&complete_handler)
 {
 	error_code err;
 	listen(err);
 	complete_handler(err);
 }
 
-void raw_listener::accept(std::unique_ptr<prx_tcp_socket_base> &new_socket, error_code &err)
+void raw_listener::accept(std::unique_ptr<prx_tcp_socket> &new_socket, error_code &err)
 {
 	asio::ip::tcp::socket socket(iosrv);
 	acceptor.accept(socket, ec);
@@ -759,7 +759,7 @@ void raw_listener::async_accept(accept_callback &&complete_handler)
 {
 	auto socket = std::make_shared<asio::ip::tcp::socket>(iosrv);
 	auto callback = std::make_shared<accept_callback>(std::move(complete_handler));
-	acceptor.async_accept(*socket, [this, socket, callback](const boost::system::error_code& e)
+	acceptor.async_accept(*socket, [this, socket, callback](const boost::system::error_code &e)
 	{
 		if (e)
 			(*callback)(ERR_OPERATION_FAILURE, nullptr);
