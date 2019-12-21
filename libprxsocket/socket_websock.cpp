@@ -367,8 +367,7 @@ void websock_tcp_socket::send_websocket_req(const std::shared_ptr<null_callback>
 	}
 	catch (std::exception &)
 	{
-		close();
-		(*callback)(ERR_OPERATION_FAILURE);
+		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 		return;
 	}
 
@@ -377,8 +376,7 @@ void websock_tcp_socket::send_websocket_req(const std::shared_ptr<null_callback>
 	{
 		if (err)
 		{
-			close();
-			(*callback)(err);
+			async_close([callback, err](error_code) { (*callback)(err); });
 			return;
 		}
 		recv_websocket_resp(callback, std::make_shared<std::string>());
@@ -392,8 +390,7 @@ void websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_callback
 	{
 		if (err)
 		{
-			close();
-			(*callback)(err);
+			async_close([callback, err](error_code) { (*callback)(err); });
 			return;
 		}
 
@@ -419,8 +416,7 @@ void websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_callback
 		}
 		catch (std::exception &)
 		{
-			close();
-			(*callback)(ERR_OPERATION_FAILURE);
+			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 		}
 	});
 }
@@ -463,8 +459,9 @@ void websock_tcp_socket::async_send(const const_buffer &buffer, transfer_callbac
 	}
 	catch (std::exception &)
 	{
-		close();
-		complete_handler(ERR_OPERATION_FAILURE, 0);
+		std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
+		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, 0); });
+		return;
 	}
 
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
@@ -473,8 +470,7 @@ void websock_tcp_socket::async_send(const const_buffer &buffer, transfer_callbac
 	{
 		if (err)
 		{
-			close();
-			(*callback)(err, 0);
+			async_close([callback, err](error_code) { (*callback)(err, 0); });
 			return;
 		}
 		(*callback)(0, size_trans);
@@ -572,20 +568,17 @@ void websock_tcp_socket::async_recv_data(null_callback &&complete_handler)
 	{
 		if (err)
 		{
-			close();
-			(*callback)(err);
+			async_close([callback, err](error_code) { (*callback)(err); });
 			return;
 		}
 		if (recv_buf[0] != '\x82')
 		{
-			close();
-			(*callback)(ERR_BAD_ARG_REMOTE);
+			async_close([callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
 			return;
 		}
 		if (((uint8_t)recv_buf[1] & 0x80u) != 0x80u)
 		{
-			close();
-			(*callback)(ERR_BAD_ARG_REMOTE);
+			async_close([callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
 			return;
 		}
 
@@ -605,8 +598,7 @@ void websock_tcp_socket::async_recv_data_size_16(const std::shared_ptr<null_call
 	{
 		if (err)
 		{
-			close();
-			(*callback)(err);
+			async_close([callback, err](error_code) { (*callback)(err); });
 			return;
 		}
 		uint16_t size = ((uint8_t)recv_buf[0] << 8u) | (uint8_t)recv_buf[1];
@@ -621,8 +613,7 @@ void websock_tcp_socket::async_recv_data_size_64(const std::shared_ptr<null_call
 	{
 		if (err)
 		{
-			close();
-			(*callback)(err);
+			async_close([callback, err](error_code) { (*callback)(err); });
 			return;
 		}
 		uint64_t size = 0;
@@ -631,8 +622,7 @@ void websock_tcp_socket::async_recv_data_size_64(const std::shared_ptr<null_call
 
 		if (size > std::numeric_limits<size_t>::max() - 4)
 		{
-			close();
-			(*callback)(ERR_BAD_ARG_REMOTE);
+			async_close([callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
 			return;
 		}
 		async_recv_data_body(callback, (size_t)(size + 4));
@@ -643,8 +633,7 @@ void websock_tcp_socket::async_recv_data_body(const std::shared_ptr<null_callbac
 {
 	if (size > recv_buf_size)
 	{
-		close();
-		(*callback)(ERR_BAD_ARG_REMOTE);
+		async_close([callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
 		return;
 	}
 	async_read(*socket, mutable_buffer(recv_buf.get(), size),
@@ -652,8 +641,7 @@ void websock_tcp_socket::async_recv_data_body(const std::shared_ptr<null_callbac
 	{
 		if (err)
 		{
-			close();
-			(*callback)(err);
+			async_close([callback, err](error_code) { (*callback)(err); });
 			return;
 		}
 
@@ -664,8 +652,7 @@ void websock_tcp_socket::async_recv_data_body(const std::shared_ptr<null_callbac
 		}
 		catch (std::exception &)
 		{
-			close();
-			(*callback)(ERR_OPERATION_FAILURE);
+			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 			return;
 		}
 		recv_que.push_back(std::move(buf));

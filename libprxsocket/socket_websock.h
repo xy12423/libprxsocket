@@ -6,7 +6,6 @@
 #ifndef _LIBPRXSOCKET_BUILD
 #include <algorithm>
 #include <list>
-#include <memory>
 #include <mutex>
 
 #include <cryptopp/cryptlib.h>
@@ -82,6 +81,7 @@ private:
 	size_t read_data(char *buf, size_t size);
 
 	int state = STATE_INIT;
+
 	std::unique_ptr<prx_tcp_socket> socket;
 	std::unique_ptr<char[]> recv_buf;
 	std::list<std::string> recv_que;

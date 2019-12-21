@@ -10,11 +10,11 @@ class socks5_tcp_socket :public prx_tcp_socket, private socks5_base
 
 	friend class socks5_listener;
 public:
-	socks5_tcp_socket(const endpoint &_server_ep, std::unique_ptr<prx_tcp_socket> &&arg1)
-		:socks5_base(std::move(arg1)), server_ep(_server_ep)
+	socks5_tcp_socket(const endpoint &_server_ep, std::unique_ptr<prx_tcp_socket> &&base_socket)
+		:socks5_base(std::move(base_socket)), server_ep(_server_ep)
 	{}
-	socks5_tcp_socket(const endpoint &_server_ep, std::unique_ptr<prx_tcp_socket> &&arg1, const std::string &arg2)
-		:socks5_base(std::move(arg1), arg2), server_ep(_server_ep)
+	socks5_tcp_socket(const endpoint &_server_ep, std::unique_ptr<prx_tcp_socket> &&base_socket, const std::string &methods)
+		:socks5_base(std::move(base_socket), methods), server_ep(_server_ep)
 	{}
 	virtual ~socks5_tcp_socket() {}
 
@@ -41,9 +41,9 @@ public:
 	virtual void close(error_code &ec) override { state = STATE_INIT; socks5_base::close(ec); }
 	virtual void async_close(null_callback &&complete_handler) override { state = STATE_INIT; socks5_base::async_close(std::move(complete_handler)); }
 private:
-	endpoint server_ep, local_ep, remote_ep;
-
 	int state = STATE_INIT;
+
+	endpoint server_ep, local_ep, remote_ep;
 };
 
 class socks5_udp_socket :public prx_udp_socket, private socks5_base
@@ -87,12 +87,12 @@ private:
 	void async_skip(size_t size, const std::shared_ptr<transfer_callback> &callback);
 	error_code parse_udp(size_t udp_recv_size, endpoint &ep, const mutable_buffer &buffer, size_t &transferred);
 
+	int state = STATE_INIT;
+
 	endpoint server_ep, udp_server_ep, udp_recv_ep, udp_local_ep;
 	std::unique_ptr<prx_udp_socket> udp_socket;
 	std::unique_ptr<char[]> udp_recv_buf;
 	char udp_alive_buf;
-
-	int state = STATE_INIT;
 };
 
 class socks5_listener :public prx_listener
@@ -125,13 +125,13 @@ public:
 private:
 	void close() { error_code err; close(err); }
 
+	bool listening = false;
+
 	endpoint server_ep, local_ep;
 	std::string methods;
 
 	std::function<std::unique_ptr<prx_tcp_socket>()> gen_socket;
 	std::unique_ptr<socks5_tcp_socket> cur_socket;
-
-	bool listening = false;
 };
 
 #endif

@@ -4,8 +4,6 @@
 #include "socket_base.h"
 
 #ifndef _LIBPRXSOCKET_BUILD
-#include <memory>
-
 #include <boost/asio.hpp>
 namespace asio = boost::asio;
 #endif

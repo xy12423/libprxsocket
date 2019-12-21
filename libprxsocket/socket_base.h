@@ -6,6 +6,7 @@
 
 #ifndef _LIBPRXSOCKET_BUILD
 #include <functional>
+#include <memory>
 #include <stdexcept>
 #endif
 

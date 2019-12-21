@@ -5,8 +5,6 @@
 
 #ifndef _LIBPRXSOCKET_BUILD
 #include <array>
-#include <memory>
-#include <stdexcept>
 #endif
 
 typedef std::function<uint8_t(int, const uint8_t *)> sockssel_callback;
