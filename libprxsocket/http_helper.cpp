@@ -1,7 +1,7 @@
 #include "stdafx.h"
-#include "http_helpers.h"
+#include "http_helper.h"
 
-void ltrim(std::string &str)
+static void ltrim(std::string &str)
 {
 	std::string::iterator itr = str.begin(), itr_end = str.end();
 	for (; itr != itr_end; ++itr)
@@ -10,28 +10,30 @@ void ltrim(std::string &str)
 	str.erase(str.begin(), itr);
 }
 
-void rtrim(std::string &str)
+static void rtrim(std::string &str)
 {
 	while (!str.empty() && isspace((unsigned char)str.back()))
 		str.pop_back();
 }
 
-void trim(std::string &str)
+static void trim(std::string &str)
 {
 	ltrim(str);
 	rtrim(str);
 }
 
-void make_http_header(std::string &dst, const http_header &src)
+std::string http_header::to_string() const
 {
-	for (const auto &p : src)
+	std::string str;
+	for (const auto &p : headers)
 	{
-		dst.append(p.first);
-		dst.append(": ", 2);
-		dst.append(p.second);
-		dst.push_back('\r');
-		dst.push_back('\n');
+		str.append(p.first);
+		str.append(": ", 2);
+		str.append(p.second);
+		str.push_back('\r');
+		str.push_back('\n');
 	}
+	return str;
 }
 
 bool parse_http_request(http_header &dst, const std::string &data)

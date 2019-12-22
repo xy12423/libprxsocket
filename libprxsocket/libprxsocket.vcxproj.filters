@@ -39,7 +39,7 @@
     <ClCompile Include="socket_http.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="http_helpers.cpp">
+    <ClCompile Include="http_helper.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -74,7 +74,7 @@
     <ClInclude Include="socket_http.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="http_helpers.h">
+    <ClInclude Include="http_helper.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

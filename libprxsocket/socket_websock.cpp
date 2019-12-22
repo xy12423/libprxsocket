@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "socket_websock.h"
-#include "http_helpers.h"
+#include "http_helper.h"
 
 using namespace CryptoPP;
 
@@ -318,11 +318,11 @@ void websock_tcp_socket::send(const const_buffer &buffer, size_t &transferred, e
 
 	std::string buf;
 	transferred = 0;
-	size_t size_trans = std::min(buffer.get_size(), recv_buf_size / 2);
+	size_t size_trans = std::min(buffer.size(), recv_buf_size / 2);
 
 	try
 	{
-		encode(buf, buffer.get_data(), size_trans);
+		encode(buf, buffer.data(), size_trans);
 	}
 	catch (std::exception &)
 	{
@@ -342,11 +342,11 @@ void websock_tcp_socket::send(const const_buffer &buffer, size_t &transferred, e
 void websock_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<std::string> buf = std::make_shared<std::string>();
-	size_t size_trans = std::min(buffer.get_size(), recv_buf_size / 2);
+	size_t size_trans = std::min(buffer.size(), recv_buf_size / 2);
 
 	try
 	{
-		encode(*buf, buffer.get_data(), size_trans);
+		encode(*buf, buffer.data(), size_trans);
 	}
 	catch (std::exception &)
 	{
@@ -584,7 +584,7 @@ void websock_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred,
 		if (err)
 			return;
 	}
-	transferred = read_data(buffer.access_data(), buffer.get_size());
+	transferred = read_data(buffer.access_data(), buffer.size());
 }
 
 void websock_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
@@ -603,7 +603,7 @@ void websock_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callb
 		});
 		return;
 	}
-	size_t transferred = read_data(buffer.access_data(), buffer.get_size());
+	size_t transferred = read_data(buffer.access_data(), buffer.size());
 	complete_handler(0, transferred);
 }
 

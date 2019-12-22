@@ -266,7 +266,7 @@ void socks5_udp_socket::open(const endpoint &ep, error_code &err)
 	err = open_and_auth(server_ep);
 	if (err)
 		return;
-	if (!ep.get_addr().is_any() && get_auth_method() != 0x80)
+	if (!ep.addr().is_any() && get_auth_method() != 0x80)
 	{
 		close();
 		err = ERR_OPERATION_FAILURE;
@@ -329,7 +329,7 @@ void socks5_udp_socket::async_open(const endpoint &ep, null_callback &&complete_
 			(*callback)(err);
 			return;
 		}
-		if (get_auth_method() != 0x80 && !ep.get_addr().is_any())
+		if (get_auth_method() != 0x80 && !ep.addr().is_any())
 		{
 			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 			return;
@@ -415,10 +415,10 @@ void socks5_udp_socket::send_to(const endpoint &ep, const const_buffer &buffer, 
 	try
 	{
 		buf.append(3, '\0');               //RSV && FRAG
-		ep.get_addr().to_socks5(buf);      //ATYP && DST.ADDR
-		buf.push_back(ep.get_port() >> 8); //DST.PORT
-		buf.push_back(ep.get_port() & 0xFF);
-		buf.append(buffer.get_data(), buffer.get_size());	//DATA
+		ep.addr().to_socks5(buf);      //ATYP && DST.ADDR
+		buf.push_back(ep.port() >> 8); //DST.PORT
+		buf.push_back(ep.port() & 0xFF);
+		buf.append(buffer.data(), buffer.size());	//DATA
 	}
 	catch (std::exception &)
 	{
@@ -461,10 +461,10 @@ void socks5_udp_socket::async_send_to(const endpoint &ep, const const_buffer &bu
 	try
 	{
 		buf->append(3, '\0');               //RSV && FRAG
-		ep.get_addr().to_socks5(*buf);      //ATYP && DST.ADDR
-		buf->push_back(ep.get_port() >> 8); //DST.PORT
-		buf->push_back(ep.get_port() & 0xFF);
-		buf->append(buffer.get_data(), buffer.get_size());
+		ep.addr().to_socks5(*buf);      //ATYP && DST.ADDR
+		buf->push_back(ep.port() >> 8); //DST.PORT
+		buf->push_back(ep.port() & 0xFF);
+		buf->append(buffer.data(), buffer.size());
 	}
 	catch (std::exception &)
 	{
@@ -662,7 +662,7 @@ error_code socks5_udp_socket::parse_udp(size_t udp_recv_size, endpoint &ep, cons
 	error_code err = socks5_base::parse_udp(udp_recv_buf.get(), udp_recv_size, ep, buf, transferred);
 	if (err)
 		return err;
-	transferred = std::min(buffer.get_size(), transferred);
+	transferred = std::min(buffer.size(), transferred);
 	memmove(buffer.access_data(), buf, transferred);
 	return 0;
 }

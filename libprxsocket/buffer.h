@@ -8,22 +8,22 @@
 class const_buffer
 {
 public:
-	const_buffer(const char *_data, size_t _size) :data(_data), size(_size) {}
-	const_buffer(const std::string &_data) :data(_data.data()), size(_data.size()) {}
+	const_buffer(const char *data, size_t size) :m_data(data), m_size(size) {}
+	const_buffer(const std::string &data) :m_data(data.data()), m_size(data.size()) {}
 
-	const char *get_data() const { return data; }
-	size_t get_size() const { return size; }
+	const char *data() const { return m_data; }
+	size_t size() const { return m_size; }
 protected:
-	const char *data;
-	size_t size;
+	const char *m_data;
+	size_t m_size;
 };
 
 class mutable_buffer :public const_buffer
 {
 public:
-	mutable_buffer(char *_data, size_t _size) :const_buffer(_data, _size) {}
+	mutable_buffer(char *data, size_t size) :const_buffer(data, size) {}
 
-	char *access_data() const { return const_cast<char*>(data); }
+	char *access_data() const { return const_cast<char*>(m_data); }
 };
 
 #endif

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "socket_http.h"
-#include "http_helpers.h"
+#include "http_helper.h"
 
 void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 {
@@ -10,9 +10,9 @@ void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 
 	try
 	{
-		std::string host = ep.get_addr().to_string();
+		std::string host = ep.addr().to_string();
 		host.push_back(':');
-		host.append(std::to_string(ep.get_port()));
+		host.append(std::to_string(ep.port()));
 		std::string http_req;
 		http_req.append("CONNECT ");
 		http_req.append(host);
@@ -79,9 +79,9 @@ void http_tcp_socket::send_http_req(const std::shared_ptr<null_callback>& callba
 	std::shared_ptr<std::string> http_req = std::make_shared<std::string>();
 	try
 	{
-		std::string host = remote_ep.get_addr().to_string();
+		std::string host = remote_ep.addr().to_string();
 		host.push_back(':');
-		host.append(std::to_string(remote_ep.get_port()));
+		host.append(std::to_string(remote_ep.port()));
 
 		http_req->append("CONNECT ");
 		http_req->append(host);
@@ -123,7 +123,6 @@ void http_tcp_socket::recv_http_resp(const std::shared_ptr<null_callback>& callb
 		{
 			recv_buf_ptr_end += transferred;
 			http_header header;
-			size_t parsed;
 			if (!parse_http_header(header, recv_buf_ptr, recv_buf.get(), recv_buf_ptr_end))
 			{
 				if (recv_buf_ptr_end >= recv_buf_size)
@@ -187,7 +186,7 @@ void http_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, er
 	}
 	if (recv_buf_ptr < recv_buf_ptr_end)
 	{
-		transferred = std::min(buffer.get_size(), recv_buf_ptr_end - recv_buf_ptr);
+		transferred = std::min(buffer.size(), recv_buf_ptr_end - recv_buf_ptr);
 		memcpy(buffer.access_data(), recv_buf.get() + recv_buf_ptr, transferred);
 		recv_buf_ptr += transferred;
 		return;
@@ -206,7 +205,7 @@ void http_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback
 	}
 	if (recv_buf_ptr < recv_buf_ptr_end)
 	{
-		size_t transferred = std::min(buffer.get_size(), recv_buf_ptr_end - recv_buf_ptr);
+		size_t transferred = std::min(buffer.size(), recv_buf_ptr_end - recv_buf_ptr);
 		memcpy(buffer.access_data(), recv_buf.get() + recv_buf_ptr, transferred);
 		recv_buf_ptr += transferred;
 		complete_handler(0, transferred);

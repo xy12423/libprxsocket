@@ -67,7 +67,7 @@ void prx_tcp_socket::close()
 void read(prx_tcp_socket &socket, const mutable_buffer &buffer, error_code &ec)
 {
 	char *data = buffer.access_data();
-	size_t size = buffer.get_size();
+	size_t size = buffer.size();
 	while (size > 0)
 	{
 		size_t size_recv;
@@ -96,12 +96,12 @@ static void do_async_read(prx_tcp_socket &socket, const mutable_buffer &buffer, 
 			(*callback)(err);
 			return;
 		}
-		if (transferred >= buffer.get_size())
+		if (transferred >= buffer.size())
 		{
 			(*callback)(0);
 			return;
 		}
-		do_async_read(socket, mutable_buffer(buffer.access_data() + transferred, buffer.get_size() - transferred), callback);
+		do_async_read(socket, mutable_buffer(buffer.access_data() + transferred, buffer.size() - transferred), callback);
 	});
 }
 
@@ -112,8 +112,8 @@ void async_read(prx_tcp_socket &socket, const mutable_buffer &buffer, null_callb
 
 void write(prx_tcp_socket &socket, const const_buffer &buffer, error_code &ec)
 {
-	const char *data = buffer.get_data();
-	size_t size = buffer.get_size();
+	const char *data = buffer.data();
+	size_t size = buffer.size();
 	while (size > 0)
 	{
 		size_t size_sent;
@@ -143,12 +143,12 @@ static void do_async_write(prx_tcp_socket &socket, const const_buffer &buffer, c
 			(*callback)(err);
 			return;
 		}
-		if (buffer.get_size() <= transferred)
+		if (buffer.size() <= transferred)
 		{
 			(*callback)(0);
 			return;
 		}
-		do_async_write(socket, const_buffer(buffer.get_data() + transferred, buffer.get_size() - transferred), callback);
+		do_async_write(socket, const_buffer(buffer.data() + transferred, buffer.size() - transferred), callback);
 	});
 }
 

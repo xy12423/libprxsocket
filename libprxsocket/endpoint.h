@@ -8,21 +8,21 @@ typedef uint16_t port_type;
 class endpoint
 {
 public:
-	endpoint() :port(0) {}
+	endpoint() :m_port(0) {}
 	template <typename T>
-	endpoint(T &&_addr, port_type _port) : addr(std::forward<T>(_addr)), port(_port)
+	endpoint(T &&addr, port_type port) : m_addr(std::forward<T>(addr)), m_port(port)
 	{}
 
-	const address &get_addr() const { return addr; }
-	port_type get_port() const { return port; }
-	template <typename T> void set_addr(T &&_addr) { addr = std::forward<T>(_addr); }
-	void set_port(port_type _port) { port = _port; }
+	const address &addr() const { return m_addr; }
+	port_type port() const { return m_port; }
+	template <typename T> void set_addr(T &&addr) { m_addr = std::forward<T>(addr); }
+	void set_port(port_type port) { m_port = port; }
 
-	bool operator==(const endpoint &b) const { return port == b.port && addr == b.addr; }
-	bool operator!=(const endpoint &b) const { return port != b.port || addr != b.addr; }
+	bool operator==(const endpoint &b) const { return m_port == b.m_port && m_addr == b.m_addr; }
+	bool operator!=(const endpoint &b) const { return m_port != b.m_port || m_addr != b.m_addr; }
 private:
-	address addr;
-	port_type port;
+	address m_addr;
+	port_type m_port;
 };
 
 #endif

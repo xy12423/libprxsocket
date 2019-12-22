@@ -93,20 +93,20 @@ class address
 public:
 	enum addr_type { UNDEFINED = 0, V4 = 1, STR = 3, V6 = 4 };
 
-	address() :type(UNDEFINED) {}
-	address(uint32_t addr) : type(V4), m_v4(addr) {}
-	address(const std::string &addr) : type(STR), m_str(addr) {}
-	address(std::string &&addr) : type(STR), m_str(std::move(addr)) {}
-	address(const char *addr) : type(STR), m_str(addr) {}
+	address() :m_type(UNDEFINED) {}
+	address(uint32_t addr) : m_type(V4), m_v4(addr) {}
+	address(const std::string &addr) : m_type(STR), m_str(addr) {}
+	address(std::string &&addr) : m_type(STR), m_str(std::move(addr)) {}
+	address(const char *addr) : m_type(STR), m_str(addr) {}
 
-	address(const address_v4 &addr) : type(V4), m_v4(addr) {}
-	address(address_v4 &&addr) : type(V4), m_v4(std::move(addr)) {}
-	address(const address_str &addr) : type(STR), m_str(addr) {}
-	address(address_str &&addr) : type(STR), m_str(std::move(addr)) {}
-	address(const address_v6 &addr) : type(V6), m_v6(addr) {}
-	address(address_v6 &&addr) : type(V6), m_v6(std::move(addr)) {}
+	address(const address_v4 &addr) : m_type(V4), m_v4(addr) {}
+	address(address_v4 &&addr) : m_type(V4), m_v4(std::move(addr)) {}
+	address(const address_str &addr) : m_type(STR), m_str(addr) {}
+	address(address_str &&addr) : m_type(STR), m_str(std::move(addr)) {}
+	address(const address_v6 &addr) : m_type(V6), m_v6(addr) {}
+	address(address_v6 &&addr) : m_type(V6), m_v6(std::move(addr)) {}
 
-	addr_type get_type() const { return type; }
+	addr_type type() const { return m_type; }
 	const address_v4 &v4() const { return m_v4; }
 	const address_v6 &v6() const { return m_v6; }
 	const address_str &str() const { return m_str; }
@@ -120,7 +120,7 @@ public:
 	bool operator==(const address &b) const;
 	bool operator!=(const address &b) const;
 private:
-	addr_type type;
+	addr_type m_type;
 
 	address_v4 m_v4;
 	address_v6 m_v6;

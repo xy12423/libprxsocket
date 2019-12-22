@@ -264,9 +264,9 @@ error_code socks5_base::send_s5(uint8_t type, const endpoint &ep)
 		req.push_back(socks_version);  //VER
 		req.push_back(type);           //CMD / REP
 		req.push_back(0);              //RSV
-		ep.get_addr().to_socks5(req);  //ATYP && DST.ADDR
-		req.push_back(ep.get_port() >> 8);	//DST.PORT
-		req.push_back(ep.get_port() & 0xFF);
+		ep.addr().to_socks5(req);  //ATYP && DST.ADDR
+		req.push_back(ep.port() >> 8);	//DST.PORT
+		req.push_back(ep.port() & 0xFF);
 		error_code err;
 		write(*socket.get(), const_buffer(req), err);
 		if (err)
@@ -294,9 +294,9 @@ void socks5_base::async_send_s5(uint8_t type, const endpoint &ep, null_callback 
 		req_data->push_back(socks_version);  //VER
 		req_data->push_back(type);           //CMD / REP
 		req_data->push_back(0);              //RSV
-		ep.get_addr().to_socks5(*req_data);  //ATYP && DST.ADDR
-		req_data->push_back(ep.get_port() >> 8);	//DST.PORT
-		req_data->push_back(ep.get_port() & 0xFF);
+		ep.addr().to_socks5(*req_data);  //ATYP && DST.ADDR
+		req_data->push_back(ep.port() >> 8);	//DST.PORT
+		req_data->push_back(ep.port() & 0xFF);
 
 		async_write(*socket.get(), const_buffer(*req_data),
 			[this, req_data, callback](error_code err)

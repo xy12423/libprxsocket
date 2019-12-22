@@ -37,7 +37,7 @@ std::string address_v6::to_string() const
 
 bool address::is_any() const
 {
-	switch (type)
+	switch (m_type)
 	{
 	case V4:
 		return m_v4.is_any();
@@ -57,16 +57,16 @@ size_t address::from_socks5(const char *data)
 		case 1:
 		case 3:
 		case 4:
-			type = (addr_type)(*data);
+			m_type = (addr_type)(*data);
 			break;
 		default:
-			type = UNDEFINED;
+			m_type = UNDEFINED;
 			return 0;
 	}
 	++data;
 
 	size_t size = 0;
-	switch (type)
+	switch (m_type)
 	{
 		case V4:
 		{
@@ -94,10 +94,10 @@ size_t address::from_socks5(const char *data)
 
 void address::to_socks5(std::string &ret) const
 {
-	if (type == UNDEFINED)
+	if (m_type == UNDEFINED)
 		return;
-	ret.push_back(type);
-	switch (type)
+	ret.push_back(m_type);
+	switch (m_type)
 	{
 		case V4:
 		{
@@ -123,7 +123,7 @@ void address::to_socks5(std::string &ret) const
 
 std::string address::to_string() const
 {
-	switch (type)
+	switch (m_type)
 	{
 		case V4:
 			return m_v4.to_string();
@@ -137,9 +137,9 @@ std::string address::to_string() const
 
 bool address::operator==(const address &b) const
 {
-	if (type != b.type)
+	if (m_type != b.m_type)
 		return false;
-	switch (type)
+	switch (m_type)
 	{
 	case V4:
 		return m_v4 == b.m_v4;
@@ -154,9 +154,9 @@ bool address::operator==(const address &b) const
 
 bool address::operator!=(const address &b) const
 {
-	if (type != b.type)
+	if (m_type != b.m_type)
 		return true;
-	switch (type)
+	switch (m_type)
 	{
 	case V4:
 		return m_v4 != b.m_v4;
