@@ -4,7 +4,6 @@
 #include "socket_base.h"
 
 #ifndef _LIBPRXSOCKET_BUILD
-#include <algorithm>
 #include <list>
 #include <mutex>
 

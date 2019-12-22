@@ -92,7 +92,6 @@ size_t address::from_socks5(const char *data)
 	return size;
 }
 
-
 void address::to_socks5(std::string &ret) const
 {
 	if (type == UNDEFINED)

@@ -36,6 +36,12 @@
     <ClCompile Include="socks5_base.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="socket_http.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="http_helpers.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="address.h">
@@ -63,6 +69,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="stdafx.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="socket_http.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="http_helpers.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

@@ -88,7 +88,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>LIBPRXSOCKET_BUILD;_CRT_SECURE_NO_WARNINGS;_WIN32_WINNT=0x0601;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_LIBPRXSOCKET_BUILD;_CRT_SECURE_NO_WARNINGS;_WIN32_WINNT=0x0601;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\cpplibs\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -168,7 +168,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="address.cpp" />
+    <ClCompile Include="http_helpers.cpp" />
     <ClCompile Include="socket_base.cpp" />
+    <ClCompile Include="socket_http.cpp" />
     <ClCompile Include="socket_raw.cpp" />
     <ClCompile Include="socket_socks5.cpp" />
     <ClCompile Include="socket_websock.cpp" />
@@ -184,7 +186,9 @@
     <ClInclude Include="address.h" />
     <ClInclude Include="buffer.h" />
     <ClInclude Include="endpoint.h" />
+    <ClInclude Include="http_helpers.h" />
     <ClInclude Include="socket_base.h" />
+    <ClInclude Include="socket_http.h" />
     <ClInclude Include="socket_raw.h" />
     <ClInclude Include="socket_socks5.h" />
     <ClInclude Include="socket_websock.h" />

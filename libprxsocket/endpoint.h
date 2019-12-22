@@ -2,6 +2,7 @@
 #define _H_ENDPOINT
 
 #include "address.h"
+
 typedef uint16_t port_type;
 
 class endpoint

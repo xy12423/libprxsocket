@@ -1,30 +1,8 @@
 #include "stdafx.h"
 #include "socket_websock.h"
+#include "http_helpers.h"
 
 using namespace CryptoPP;
-
-typedef std::unordered_map<std::string, std::string> http_header_tp;
-
-static void ltrim(std::string &str)
-{
-	std::string::iterator itr = str.begin(), itr_end = str.end();
-	for (; itr != itr_end; ++itr)
-		if (!isspace((unsigned char)*itr))
-			break;
-	str.erase(str.begin(), itr);
-}
-
-static void rtrim(std::string &str)
-{
-	while (!str.empty() && isspace((unsigned char)str.back()))
-		str.pop_back();
-}
-
-static void trim(std::string &str)
-{
-	ltrim(str);
-	rtrim(str);
-}
 
 static void base64(std::string &dst, const char *data, size_t size)
 {
@@ -102,96 +80,6 @@ static void base64_rev(std::string &dst, const char *data, size_t size)
 		if (data[-2] == base64_pad)
 			dst.pop_back();
 	}
-}
-
-static void make_http_header(std::string &dst, const http_header_tp &src)
-{
-	for (const auto &p : src)
-	{
-		dst.append(p.first);
-		dst.append(": ", 2);
-		dst.append(p.second);
-		dst.push_back('\r');
-		dst.push_back('\n');
-	}
-}
-
-static bool parse_http_request(http_header_tp &dst, const std::string &data)
-{
-	size_t pos = data.find(' ');
-	if (pos == std::string::npos)
-		return false;
-	dst.emplace("@ReqMethod", data.substr(0, pos));
-	size_t pos2 = data.find(' ', pos + 1);
-	if (pos2 == std::string::npos)
-		return false;
-	dst.emplace("@ReqTarget", data.substr(pos + 1, pos2 - pos - 1));
-	if (data.substr(pos2 + 1) != "HTTP/1.1")
-		return false;
-	return true;
-}
-
-static bool parse_http_status(http_header_tp &dst, const std::string &data)
-{
-	constexpr char str[] = "HTTP/1.1";
-	constexpr size_t str_size = sizeof(str) - 1;
-	for (int i = 0; i < str_size; i++)
-		if (data[i] != str[i])
-			return false;
-	dst.emplace("@Status", data.substr(str_size + 1, 3));
-	return true;
-}
-
-static bool parse_http_header(http_header_tp &dst, size_t &size_read, const std::string &src)
-{
-	size_read = 0;
-	std::string::const_iterator itr = src.cbegin(), itr_end = src.cend();
-	std::string buf, val;
-	bool first_line_parsed = (dst.count("@Type") > 0);
-
-	for (; itr != itr_end; ++itr)
-	{
-		if (*itr == '\n')
-		{
-			size_read += buf.size() + 1;
-			trim(buf);
-			if (buf.empty())
-				return true;
-
-			if (!first_line_parsed)
-			{
-				if (parse_http_status(dst, buf))
-				{
-					first_line_parsed = true;
-					dst.emplace("@Type", "Status");
-					buf.clear();
-					continue;
-				}
-				else if (parse_http_request(dst, buf))
-				{
-					first_line_parsed = true;
-					dst.emplace("@Type", "Request");
-					buf.clear();
-					continue;
-				}
-				else
-					return true;
-			}
-
-			size_t pos = buf.find(':');
-			if (pos == std::string::npos)
-				return false;
-			val.assign(buf, pos + 1, std::string::npos);
-			buf.erase(pos);
-			rtrim(buf);
-			ltrim(val);
-			dst.emplace(std::move(buf), std::move(val));
-			buf.clear();
-		}
-		else
-			buf.push_back(*itr);
-	}
-	return false;
 }
 
 static void gen_websocket_accept(std::string &dst, const std::string &src_b64)
@@ -308,10 +196,11 @@ void websock_tcp_socket::connect(const endpoint &ep, error_code &err)
 
 		size_t size_read, size_parsed;
 		std::string recved;
-		http_header_tp header;
-		while (!parse_http_header(header, size_parsed, recved))
+		http_header header;
+		while (!parse_http_header(header, size_parsed, recved.data(), recved.size()))
 		{
-			recved.erase(0, size_parsed);
+			if (recved.size() >= recv_buf_size)
+				throw(std::runtime_error("HTTP header too long"));
 			socket->recv(mutable_buffer(recv_buf.get(), recv_buf_size), size_read, err);
 			if (err)
 			{
@@ -397,10 +286,12 @@ void websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_callback
 		try
 		{
 			buf->append(recv_buf.get(), transferred);
-			http_header_tp header;
+			http_header header;
 			size_t parsed;
-			if (!parse_http_header(header, parsed, *buf))
+			if (!parse_http_header(header, parsed, buf->data(), buf->size()))
 			{
+				if (buf->size() >= recv_buf_size)
+					throw(std::runtime_error("HTTP header too long"));
 				recv_websocket_resp(callback, buf);
 				return;
 			}
@@ -730,10 +621,11 @@ void websock_listener::accept(std::unique_ptr<prx_tcp_socket> &soc, error_code &
 	{
 		size_t size_read, size_parsed;
 		std::string recved;
-		http_header_tp header;
-		while (!parse_http_header(header, size_parsed, recved))
+		http_header header;
+		while (!parse_http_header(header, size_parsed, recved.data(), recved.size()))
 		{
-			recved.erase(0, size_parsed);
+			if (recved.size() >= recv_buf_size)
+				throw(std::runtime_error("HTTP header too long"));
 			socket->recv(mutable_buffer(recv_buf.get(), recv_buf_size), size_read, ec);
 			if (ec)
 				throw(std::runtime_error("websock_listener::accept(): recv() error"));
@@ -817,10 +709,12 @@ void websock_listener::recv_websocket_req(const std::shared_ptr<accept_callback>
 		try
 		{
 			buf->append(recv_buf.get(), transferred);
-			http_header_tp header;
+			http_header header;
 			size_t parsed;
-			if (!parse_http_header(header, parsed, *buf))
+			if (!parse_http_header(header, parsed, buf->data(), buf->size()))
 			{
+				if (buf->size() >= recv_buf_size)
+					throw(std::runtime_error("HTTP header too long"));
 				recv_websocket_req(callback, buf);
 				return;
 			}
