@@ -168,7 +168,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="address.cpp" />
-    <ClCompile Include="http_helper.cpp" />
+    <ClCompile Include="http_header.cpp" />
     <ClCompile Include="socket_base.cpp" />
     <ClCompile Include="socket_http.cpp" />
     <ClCompile Include="socket_raw.cpp" />
@@ -186,7 +186,7 @@
     <ClInclude Include="address.h" />
     <ClInclude Include="buffer.h" />
     <ClInclude Include="endpoint.h" />
-    <ClInclude Include="http_helper.h" />
+    <ClInclude Include="http_header.h" />
     <ClInclude Include="socket_base.h" />
     <ClInclude Include="socket_http.h" />
     <ClInclude Include="socket_raw.h" />

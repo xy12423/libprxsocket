@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "socket_http.h"
-#include "http_helper.h"
+#include "http_header.h"
 
 void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 {
@@ -30,7 +30,7 @@ void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 		size_t size_read, size_parsed;
 		http_header header;
 		recv_buf_ptr = recv_buf_ptr_end = 0;
-		while (!parse_http_header(header, size_parsed, recv_buf.get() + recv_buf_ptr, recv_buf_ptr_end - recv_buf_ptr))
+		while (!header.parse(size_parsed, recv_buf.get() + recv_buf_ptr, recv_buf_ptr_end - recv_buf_ptr))
 		{
 			recv_buf_ptr += size_parsed;
 			if (recv_buf_ptr_end >= recv_buf_size)
@@ -44,7 +44,7 @@ void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 			recv_buf_ptr_end += size_read;
 		}
 
-		if (header.at("@Status") != "200")
+		if (header.at(http_header::NAME_STATUS_CODE) != "200")
 			throw(std::runtime_error("HTTP request failed"));
 	}
 	catch (std::exception &)
@@ -123,7 +123,7 @@ void http_tcp_socket::recv_http_resp(const std::shared_ptr<null_callback>& callb
 		{
 			recv_buf_ptr_end += transferred;
 			http_header header;
-			if (!parse_http_header(header, recv_buf_ptr, recv_buf.get(), recv_buf_ptr_end))
+			if (!header.parse(recv_buf_ptr, recv_buf.get(), recv_buf_ptr_end))
 			{
 				if (recv_buf_ptr_end >= recv_buf_size)
 					throw(std::runtime_error("HTTP response too long"));
@@ -131,7 +131,7 @@ void http_tcp_socket::recv_http_resp(const std::shared_ptr<null_callback>& callb
 				return;
 			}
 
-			if (header.at("@Status") != "200")
+			if (header.at(http_header::NAME_STATUS_CODE) != "200")
 				throw(std::runtime_error("HTTP request failed"));
 			state = STATE_OK;
 			(*callback)(0);
