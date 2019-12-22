@@ -10,11 +10,11 @@ class socks5_tcp_socket :public prx_tcp_socket, private socks5_base
 
 	friend class socks5_listener;
 public:
-	socks5_tcp_socket(const endpoint &_server_ep, std::unique_ptr<prx_tcp_socket> &&base_socket)
-		:socks5_base(std::move(base_socket)), server_ep(_server_ep)
+	socks5_tcp_socket(const endpoint &server_endpoint, std::unique_ptr<prx_tcp_socket> &&base_socket)
+		:socks5_base(std::move(base_socket)), server_ep(server_endpoint)
 	{}
-	socks5_tcp_socket(const endpoint &_server_ep, std::unique_ptr<prx_tcp_socket> &&base_socket, const std::string &methods)
-		:socks5_base(std::move(base_socket), methods), server_ep(_server_ep)
+	socks5_tcp_socket(const endpoint &server_endpoint, std::unique_ptr<prx_tcp_socket> &&base_socket, const std::string &methods)
+		:socks5_base(std::move(base_socket), methods), server_ep(server_endpoint)
 	{}
 	virtual ~socks5_tcp_socket() {}
 

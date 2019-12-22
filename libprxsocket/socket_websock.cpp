@@ -63,8 +63,10 @@ static void base64_rev(std::string &dst, const char *data, size_t size)
 	};
 	constexpr char base64_pad = '=';
 
-	if ((size & 0x03) != 0)
+	if (size % 4 != 0)
 		throw(std::runtime_error("Invalid base64"));
+	if (size == 0)
+		return;
 	dst.reserve(dst.size() + size / 4 * 3);
 
 	const char *data_end = data + size;
