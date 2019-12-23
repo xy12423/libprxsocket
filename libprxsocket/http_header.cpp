@@ -1,6 +1,11 @@
 #include "stdafx.h"
 #include "http_header.h"
 
+constexpr char http_header::SPECIAL_NAME_IDENTIFIER;
+constexpr const char *http_header::NAME_START_LINE_TYPE, *http_header::START_LINE_TYPE_REQUEST, *http_header::START_LINE_TYPE_STATUS;
+constexpr const char *http_header::NAME_REQUEST_METHOD, *http_header::NAME_REQUEST_TARGET;
+constexpr const char *http_header::NAME_STATUS_CODE, *http_header::NAME_STATUS_REASON_PHRASE;
+
 static void ltrim(std::string &str)
 {
 	std::string::iterator itr = str.begin(), itr_end = str.end();

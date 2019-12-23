@@ -1,7 +1,6 @@
 #ifndef _H_SOCKET_SOCKS5
 #define _H_SOCKET_SOCKS5
 
-#include "socket_base.h"
 #include "socks5_base.h"
 
 class socks5_tcp_socket :public prx_tcp_socket, private socks5_base
