@@ -7,8 +7,8 @@
 #include <array>
 #endif
 
-typedef std::function<uint8_t(int, const uint8_t *)> sockssel_callback;
-typedef std::function<void(error_code, uint8_t, const endpoint&)> socksreq_callback;
+using sockssel_callback = std::function<uint8_t(int, const uint8_t *)>;
+using socksreq_callback = std::function<void(error_code, uint8_t, const endpoint&)>;
 
 class socks5_base
 {

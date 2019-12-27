@@ -25,22 +25,22 @@ private:
 		char c8[addr_size];
 		uint8_t u8[addr_size];
 		uint32_t u32;
-	} m_data;
+	} data_;
 public:
 	address_v4() = default;
-	address_v4(uint32_t host_u32) :m_data(boost::endian::native_to_big(host_u32)) {}
-	address_v4(const char *_data) { memmove(m_data.c8, _data, addr_size); }
+	address_v4(uint32_t host_u32) :data_(boost::endian::native_to_big(host_u32)) {}
+	address_v4(const char *data) { memmove(data_.c8, data, addr_size); }
 
-	const char *data() const { return m_data.c8; }
-	const uint8_t *to_bytes() const { return m_data.u8; }
-	uint32_t to_ulong() const { return boost::endian::big_to_native(m_data.u32); }
+	const char *data() const { return data_.c8; }
+	const uint8_t *to_bytes() const { return data_.u8; }
+	uint32_t to_ulong() const { return boost::endian::big_to_native(data_.u32); }
 	
-	bool is_any() const { return m_data.u32 == 0ul; }
+	bool is_any() const { return data_.u32 == 0ul; }
 
 	std::string to_string() const;
 
-	bool operator==(const address_v4 &b) const { return m_data.u32 == b.m_data.u32; }
-	bool operator!=(const address_v4 &b) const { return m_data.u32 != b.m_data.u32; }
+	bool operator==(const address_v4 &b) const { return data_.u32 == b.data_.u32; }
+	bool operator!=(const address_v4 &b) const { return data_.u32 != b.data_.u32; }
 };
 
 class address_v6
@@ -54,38 +54,38 @@ private:
 
 		char c8[addr_size];
 		uint8_t u8[addr_size];
-	} m_data;
+	} data_;
 public:
 	address_v6() = default;
-	address_v6(const char *_data) { memmove(m_data.c8, _data, addr_size); }
-	address_v6(uint8_t *_data) { memmove(m_data.u8, _data, addr_size); }
+	address_v6(const char *data) { memmove(data_.c8, data, addr_size); }
+	address_v6(uint8_t *data) { memmove(data_.u8, data, addr_size); }
 
-	const char *data() const { return m_data.c8; }
-	const uint8_t *to_bytes() const { return m_data.u8; }
+	const char *data() const { return data_.c8; }
+	const uint8_t *to_bytes() const { return data_.u8; }
 
 	bool is_any() const;
 
 	std::string to_string() const;
 
-	bool operator==(const address_v6 &b) const { return memcmp(m_data.u8, b.m_data.u8, sizeof(addr_v6_data)) == 0; }
-	bool operator!=(const address_v6 &b) const { return memcmp(m_data.u8, b.m_data.u8, sizeof(addr_v6_data)) != 0; }
+	bool operator==(const address_v6 &b) const { return memcmp(data_.u8, b.data_.u8, sizeof(addr_v6_data)) == 0; }
+	bool operator!=(const address_v6 &b) const { return memcmp(data_.u8, b.data_.u8, sizeof(addr_v6_data)) != 0; }
 };
 
 class address_str
 {
 public:
-	template <typename... T> address_str(T &&...addr) :m_data(std::forward<T>(addr)...) {}
+	template <typename... T> address_str(T &&...addr) :data_(std::forward<T>(addr)...) {}
 
-	const std::string &data() const { return m_data; }
+	const std::string &data() const { return data_; }
 
 	bool is_any() const { return false; }
 
-	std::string to_string() const { return m_data; }
+	std::string to_string() const { return data_; }
 
-	bool operator==(const address_str &b) const { return m_data == b.m_data; }
-	bool operator!=(const address_str &b) const { return m_data != b.m_data; }
+	bool operator==(const address_str &b) const { return data_ == b.data_; }
+	bool operator!=(const address_str &b) const { return data_ != b.data_; }
 private:
-	std::string m_data;
+	std::string data_;
 };
 
 class address
@@ -93,23 +93,23 @@ class address
 public:
 	enum addr_type { UNDEFINED = 0, V4 = 1, STR = 3, V6 = 4 };
 
-	address() :m_type(UNDEFINED) {}
-	address(uint32_t addr) : m_type(V4), m_v4(addr) {}
-	address(const std::string &addr) : m_type(STR), m_str(addr) {}
-	address(std::string &&addr) : m_type(STR), m_str(std::move(addr)) {}
-	address(const char *addr) : m_type(STR), m_str(addr) {}
+	address() :type_(UNDEFINED) {}
+	address(uint32_t addr) : type_(V4), v4_(addr) {}
+	address(const std::string &addr) : type_(STR), str_(addr) {}
+	address(std::string &&addr) : type_(STR), str_(std::move(addr)) {}
+	address(const char *addr) : type_(STR), str_(addr) {}
 
-	address(const address_v4 &addr) : m_type(V4), m_v4(addr) {}
-	address(address_v4 &&addr) : m_type(V4), m_v4(std::move(addr)) {}
-	address(const address_str &addr) : m_type(STR), m_str(addr) {}
-	address(address_str &&addr) : m_type(STR), m_str(std::move(addr)) {}
-	address(const address_v6 &addr) : m_type(V6), m_v6(addr) {}
-	address(address_v6 &&addr) : m_type(V6), m_v6(std::move(addr)) {}
+	address(const address_v4 &addr) : type_(V4), v4_(addr) {}
+	address(address_v4 &&addr) : type_(V4), v4_(std::move(addr)) {}
+	address(const address_str &addr) : type_(STR), str_(addr) {}
+	address(address_str &&addr) : type_(STR), str_(std::move(addr)) {}
+	address(const address_v6 &addr) : type_(V6), v6_(addr) {}
+	address(address_v6 &&addr) : type_(V6), v6_(std::move(addr)) {}
 
-	addr_type type() const { return m_type; }
-	const address_v4 &v4() const { return m_v4; }
-	const address_v6 &v6() const { return m_v6; }
-	const address_str &str() const { return m_str; }
+	addr_type type() const { return type_; }
+	const address_v4 &v4() const { return v4_; }
+	const address_v6 &v6() const { return v6_; }
+	const address_str &str() const { return str_; }
 
 	bool is_any() const;
 
@@ -120,11 +120,11 @@ public:
 	bool operator==(const address &b) const;
 	bool operator!=(const address &b) const;
 private:
-	addr_type m_type;
+	addr_type type_;
 
-	address_v4 m_v4;
-	address_v6 m_v6;
-	address_str m_str;
+	address_v4 v4_;
+	address_v6 v6_;
+	address_str str_;
 };
 
 #endif

@@ -27,7 +27,7 @@ static void trim(std::string &str)
 	rtrim(str);
 }
 
-static std::string ltrim(const std::string &str)
+static std::string ltrimv(const std::string &str)
 {
 	std::string::const_iterator itr = str.begin(), itr_end = str.end();
 	for (; itr != itr_end; ++itr)
@@ -36,7 +36,7 @@ static std::string ltrim(const std::string &str)
 	return std::string(itr, itr_end);
 }
 
-static std::string rtrim(const std::string &str)
+static std::string rtrimv(const std::string &str)
 {
 	std::string::const_reverse_iterator ritr = str.rbegin(), ritr_end = str.rend();
 	for (; ritr != ritr_end; ++ritr)
@@ -45,7 +45,7 @@ static std::string rtrim(const std::string &str)
 	return std::string(str.begin(), ritr.base());
 }
 
-static std::string trim(const std::string &str)
+static std::string trimv(const std::string &str)
 {
 	std::string::const_iterator itr = str.begin(), itr_end = str.end();
 	for (; itr != itr_end; ++itr)

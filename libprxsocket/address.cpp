@@ -3,19 +3,19 @@
 
 std::string address_v4::to_string() const
 {
-	std::string ret(std::to_string(m_data.u8[0]));
+	std::string ret(std::to_string(data_.u8[0]));
 	for (int i = 1; i < 4; i++)
 	{
 		ret.push_back('.');
-		ret.append(std::to_string(m_data.u8[i]));
+		ret.append(std::to_string(data_.u8[i]));
 	}
 	return ret;
 }
 
 bool address_v6::is_any() const
 {
-	for (int i = 0; i < sizeof(m_data); ++i)
-		if (m_data.u8[i] != 0)
+	for (int i = 0; i < sizeof(data_); ++i)
+		if (data_.u8[i] != 0)
 			return false;
 	return true;
 }
@@ -24,7 +24,7 @@ std::string address_v6::to_string() const
 {
 	char buf[10];
 	std::string ret;
-	for (const uint8_t *p = m_data.u8; p < m_data.u8 + 16; p += 2)
+	for (const uint8_t *p = data_.u8; p < data_.u8 + 16; p += 2)
 	{
 		unsigned int n = (*p << 8ul) | *(p + 1);
 		sprintf(buf, "%04x", n);
@@ -37,14 +37,14 @@ std::string address_v6::to_string() const
 
 bool address::is_any() const
 {
-	switch (m_type)
+	switch (type_)
 	{
 	case V4:
-		return m_v4.is_any();
+		return v4_.is_any();
 	case STR:
-		return m_str.is_any();
+		return str_.is_any();
 	case V6:
-		return m_v6.is_any();
+		return v6_.is_any();
 	default:
 		return false;
 	}
@@ -57,20 +57,20 @@ size_t address::from_socks5(const char *data)
 		case 1:
 		case 3:
 		case 4:
-			m_type = (addr_type)(*data);
+			type_ = (addr_type)(*data);
 			break;
 		default:
-			m_type = UNDEFINED;
+			type_ = UNDEFINED;
 			return 0;
 	}
 	++data;
 
 	size_t size = 0;
-	switch (m_type)
+	switch (type_)
 	{
 		case V4:
 		{
-			m_v4 = address_v4(data);
+			v4_ = address_v4(data);
 			size = 1 + address_v4::addr_size;
 			break;
 		}
@@ -78,13 +78,13 @@ size_t address::from_socks5(const char *data)
 		{
 			size = (unsigned char)(*data);
 			++data;
-			m_str = address_str(data, size);
+			str_ = address_str(data, size);
 			size = 2 + size;
 			break;
 		}
 		case V6:
 		{
-			m_v6 = address_v6(data);
+			v6_ = address_v6(data);
 			size = 1 + address_v6::addr_size;
 			break;
 		}
@@ -94,19 +94,19 @@ size_t address::from_socks5(const char *data)
 
 void address::to_socks5(std::string &ret) const
 {
-	if (m_type == UNDEFINED)
+	if (type_ == UNDEFINED)
 		return;
-	ret.push_back(m_type);
-	switch (m_type)
+	ret.push_back(type_);
+	switch (type_)
 	{
 		case V4:
 		{
-			ret.append(m_v4.data(), m_v4.addr_size);
+			ret.append(v4_.data(), v4_.addr_size);
 			break;
 		}
 		case STR:
 		{
-			const std::string &addr = m_str.data();
+			const std::string &addr = str_.data();
 			assert(addr.size() < 0x100);
 			uint8_t size = (uint8_t)std::min(addr.size(), (size_t)std::numeric_limits<uint8_t>::max());
 			ret.push_back(size);
@@ -115,7 +115,7 @@ void address::to_socks5(std::string &ret) const
 		}
 		case V6:
 		{
-			ret.append(m_v6.data(), m_v6.addr_size);
+			ret.append(v6_.data(), v6_.addr_size);
 			break;
 		}
 	}
@@ -123,30 +123,30 @@ void address::to_socks5(std::string &ret) const
 
 std::string address::to_string() const
 {
-	switch (m_type)
+	switch (type_)
 	{
 		case V4:
-			return m_v4.to_string();
+			return v4_.to_string();
 		case STR:
-			return m_str.to_string();
+			return str_.to_string();
 		case V6:
-			return m_v6.to_string();
+			return v6_.to_string();
 	}
 	return std::string();
 }
 
 bool address::operator==(const address &b) const
 {
-	if (m_type != b.m_type)
+	if (type_ != b.type_)
 		return false;
-	switch (m_type)
+	switch (type_)
 	{
 	case V4:
-		return m_v4 == b.m_v4;
+		return v4_ == b.v4_;
 	case STR:
-		return m_str == b.m_str;
+		return str_ == b.str_;
 	case V6:
-		return m_v6 == b.m_v6;
+		return v6_ == b.v6_;
 	default:
 		return false;
 	}
@@ -154,16 +154,16 @@ bool address::operator==(const address &b) const
 
 bool address::operator!=(const address &b) const
 {
-	if (m_type != b.m_type)
+	if (type_ != b.type_)
 		return true;
-	switch (m_type)
+	switch (type_)
 	{
 	case V4:
-		return m_v4 != b.m_v4;
+		return v4_ != b.v4_;
 	case STR:
-		return m_str != b.m_str;
+		return str_ != b.str_;
 	case V6:
-		return m_v6 != b.m_v6;
+		return v6_ != b.v6_;
 	default:
 		return true;
 	}

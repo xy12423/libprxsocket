@@ -10,9 +10,8 @@
 #include <stdexcept>
 #endif
 
-typedef int error_code;
-typedef std::function<void(error_code)> null_callback;
-typedef std::function<void(error_code, size_t)> transfer_callback;
+using error_code = int;
+using null_callback = std::function<void(error_code)>;
 
 enum {
 	//Deprecated
@@ -38,6 +37,8 @@ public:
 class prx_tcp_socket
 {
 public:
+	using transfer_callback = std::function<void(error_code, size_t)>;
+
 	prx_tcp_socket() = default;
 	prx_tcp_socket(const prx_tcp_socket &) = delete;
 	prx_tcp_socket(prx_tcp_socket &&) = default;
@@ -88,6 +89,8 @@ void async_write(prx_tcp_socket &socket, const const_buffer &buffer, null_callba
 class prx_udp_socket
 {
 public:
+	using transfer_callback = std::function<void(error_code, size_t)>;
+
 	prx_udp_socket() = default;
 	prx_udp_socket(const prx_udp_socket &) = delete;
 	prx_udp_socket(prx_udp_socket &&) = default;
@@ -124,7 +127,7 @@ public:
 class prx_listener
 {
 public:
-	typedef std::function<void(error_code, std::unique_ptr<prx_tcp_socket> &&)> accept_callback;
+	using accept_callback = std::function<void(error_code, std::unique_ptr<prx_tcp_socket> &&)>;
 
 	prx_listener() = default;
 	prx_listener(const prx_listener &) = delete;
