@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "socket_websock.h"
-#include "http_header.h"
 
 using namespace CryptoPP;
 
@@ -196,20 +195,20 @@ void websock_tcp_socket::connect(const endpoint &ep, error_code &err)
 			return;
 		}
 
-		size_t size_read, size_parsed;
-		std::string recved;
 		http_header header;
-		while (!header.parse(size_parsed, recved.data(), recved.size()))
+		size_t recv_buf_ptr = 0, recv_buf_ptr_end = 0, size_read, size_parsed;
+		bool finished;
+		while (finished = header.parse(recv_buf.get() + recv_buf_ptr, recv_buf_ptr_end - recv_buf_ptr, size_parsed), recv_buf_ptr += size_parsed, !finished)
 		{
-			if (recved.size() >= recv_buf_size)
+			if (recv_buf_ptr_end >= recv_buf_size)
 				throw(std::runtime_error("HTTP header too long"));
-			socket->recv(mutable_buffer(recv_buf.get(), recv_buf_size), size_read, err);
+			socket->recv(mutable_buffer(recv_buf.get() + recv_buf_ptr_end, recv_buf_size - recv_buf_ptr_end), size_read, err);
 			if (err)
 			{
 				close();
 				return;
 			}
-			recved.append(recv_buf.get(), size_read);
+			recv_buf_ptr_end += size_read;
 		}
 
 		if (header.at(http_header::NAME_STATUS_CODE) != "101" || header.at("Connection") != "Upgrade" || header.at("Upgrade") != "websocket")
@@ -270,14 +269,14 @@ void websock_tcp_socket::send_websocket_req(const std::shared_ptr<null_callback>
 			async_close([callback, err](error_code) { (*callback)(err); });
 			return;
 		}
-		recv_websocket_resp(callback, std::make_shared<std::string>());
+		recv_websocket_resp(callback, std::make_shared<http_header>());
 	});
 }
 
-void websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_callback> &callback, const std::shared_ptr<std::string> &buf)
+void websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_callback> &callback, const std::shared_ptr<http_header> &header, size_t old_ptr, size_t old_ptr_end)
 {
-	socket->async_recv(mutable_buffer(recv_buf.get(), recv_buf_size),
-		[this, callback, buf](error_code err, size_t transferred)
+	socket->async_recv(mutable_buffer(recv_buf.get() + old_ptr_end, recv_buf_size - old_ptr_end),
+		[this, callback, header, old_ptr, old_ptr_end](error_code err, size_t transferred)
 	{
 		if (err)
 		{
@@ -287,22 +286,23 @@ void websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_callback
 
 		try
 		{
-			buf->append(recv_buf.get(), transferred);
-			http_header header;
-			size_t parsed;
-			if (!header.parse(parsed, buf->data(), buf->size()))
+			size_t new_ptr_end = old_ptr_end + transferred;
+			size_t size_parsed;
+			bool finished = header->parse(recv_buf.get() + old_ptr, old_ptr_end - old_ptr, size_parsed);
+			size_t new_ptr = old_ptr + size_parsed;
+			if (!finished)
 			{
-				if (buf->size() >= recv_buf_size)
-					throw(std::runtime_error("HTTP header too long"));
-				recv_websocket_resp(callback, buf);
+				if (new_ptr_end >= recv_buf_size)
+					throw(std::runtime_error("HTTP response too long"));
+				recv_websocket_resp(callback, header, new_ptr, new_ptr_end);
 				return;
 			}
 
-			if (header.at(http_header::NAME_STATUS_CODE) != "101" || header.at("Connection") != "Upgrade" || header.at("Upgrade") != "websocket")
+			if (header->at(http_header::NAME_STATUS_CODE) != "101" || header->at("Connection") != "Upgrade" || header->at("Upgrade") != "websocket")
 				throw(std::runtime_error("Bad HTTP header"));
 			std::string sec_accept;
 			gen_websocket_accept(sec_accept, iv.data(), sym_block_size);
-			if (header.at("Sec-WebSocket-Accept") != sec_accept)
+			if (header->at("Sec-WebSocket-Accept") != sec_accept)
 				throw(std::runtime_error("Invalid Sec-WebSocket-Accept"));
 			state = STATE_OK;
 			(*callback)(0);
@@ -621,17 +621,17 @@ void websock_listener::accept(std::unique_ptr<prx_tcp_socket> &soc, error_code &
 
 	try
 	{
-		size_t size_read, size_parsed;
-		std::string recved;
 		http_header header;
-		while (!header.parse(size_parsed, recved.data(), recved.size()))
+		size_t recv_buf_ptr = 0, recv_buf_ptr_end = 0, size_read, size_parsed;
+		bool finished;
+		while (finished = header.parse(recv_buf.get() + recv_buf_ptr, recv_buf_ptr_end - recv_buf_ptr, size_parsed), recv_buf_ptr += size_parsed, !finished)
 		{
-			if (recved.size() >= recv_buf_size)
+			if (recv_buf_ptr_end >= recv_buf_size)
 				throw(std::runtime_error("HTTP header too long"));
-			socket->recv(mutable_buffer(recv_buf.get(), recv_buf_size), size_read, ec);
+			socket->recv(mutable_buffer(recv_buf.get() + recv_buf_ptr_end, recv_buf_size - recv_buf_ptr_end), size_read, ec);
 			if (ec)
 				throw(std::runtime_error("websock_listener::accept(): recv() error"));
-			recved.append(recv_buf.get(), size_read);
+			recv_buf_ptr_end += size_read;
 		}
 
 		if (header.at(http_header::NAME_REQUEST_METHOD) != "GET" || header.at("Connection") != "Upgrade" || header.at("Upgrade") != "websocket" || header.at("Sec-WebSocket-Version") != "13")
@@ -688,14 +688,14 @@ void websock_listener::async_accept(accept_callback &&complete_handler)
 			return;
 		}
 		socket_accept = std::move(socket);
-		recv_websocket_req(callback, std::make_shared<std::string>());
+		recv_websocket_req(callback, std::make_shared<http_header>());
 	});
 }
 
-void websock_listener::recv_websocket_req(const std::shared_ptr<accept_callback> &callback, const std::shared_ptr<std::string> &buf)
+void websock_listener::recv_websocket_req(const std::shared_ptr<accept_callback> &callback, const std::shared_ptr<http_header> &header, size_t old_ptr, size_t old_ptr_end)
 {
-	socket_accept->async_recv(mutable_buffer(recv_buf.get(), recv_buf_size),
-		[this, callback, buf](error_code err, size_t transferred)
+	socket_accept->async_recv(mutable_buffer(recv_buf.get() + old_ptr_end, recv_buf_size - old_ptr_end),
+		[this, callback, header, old_ptr, old_ptr_end](error_code err, size_t transferred)
 	{
 		if (err)
 		{
@@ -710,25 +710,26 @@ void websock_listener::recv_websocket_req(const std::shared_ptr<accept_callback>
 
 		try
 		{
-			buf->append(recv_buf.get(), transferred);
-			http_header header;
-			size_t parsed;
-			if (!header.parse(parsed, buf->data(), buf->size()))
+			size_t new_ptr_end = old_ptr_end + transferred;
+			size_t size_parsed;
+			bool finished = header->parse(recv_buf.get() + old_ptr, old_ptr_end - old_ptr, size_parsed);
+			size_t new_ptr = old_ptr + size_parsed;
+			if (!finished)
 			{
-				if (buf->size() >= recv_buf_size)
+				if (new_ptr_end >= recv_buf_size)
 					throw(std::runtime_error("HTTP header too long"));
-				recv_websocket_req(callback, buf);
+				recv_websocket_req(callback, header, new_ptr, new_ptr_end);
 				return;
 			}
 
-			if (header.at(http_header::NAME_REQUEST_METHOD) != "GET" || header.at("Connection") != "Upgrade" || header.at("Upgrade") != "websocket" || header.at("Sec-WebSocket-Version") != "13")
+			if (header->at(http_header::NAME_REQUEST_METHOD) != "GET" || header->at("Connection") != "Upgrade" || header->at("Upgrade") != "websocket" || header->at("Sec-WebSocket-Version") != "13")
 				throw(std::runtime_error("Bad HTTP header"));
-			if (header.at(http_header::NAME_REQUEST_TARGET) != "/ep" || header.at("Sec-WebSocket-Protocol") != "str")
+			if (header->at(http_header::NAME_REQUEST_TARGET) != "/ep" || header->at("Sec-WebSocket-Protocol") != "str")
 				throw(std::runtime_error("Bad HTTP header"));
 
 			iv.clear();
 			sec_accept.clear();
-			std::string &iv_b64 = header.at("Sec-WebSocket-Key");
+			std::string &iv_b64 = header->at("Sec-WebSocket-Key");
 			base64_rev(iv, iv_b64.data(), iv_b64.size());
 			gen_websocket_accept(sec_accept, iv_b64);
 		}

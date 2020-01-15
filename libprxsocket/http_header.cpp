@@ -103,7 +103,7 @@ bool http_header::parse_http_status(const std::string &line)
 	return true;
 }
 
-bool http_header::parse(size_t &size_read, const char *src, size_t src_size)
+bool http_header::parse(const char *src, size_t src_size, size_t &size_read)
 {
 	size_read = 0;
 	const char *itr = src, *itr_end = src + src_size;

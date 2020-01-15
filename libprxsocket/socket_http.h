@@ -1,6 +1,7 @@
 #pragma once
 
 #include "socket_base.h"
+#include "http_header.h"
 
 #ifndef _LIBPRXSOCKET_BUILD
 #endif
@@ -38,7 +39,7 @@ public:
 private:
 	void close() { state = STATE_INIT; error_code ec; socket->close(ec); }
 	void send_http_req(const std::shared_ptr<null_callback> &callback);
-	void recv_http_resp(const std::shared_ptr<null_callback> &callback);
+	void recv_http_resp(const std::shared_ptr<null_callback> &callback, const std::shared_ptr<http_header> &header);
 
 	int state = STATE_INIT;
 

@@ -75,7 +75,7 @@ public:
 	container_type::const_iterator end() const { return headers.end(); }
 	container_type::const_iterator cend() const { return headers.cend(); }
 
-	bool parse(size_t &size_read, const char *src, size_t src_size);
+	bool parse(const char *src, size_t src_size, size_t &size_read);
 	std::string to_string() const;
 private:
 	bool parse_http_request(const std::string &line);

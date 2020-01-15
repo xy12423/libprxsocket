@@ -2,6 +2,7 @@
 #define _H_SOCKET_WEBSOCK
 
 #include "socket_base.h"
+#include "http_header.h"
 
 #ifndef _LIBPRXSOCKET_BUILD
 #include <list>
@@ -70,7 +71,7 @@ private:
 	void decode(std::string &dst, const char *src, size_t size);
 
 	void send_websocket_req(const std::shared_ptr<null_callback> &callback);
-	void recv_websocket_resp(const std::shared_ptr<null_callback> &callback, const std::shared_ptr<std::string> &buf);
+	void recv_websocket_resp(const std::shared_ptr<null_callback> &callback, const std::shared_ptr<http_header> &header, size_t recv_buf_ptr = 0, size_t recv_buf_ptr_end = 0);
 
 	error_code recv_data();
 	void async_recv_data(null_callback &&complete_handler);
@@ -125,7 +126,7 @@ public:
 	virtual void close(error_code &ec) override { return acceptor->close(ec); }
 	virtual void async_close(null_callback &&complete_handler) override { acceptor->async_close(std::move(complete_handler)); }
 private:
-	void recv_websocket_req(const std::shared_ptr<accept_callback> &callback, const std::shared_ptr<std::string> &buf);
+	void recv_websocket_req(const std::shared_ptr<accept_callback> &callback, const std::shared_ptr<http_header> &header, size_t recv_buf_ptr = 0, size_t recv_buf_ptr_end = 0);
 	void send_websocket_resp(const std::shared_ptr<accept_callback> &callback);
 
 	std::unique_ptr<prx_listener> acceptor;
