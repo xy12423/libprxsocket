@@ -1,5 +1,5 @@
-#ifndef _H_SOCKET_SOCKS5
-#define _H_SOCKET_SOCKS5
+#ifndef LIBPRXSOCKET_H_SOCKET_SOCKS5
+#define LIBPRXSOCKET_H_SOCKET_SOCKS5
 
 #include "socks5_base.h"
 
@@ -15,7 +15,7 @@ public:
 	socks5_tcp_socket(const endpoint &server_endpoint, std::unique_ptr<prx_tcp_socket> &&base_socket, const std::string &methods)
 		:socks5_base(std::move(base_socket), methods), server_ep(server_endpoint)
 	{}
-	virtual ~socks5_tcp_socket() {}
+	virtual ~socks5_tcp_socket() override {}
 
 	virtual bool is_open() override { return state >= STATE_OPEN; }
 	virtual bool is_connected() override { return state >= STATE_CONNECTED; }
@@ -59,7 +59,7 @@ public:
 		:socks5_base(std::move(arg1), "\x80", 1), server_ep(_server_ep), udp_recv_buf(std::make_unique<char[]>(udp_buf_size))
 	{
 	}
-	virtual ~socks5_udp_socket() {}
+	virtual ~socks5_udp_socket() override {}
 
 	virtual bool is_open() override { return state >= STATE_ASSOCIATED; }
 
@@ -100,7 +100,7 @@ public:
 	socks5_listener(const endpoint &_server_ep, std::function<std::unique_ptr<prx_tcp_socket>()> &&_gen_socket)
 		:server_ep(_server_ep), local_ep(0ul, 0), methods("\x80\x00", 2), gen_socket(std::move(_gen_socket))
 	{}
-	virtual ~socks5_listener() {}
+	virtual ~socks5_listener() override {}
 
 	virtual bool is_open() override { return cur_socket && cur_socket->is_open(); }
 	virtual bool is_listening() override { return listening && is_open(); }

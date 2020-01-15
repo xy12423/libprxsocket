@@ -1,5 +1,5 @@
-#ifndef _H_SOCKET
-#define _H_SOCKET
+#ifndef LIBPRXSOCKET_H_SOCKET_BASE
+#define LIBPRXSOCKET_H_SOCKET_BASE
 
 #include "endpoint.h"
 #include "buffer.h"

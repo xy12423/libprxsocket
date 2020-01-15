@@ -1,5 +1,5 @@
-#ifndef _H_SOCKET_RAW
-#define _H_SOCKET_RAW
+#ifndef LIBPRXSOCKET_H_SOCKET_RAW
+#define LIBPRXSOCKET_H_SOCKET_RAW
 
 #include "socket_base.h"
 
@@ -13,7 +13,7 @@ class raw_tcp_socket :public prx_tcp_socket
 public:
 	raw_tcp_socket(asio::io_context &iosrv) :socket(iosrv), resolver(iosrv) {}
 	raw_tcp_socket(asio::ip::tcp::socket &&native_socket, bool is_connected = false) :socket(std::move(native_socket)), resolver(socket.get_executor()), connected(is_connected) { set_keep_alive(); }
-	virtual ~raw_tcp_socket() {}
+	virtual ~raw_tcp_socket() override {}
 
 	virtual bool is_open() override { return socket.is_open(); }
 	virtual bool is_connected() override { assert(!connected || is_open()); return connected && is_open(); }
@@ -55,7 +55,7 @@ class raw_udp_socket :public prx_udp_socket
 {
 public:
 	raw_udp_socket(asio::io_context &iosrv) :socket(iosrv), resolver(iosrv) {}
-	virtual ~raw_udp_socket() {}
+	virtual ~raw_udp_socket() override {}
 
 	virtual bool is_open() override { return socket.is_open(); }
 	
@@ -88,7 +88,7 @@ class raw_listener :public prx_listener
 {
 public:
 	raw_listener(asio::io_context &_iosrv) :iosrv(_iosrv), acceptor(iosrv) {}
-	virtual ~raw_listener() {}
+	virtual ~raw_listener() override {}
 
 	virtual bool is_open() override { return acceptor.is_open(); }
 	virtual bool is_listening() override { return listening && acceptor.is_open(); }

@@ -1,5 +1,5 @@
-#ifndef _H_SOCKS5_BASE
-#define _H_SOCKS5_BASE
+#ifndef LIBPRXSOCKET_H_SOCKS5_BASE
+#define LIBPRXSOCKET_H_SOCKS5_BASE
 
 #include "socket_base.h"
 

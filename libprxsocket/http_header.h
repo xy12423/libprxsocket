@@ -1,5 +1,5 @@
-#ifndef _H_HTTP_HELPER
-#define _H_HTTP_HELPER
+#ifndef LIBPRXSOCKET_H_HTTP_HELPER
+#define LIBPRXSOCKET_H_HTTP_HELPER
 
 #ifndef _LIBPRXSOCKET_BUILD
 #include <string>

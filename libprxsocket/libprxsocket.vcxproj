@@ -173,7 +173,8 @@
     <ClCompile Include="socket_http.cpp" />
     <ClCompile Include="socket_raw.cpp" />
     <ClCompile Include="socket_socks5.cpp" />
-    <ClCompile Include="socket_websock.cpp" />
+    <ClCompile Include="socket_ss.cpp" />
+    <ClCompile Include="socket_obfs_websock.cpp" />
     <ClCompile Include="socks5_base.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -191,7 +192,8 @@
     <ClInclude Include="socket_http.h" />
     <ClInclude Include="socket_raw.h" />
     <ClInclude Include="socket_socks5.h" />
-    <ClInclude Include="socket_websock.h" />
+    <ClInclude Include="socket_ss.h" />
+    <ClInclude Include="socket_obfs_websock.h" />
     <ClInclude Include="socks5_base.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>

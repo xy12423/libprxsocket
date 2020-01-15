@@ -1,5 +1,5 @@
-#ifndef _H_ADDRESS
-#define _H_ADDRESS
+#ifndef LIBPRXSOCKET_H_ADDRESS
+#define LIBPRXSOCKET_H_ADDRESS
 
 #ifndef _LIBPRXSOCKET_BUILD
 #include <cassert>

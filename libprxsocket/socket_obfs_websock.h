@@ -1,5 +1,5 @@
-#ifndef _H_SOCKET_WEBSOCK
-#define _H_SOCKET_WEBSOCK
+#ifndef LIBPRXSOCKET_H_SOCKET_OBFS_WEBSOCK
+#define LIBPRXSOCKET_H_SOCKET_OBFS_WEBSOCK
 
 #include "socket_base.h"
 #include "http_header.h"
@@ -15,21 +15,21 @@
 #include <cryptopp/modes.h>
 #endif
 
-class websock_tcp_socket :public prx_tcp_socket
+class obfs_websock_tcp_socket :public prx_tcp_socket
 {
 	enum { STATE_INIT, STATE_OK };
 	static constexpr size_t sym_block_size = 16;
 	static constexpr size_t sha1_size = 20;
 	static constexpr size_t recv_buf_size = 0x800;
 public:
-	websock_tcp_socket(std::unique_ptr<prx_tcp_socket> &&_socket, const std::string &_key)
+	obfs_websock_tcp_socket(std::unique_ptr<prx_tcp_socket> &&_socket, const std::string &_key)
 		:socket(std::move(_socket)), recv_buf(std::make_unique<char[]>(recv_buf_size)),
 		key(sym_block_size), iv(sym_block_size)
 	{
 		constexpr size_t block_size = sym_block_size;
 		memcpy(key.data(), _key.data(), std::min(block_size, _key.size()));
 	}
-	websock_tcp_socket(std::unique_ptr<prx_tcp_socket> &&_socket, const std::string &_key, const std::string &_iv)
+	obfs_websock_tcp_socket(std::unique_ptr<prx_tcp_socket> &&_socket, const std::string &_key, const std::string &_iv)
 		:state(STATE_OK),
 		socket(std::move(_socket)), recv_buf(std::make_unique<char[]>(recv_buf_size)),
 		key(sym_block_size), iv(sym_block_size)
@@ -40,7 +40,7 @@ public:
 		e.SetKeyWithIV(key, sym_block_size, iv);
 		d.SetKeyWithIV(key, sym_block_size, iv);
 	}
-	virtual ~websock_tcp_socket() {}
+	virtual ~obfs_websock_tcp_socket() override {}
 
 	virtual bool is_open() override { return socket->is_open(); }
 	virtual bool is_connected() override { return state >= STATE_OK && socket->is_connected(); }
@@ -94,17 +94,17 @@ private:
 	std::mutex enc_mutex, dec_mutex;
 };
 
-class websock_listener :public prx_listener
+class obfs_websock_listener :public prx_listener
 {
 private:
 	static constexpr size_t sym_block_size = 16;
 	static constexpr size_t recv_buf_size = 0x800;
 public:
-	websock_listener(std::unique_ptr<prx_listener> &&_acceptor, const std::string &_key)
+	obfs_websock_listener(std::unique_ptr<prx_listener> &&_acceptor, const std::string &_key)
 		:acceptor(std::move(_acceptor)), recv_buf(std::make_unique<char[]>(recv_buf_size)),
 		key(_key)
 	{}
-	virtual ~websock_listener() {}
+	virtual ~obfs_websock_listener() override {}
 
 	virtual bool is_open() override { return acceptor->is_open(); }
 	virtual bool is_listening() override { return acceptor->is_listening(); }

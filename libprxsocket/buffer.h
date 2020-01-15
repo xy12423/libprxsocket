@@ -1,5 +1,5 @@
-#ifndef _H_BUFFER
-#define _H_BUFFER
+#ifndef LIBPRXSOCKET_H_BUFFER
+#define LIBPRXSOCKET_H_BUFFER
 
 #ifndef _LIBPRXSOCKET_BUILD
 #include <string>

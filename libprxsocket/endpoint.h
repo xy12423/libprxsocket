@@ -1,5 +1,5 @@
-#ifndef _H_ENDPOINT
-#define _H_ENDPOINT
+#ifndef LIBPRXSOCKET_H_ENDPOINT
+#define LIBPRXSOCKET_H_ENDPOINT
 
 #include "address.h"
 

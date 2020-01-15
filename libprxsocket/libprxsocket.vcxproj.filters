@@ -30,9 +30,6 @@
     <ClCompile Include="socket_socks5.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="socket_websock.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="socks5_base.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -40,6 +37,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="http_header.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="socket_ss.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="socket_obfs_websock.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -62,9 +65,6 @@
     <ClInclude Include="socket_socks5.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="socket_websock.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="socks5_base.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -75,6 +75,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="http_header.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="socket_ss.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="socket_obfs_websock.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
