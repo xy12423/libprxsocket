@@ -288,7 +288,7 @@ void websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_callback
 		{
 			size_t new_ptr_end = old_ptr_end + transferred;
 			size_t size_parsed;
-			bool finished = header->parse(recv_buf.get() + old_ptr, old_ptr_end - old_ptr, size_parsed);
+			bool finished = header->parse(recv_buf.get() + old_ptr, new_ptr_end - old_ptr, size_parsed);
 			size_t new_ptr = old_ptr + size_parsed;
 			if (!finished)
 			{
@@ -712,7 +712,7 @@ void websock_listener::recv_websocket_req(const std::shared_ptr<accept_callback>
 		{
 			size_t new_ptr_end = old_ptr_end + transferred;
 			size_t size_parsed;
-			bool finished = header->parse(recv_buf.get() + old_ptr, old_ptr_end - old_ptr, size_parsed);
+			bool finished = header->parse(recv_buf.get() + old_ptr, new_ptr_end - old_ptr, size_parsed);
 			size_t new_ptr = old_ptr + size_parsed;
 			if (!finished)
 			{
