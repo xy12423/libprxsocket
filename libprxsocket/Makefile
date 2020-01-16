@@ -10,7 +10,7 @@ else
 	CXXFLAGS += -g3 -O0 -D_DEBUG
 endif
 
-objects = address.o socket_base.o http_header.o socket_http.o socket_raw.o socks5_base.o socket_socks5.o socket_ss.o socket_obfs_websock.o
+objects = address.o endpoint.o socket_base.o http_header.o socket_http.o socket_raw.o socks5_base.o socket_socks5.o socket_ss.o socket_obfs_websock.o
 baseheaders = stdafx.h address.h endpoint.h buffer.h socket_base.h
 
 all : libprxsocket.a
@@ -20,6 +20,8 @@ libprxsocket.a : $(objects)
 	$(RANLIB) $@
 address.o : stdafx.h address.h address.cpp
 	$(CXX) address.cpp $(CXXFLAGS) -o address.o
+endpoint.o : stdafx.h address.h endpoint.h endpoint.cpp
+	$(CXX) endpoint.cpp $(CXXFLAGS) -o endpoint.o
 socket_base.o : $(baseheaders) socket_base.cpp
 	$(CXX) socket_base.cpp $(CXXFLAGS) -o socket_base.o
 http_header.o : stdafx.h http_header.h http_header.cpp

@@ -264,9 +264,7 @@ error_code socks5_base::send_s5(uint8_t type, const endpoint &ep)
 		req.push_back(socks_version);  //VER
 		req.push_back(type);           //CMD / REP
 		req.push_back(0);              //RSV
-		ep.addr().to_socks5(req);  //ATYP && DST.ADDR
-		req.push_back(ep.port() >> 8);	//DST.PORT
-		req.push_back(ep.port() & 0xFF);
+		ep.to_socks5(req);             //ATYP && DST.ADDR
 		error_code err;
 		write(*socket.get(), const_buffer(req), err);
 		if (err)
@@ -294,9 +292,7 @@ void socks5_base::async_send_s5(uint8_t type, const endpoint &ep, null_callback 
 		req_data->push_back(socks_version);  //VER
 		req_data->push_back(type);           //CMD / REP
 		req_data->push_back(0);              //RSV
-		ep.addr().to_socks5(*req_data);  //ATYP && DST.ADDR
-		req_data->push_back(ep.port() >> 8);	//DST.PORT
-		req_data->push_back(ep.port() & 0xFF);
+		ep.to_socks5(*req_data);             //ATYP && DST
 
 		async_write(*socket.get(), const_buffer(*req_data),
 			[this, req_data, callback](error_code err)
@@ -435,10 +431,9 @@ void socks5_base::async_recv_s5_body(const std::shared_ptr<std::array<char, 263>
 				throw(socks5_error(err));
 
 			std::array<char, 263> &resp_head = *resp_data;
-			address bnd_addr;
-			bnd_addr.from_socks5(resp_data->data() + 3);
-			port_type bnd_port = ((uint8_t)(resp_head[bytes_last + 3]) << 8) | (uint8_t)(resp_head[bytes_last + 4]);
-			(*callback)(0, resp_head[1], endpoint(bnd_addr, bnd_port));
+			endpoint bnd;
+			bnd.from_socks5(resp_data->data() + 3);
+			(*callback)(0, resp_head[1], bnd);
 		}
 		catch (socks5_error &ex)
 		{
@@ -463,17 +458,12 @@ error_code socks5_base::parse_udp(const char *udp_recv_buf, size_t udp_recv_size
 			if (udp_recv_buf[i] != 0)
 				return WARN_OPERATION_FAILURE;
 
-		address dst_addr;
-		size_t addr_size = dst_addr.from_socks5(udp_recv_buf + 3);
-		if (addr_size == 0 || 5 + addr_size >= udp_recv_size)
+		size_t ep_size = ep.from_socks5(udp_recv_buf + 3);
+		if (ep_size == 0 || 3 + ep_size >= udp_recv_size)
 			return WARN_OPERATION_FAILURE;
 
-		ep = endpoint(
-			std::move(dst_addr),
-			((uint8_t)(udp_recv_buf[3 + addr_size]) << 8) | (uint8_t)(udp_recv_buf[4 + addr_size])
-		);
-		buffer = udp_recv_buf + 5 + addr_size;
-		transferred = udp_recv_size - (5 + addr_size);
+		buffer = udp_recv_buf + 3 + ep_size;
+		transferred = udp_recv_size - (3 + ep_size);
 	}
 	catch (std::exception &)
 	{

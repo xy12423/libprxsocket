@@ -414,10 +414,8 @@ void socks5_udp_socket::send_to(const endpoint &ep, const const_buffer &buffer, 
 	std::string buf;
 	try
 	{
-		buf.append(3, '\0');               //RSV && FRAG
-		ep.addr().to_socks5(buf);      //ATYP && DST.ADDR
-		buf.push_back(ep.port() >> 8); //DST.PORT
-		buf.push_back(ep.port() & 0xFF);
+		buf.append(3, '\0');           //RSV && FRAG
+		ep.to_socks5(buf);             //ATYP && DST
 		buf.append(buffer.data(), buffer.size());	//DATA
 	}
 	catch (std::exception &)
@@ -460,10 +458,8 @@ void socks5_udp_socket::async_send_to(const endpoint &ep, const const_buffer &bu
 	std::shared_ptr<std::string> buf = std::make_shared<std::string>();
 	try
 	{
-		buf->append(3, '\0');               //RSV && FRAG
-		ep.addr().to_socks5(*buf);      //ATYP && DST.ADDR
-		buf->push_back(ep.port() >> 8); //DST.PORT
-		buf->push_back(ep.port() & 0xFF);
+		buf->append(3, '\0');    //RSV && FRAG
+		ep.to_socks5(*buf);      //ATYP && DST
 		buf->append(buffer.data(), buffer.size());
 	}
 	catch (std::exception &)

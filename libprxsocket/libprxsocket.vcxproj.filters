@@ -45,6 +45,9 @@
     <ClCompile Include="socket_obfs_websock.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="endpoint.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="address.h">
