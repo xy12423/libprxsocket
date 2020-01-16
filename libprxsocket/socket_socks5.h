@@ -51,12 +51,12 @@ class socks5_udp_socket :public prx_udp_socket, private socks5_base
 
 	static constexpr size_t udp_buf_size = 0x10000;
 public:
-	socks5_udp_socket(const endpoint &_server_ep, std::unique_ptr<prx_tcp_socket> &&arg1, std::unique_ptr<prx_udp_socket> &&arg2)
-		:socks5_base(std::move(arg1), "\x80\x00", 2), server_ep(_server_ep), udp_socket(std::move(arg2)), udp_recv_buf(std::make_unique<char[]>(udp_buf_size))
+	socks5_udp_socket(const endpoint &_server_ep, std::unique_ptr<prx_tcp_socket> &&base_socket, std::unique_ptr<prx_udp_socket> &&base_udp_socket)
+		:socks5_base(std::move(base_socket), "\x80\x00", 2), server_ep(_server_ep), udp_socket(std::move(base_udp_socket)), udp_recv_buf(std::make_unique<char[]>(udp_buf_size))
 	{
 	}
-	socks5_udp_socket(const endpoint &_server_ep, std::unique_ptr<prx_tcp_socket> &&arg1)
-		:socks5_base(std::move(arg1), "\x80", 1), server_ep(_server_ep), udp_recv_buf(std::make_unique<char[]>(udp_buf_size))
+	socks5_udp_socket(const endpoint &_server_ep, std::unique_ptr<prx_tcp_socket> &&base_socket)
+		:socks5_base(std::move(base_socket), "\x80", 1), server_ep(_server_ep), udp_recv_buf(std::make_unique<char[]>(udp_buf_size))
 	{
 	}
 	virtual ~socks5_udp_socket() override {}

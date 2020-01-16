@@ -134,7 +134,7 @@ void raw_tcp_socket::bind(const endpoint &ep, error_code &err)
 			socket.open(asio::ip::tcp::v6(), ec);
 			set_keep_alive();
 			std::array<uint8_t, address_v6::addr_size> addr_byte;
-			memmove(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
+			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
 			native_addr = asio::ip::address_v6(addr_byte);
 			break;
 		}
@@ -205,7 +205,7 @@ void raw_tcp_socket::connect(const endpoint &ep, error_code &err)
 			if (!binded)
 				check_protocol(asio::ip::tcp::v6());
 			std::array<uint8_t, address_v6::addr_size> addr_byte;
-			memmove(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
+			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
 			native_addr = asio::ip::address_v6(addr_byte);
 			break;
 		}
@@ -275,7 +275,7 @@ void raw_tcp_socket::async_connect(const endpoint &ep, null_callback &&complete_
 			if (!binded)
 				check_protocol(asio::ip::tcp::v6());
 			std::array<uint8_t, address_v6::addr_size> addr_byte;
-			memmove(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
+			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
 			native_addr = asio::ip::address_v6(addr_byte);
 			break;
 		}
@@ -477,7 +477,7 @@ void raw_udp_socket::bind(const endpoint &ep, error_code &err)
 		{
 			socket.open(asio::ip::udp::v4(), ec);
 			std::array<uint8_t, address_v6::addr_size> addr_byte;
-			memmove(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
+			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
 			native_addr = asio::ip::address_v6(addr_byte);
 			break;
 		}
@@ -510,7 +510,7 @@ void raw_udp_socket::send_to(const endpoint &ep, const const_buffer &buffer, err
 	error_code e = to_udp_ep(ep, native_ep);
 	if (e)
 	{
-		err = -abs(e);
+		err = e;
 		return;
 	}
 	socket.send_to(asio::buffer(buffer.data(), buffer.size()), native_ep, 0, ec);
@@ -525,10 +525,10 @@ void raw_udp_socket::async_send_to(const endpoint &ep, const const_buffer &buffe
 	{
 		if (err)
 		{
-			(*callback)(-abs(err));
+			(*callback)(err);
 			return;
 		}
-		socket.async_send_to(asio::buffer(buffer.data(), buffer.size()),native_ep,
+		socket.async_send_to(asio::buffer(buffer.data(), buffer.size()), native_ep,
 			[this, callback](const boost::system::error_code &e, size_t)
 		{
 			if (e)
@@ -595,7 +595,7 @@ error_code raw_udp_socket::to_udp_ep(const endpoint &ep, asio::ip::udp::endpoint
 		case address::V6:
 		{
 			std::array<uint8_t, address_v6::addr_size> addr_byte;
-			memmove(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
+			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
 			result = asio::ip::udp::endpoint(asio::ip::address_v6(addr_byte), ep.port());
 			break;
 		}
@@ -625,7 +625,7 @@ void raw_udp_socket::async_to_udp_ep(const endpoint &ep, std::function<void(erro
 		case address::V6:
 		{
 			std::array<uint8_t, address_v6::addr_size> addr_byte;
-			memmove(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
+			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
 			complete_handler(0, asio::ip::udp::endpoint(asio::ip::address_v6(addr_byte), ep.port()));
 			break;
 		}
@@ -703,7 +703,7 @@ void raw_listener::bind(const endpoint &ep, error_code &err)
 			acceptor.close(ec);
 			acceptor.open(asio::ip::tcp::v6(), ec);
 			std::array<uint8_t, address_v6::addr_size> addr_byte;
-			memmove(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
+			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
 			native_addr = asio::ip::address_v6(addr_byte);
 			break;
 		default:

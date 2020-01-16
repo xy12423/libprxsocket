@@ -507,6 +507,8 @@ void socks5_udp_socket::async_send_to(const endpoint &ep, const const_buffer &bu
 
 void socks5_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_t &transferred, error_code &err)
 {
+	err = 0;
+	transferred = 0;
 	if (!is_open())
 	{
 		err = ERR_OPERATION_FAILURE;
@@ -514,18 +516,15 @@ void socks5_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, si
 	}
 
 	size_t udp_recv_size;
-	err = 0;
 	if (udp_socket)
 	{
 		udp_socket->recv_from(udp_recv_ep, mutable_buffer(udp_recv_buf.get(), udp_buf_size), udp_recv_size, err);
-		if (!udp_socket->is_open())
-		{
-			close();
-			if (!err)
-				err = ERR_OPERATION_FAILURE;
-		}
 		if (err)
+		{
+			if (!udp_socket->is_open())
+				close();
 			return;
+		}
 	}
 	else
 	{
@@ -585,7 +584,7 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buff
 			{
 				if (!udp_socket->is_open())
 				{
-					async_close([this, err, callback](error_code) { (*callback)(err ? err : ERR_OPERATION_FAILURE, 0); });
+					async_close([this, err, callback](error_code) { (*callback)(err, 0); });
 				}
 				else
 				{
@@ -659,7 +658,7 @@ error_code socks5_udp_socket::parse_udp(size_t udp_recv_size, endpoint &ep, cons
 	if (err)
 		return err;
 	transferred = std::min(buffer.size(), transferred);
-	memmove(buffer.access_data(), buf, transferred);
+	memcpy(buffer.access_data(), buf, transferred);
 	return 0;
 }
 

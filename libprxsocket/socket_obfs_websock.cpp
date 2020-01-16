@@ -317,9 +317,9 @@ void obfs_websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_cal
 void obfs_websock_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
+	transferred = 0;
 
 	std::string buf;
-	transferred = 0;
 	size_t size_trans = std::min(buffer.size(), recv_buf_size / 2);
 
 	try
@@ -580,6 +580,7 @@ size_t obfs_websock_tcp_socket::read_data(char *buf, size_t size)
 void obfs_websock_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
+	transferred = 0;
 	if (recv_que.empty())
 	{
 		err = recv_data();

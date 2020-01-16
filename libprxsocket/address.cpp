@@ -76,7 +76,7 @@ size_t address::from_socks5(const char *data)
 		}
 		case STR:
 		{
-			size = (unsigned char)(*data);
+			size = (uint8_t)(*data);
 			++data;
 			str_ = address_str(data, size);
 			size = 2 + size;
