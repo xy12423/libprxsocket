@@ -587,7 +587,7 @@ void obfs_websock_tcp_socket::recv(const mutable_buffer &buffer, size_t &transfe
 		if (err)
 			return;
 	}
-	transferred = read_data(buffer.access_data(), buffer.size());
+	transferred = read_data(buffer.data(), buffer.size());
 }
 
 void obfs_websock_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
@@ -606,7 +606,7 @@ void obfs_websock_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_
 		});
 		return;
 	}
-	size_t transferred = read_data(buffer.access_data(), buffer.size());
+	size_t transferred = read_data(buffer.data(), buffer.size());
 	complete_handler(0, transferred);
 }
 

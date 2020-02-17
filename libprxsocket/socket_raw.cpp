@@ -368,7 +368,7 @@ void raw_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&
 void raw_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
-	transferred = socket.receive(asio::buffer(buffer.access_data(), buffer.size()), 0, ec);
+	transferred = socket.receive(asio::buffer(buffer.data(), buffer.size()), 0, ec);
 	if (ec)
 	{
 		socket.close(ec);
@@ -380,7 +380,7 @@ void raw_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, err
 void raw_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
-	socket.async_receive(asio::buffer(buffer.access_data(), buffer.size()),
+	socket.async_receive(asio::buffer(buffer.data(), buffer.size()),
 		[this, callback](const boost::system::error_code &e, std::size_t transferred)
 	{
 		if (e)
@@ -543,7 +543,7 @@ void raw_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_
 {
 	err = 0;
 	asio::ip::udp::endpoint native_ep;
-	transferred = socket.receive_from(asio::buffer(buffer.access_data(), buffer.size()), native_ep, 0, ec);
+	transferred = socket.receive_from(asio::buffer(buffer.data(), buffer.size()), native_ep, 0, ec);
 	if (ec)
 	{
 		err = (socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
@@ -555,7 +555,7 @@ void raw_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_
 void raw_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
-	socket.async_receive_from(asio::buffer(buffer.access_data(), buffer.size()), recv_ep,
+	socket.async_receive_from(asio::buffer(buffer.data(), buffer.size()), recv_ep,
 		[this, &ep, callback](const boost::system::error_code &e, size_t recved)
 	{
 		if (e)

@@ -188,7 +188,7 @@ void http_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, er
 	if (recv_buf_ptr < recv_buf_ptr_end)
 	{
 		transferred = std::min(buffer.size(), recv_buf_ptr_end - recv_buf_ptr);
-		memcpy(buffer.access_data(), recv_buf.get() + recv_buf_ptr, transferred);
+		memcpy(buffer.data(), recv_buf.get() + recv_buf_ptr, transferred);
 		recv_buf_ptr += transferred;
 		return;
 	}
@@ -207,7 +207,7 @@ void http_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback
 	if (recv_buf_ptr < recv_buf_ptr_end)
 	{
 		size_t transferred = std::min(buffer.size(), recv_buf_ptr_end - recv_buf_ptr);
-		memcpy(buffer.access_data(), recv_buf.get() + recv_buf_ptr, transferred);
+		memcpy(buffer.data(), recv_buf.get() + recv_buf_ptr, transferred);
 		recv_buf_ptr += transferred;
 		complete_handler(0, transferred);
 		return;

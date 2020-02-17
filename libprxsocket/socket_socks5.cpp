@@ -658,7 +658,7 @@ error_code socks5_udp_socket::parse_udp(size_t udp_recv_size, endpoint &ep, cons
 	if (err)
 		return err;
 	transferred = std::min(buffer.size(), transferred);
-	memcpy(buffer.access_data(), buf, transferred);
+	memcpy(buffer.data(), buf, transferred);
 	return 0;
 }
 

@@ -66,7 +66,7 @@ void prx_tcp_socket::close()
 
 void read(prx_tcp_socket &socket, const mutable_buffer &buffer, error_code &ec)
 {
-	char *data = buffer.access_data();
+	char *data = buffer.data();
 	size_t size = buffer.size();
 	while (size > 0)
 	{
@@ -101,7 +101,7 @@ static void do_async_read(prx_tcp_socket &socket, const mutable_buffer &buffer, 
 			(*callback)(0);
 			return;
 		}
-		do_async_read(socket, mutable_buffer(buffer.access_data() + transferred, buffer.size() - transferred), callback);
+		do_async_read(socket, mutable_buffer(buffer.data() + transferred, buffer.size() - transferred), callback);
 	});
 }
 
