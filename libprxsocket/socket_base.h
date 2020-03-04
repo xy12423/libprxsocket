@@ -63,6 +63,14 @@ public:
 	virtual void async_send(const const_buffer &buffer, transfer_callback &&complete_handler) = 0;
 	virtual void recv(const mutable_buffer &buffer, size_t &transferred, error_code &ec) = 0;
 	virtual void async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler) = 0;
+	virtual void read(const mutable_buffer &buffer, error_code &ec);
+	virtual void async_read(const mutable_buffer &buffer, null_callback &&complete_handler);
+	virtual void write(const const_buffer &buffer, error_code &ec);
+	virtual void async_write(const const_buffer &buffer, null_callback &&complete_handler);
+	virtual void read(mutable_buffer_sequence &&buffer, error_code &ec) = 0;
+	virtual void async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler) = 0;
+	virtual void write(const_buffer_sequence &&buffer, error_code &ec) = 0;
+	virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) = 0;
 
 	virtual void close(error_code &ec) = 0;
 	virtual void async_close(null_callback &&complete_handler) = 0;
@@ -75,16 +83,11 @@ public:
 	void connect(const endpoint &endpoint);
 	void send(const const_buffer &buffer, size_t &transferred);
 	void recv(const mutable_buffer &buffer, size_t &transferred);
+	void read(const mutable_buffer &buffer);
+	void write(const const_buffer &buffer);
 	void close();
 #endif
 };
-
-void read(prx_tcp_socket &socket, const mutable_buffer &buffer, error_code &ec);
-void read(prx_tcp_socket &socket, const mutable_buffer &buffer);
-void async_read(prx_tcp_socket &socket, const mutable_buffer &buffer, null_callback &&complete_handler);
-void write(prx_tcp_socket &socket, const const_buffer &buffer, error_code &ec);
-void write(prx_tcp_socket &socket, const const_buffer &buffer);
-void async_write(prx_tcp_socket &socket, const const_buffer &buffer, null_callback &&complete_handler);
 
 class prx_udp_socket
 {
@@ -110,6 +113,10 @@ public:
 	virtual void async_send_to(const endpoint &endpoint, const const_buffer &buffer, null_callback &&complete_handler) = 0;
 	virtual void recv_from(endpoint &endpoint, const mutable_buffer &buffer, size_t &transferred, error_code &ec) = 0;
 	virtual void async_recv_from(endpoint &endpoint, const mutable_buffer &buffer, transfer_callback &&complete_handler) = 0;
+	virtual void send_to(const endpoint &endpoint, const_buffer_sequence &&buffer, error_code &ec) = 0;
+	virtual void async_send_to(const endpoint &endpoint, const_buffer_sequence &&buffer, null_callback &&complete_handler) = 0;
+	virtual void recv_from(endpoint &endpoint, mutable_buffer_sequence &&buffer, size_t &transferred, error_code &ec) = 0;
+	virtual void async_recv_from(endpoint &endpoint, mutable_buffer_sequence &&buffer, transfer_callback &&complete_handler) = 0;
 
 	virtual void close(error_code &ec) = 0;
 	virtual void async_close(null_callback &&complete_handler) = 0;
@@ -119,7 +126,9 @@ public:
 	void open();
 	void bind(const endpoint &endpoint);
 	void send_to(const endpoint &endpoint, const const_buffer &buffer);
+	void send_to(const endpoint &endpoint, const_buffer_sequence &&buffer);
 	void recv_from(endpoint &endpoint, const mutable_buffer &buffer, size_t &transferred);
+	void recv_from(endpoint &endpoint, mutable_buffer_sequence &&buffer, size_t &transferred);
 	void close();
 #endif
 };

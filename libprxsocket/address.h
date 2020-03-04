@@ -2,7 +2,6 @@
 #define LIBPRXSOCKET_H_ADDRESS
 
 #ifndef _LIBPRXSOCKET_BUILD
-#include <cassert>
 #include <cstdint>
 #include <cstring>
 

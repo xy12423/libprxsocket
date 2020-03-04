@@ -2,6 +2,7 @@
 #define LIBPRXSOCKET_H_HTTP_HELPER
 
 #ifndef _LIBPRXSOCKET_BUILD
+#include <cassert>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -60,7 +61,7 @@ public:
 	{
 		index_container_type &indexs = header_names.at(name);
 		if (indexs.size() != 1)
-			throw std::out_of_range("http_header::at only allows to be used with unique header name");
+			throw std::out_of_range("http_header::at is only allowed to be used with unique header name");
 		return headers.at(indexs.front()).second;
 	}
 	size_t count(const std::string &name) const

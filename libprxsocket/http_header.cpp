@@ -82,6 +82,7 @@ bool http_header::parse_http_request(const std::string &line)
 	size_t pos2 = line.find(' ', pos + 1);
 	if (pos2 == std::string::npos)
 		return false;
+	//TODO: use a better comparator
 	if (line.substr(pos2 + 1) != "HTTP/1.1")
 		return false;
 
@@ -114,10 +115,14 @@ bool http_header::parse(const char *src, size_t src_size, size_t &size_read)
 	{
 		if (*itr == '\n')
 		{
-			size_read += buf.size() + 1;
+			size_t size_line = buf.size() + 1;
+
 			trim(buf);
 			if (buf.empty())
+			{
+				size_read += size_line;
 				return true;
+			}
 
 			if (!first_line_parsed)
 			{
@@ -126,6 +131,7 @@ bool http_header::parse(const char *src, size_t src_size, size_t &size_read)
 					first_line_parsed = true;
 					append(NAME_START_LINE_TYPE, START_LINE_TYPE_STATUS);
 					buf.clear();
+					size_read += size_line;
 					continue;
 				}
 				else if (parse_http_request(buf))
@@ -133,6 +139,7 @@ bool http_header::parse(const char *src, size_t src_size, size_t &size_read)
 					first_line_parsed = true;
 					append(NAME_START_LINE_TYPE, START_LINE_TYPE_REQUEST);
 					buf.clear();
+					size_read += size_line;
 					continue;
 				}
 				else
@@ -148,6 +155,7 @@ bool http_header::parse(const char *src, size_t src_size, size_t &size_read)
 			ltrim(val);
 			append(std::move(buf), std::move(val));
 			buf.clear();
+			size_read += size_line;
 		}
 		else
 			buf.push_back(*itr);

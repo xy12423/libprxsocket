@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "endpoint.h"
 
-size_t endpoint::from_socks5(const char * data)
+size_t endpoint::from_socks5(const char *data)
 {
 	size_t size = addr_.from_socks5(data);
 	if (size == 0)
@@ -10,7 +10,7 @@ size_t endpoint::from_socks5(const char * data)
 	return size + 2;
 }
 
-void endpoint::to_socks5(std::string & ret) const
+void endpoint::to_socks5(std::string &ret) const
 {
 	addr_.to_socks5(ret);
 	ret.push_back(port_ >> 8);
