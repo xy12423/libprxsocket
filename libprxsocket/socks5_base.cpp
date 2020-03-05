@@ -15,10 +15,10 @@ error_code socks5_base::auth()
 		auth_data.push_back(socks_version);
 		auth_data.push_back((uint8_t)available_methods.size());
 		auth_data.append(available_methods);
-		write(*socket.get(), const_buffer(auth_data), err);
+		write(const_buffer(auth_data), err);
 		if (err)
 			throw(socks5_error(err));
-		read(*socket.get(), mutable_buffer(method_chosen, sizeof(method_chosen)), err);
+		read(mutable_buffer(method_chosen, sizeof(method_chosen)), err);
 		if (err)
 			throw(socks5_error(err));
 		if (method_chosen[0] != socks_version || method_chosen[1] == '\xFF')
@@ -49,7 +49,7 @@ void socks5_base::async_auth(null_callback &&complete_handler)
 		auth_data->push_back(socks_version);
 		auth_data->push_back((uint8_t)available_methods.size());
 		auth_data->append(available_methods);
-		async_write(*socket.get(), const_buffer(*auth_data),
+		async_write(const_buffer(*auth_data),
 			[this, auth_data, callback](error_code err)
 		{
 			try
@@ -80,7 +80,7 @@ void socks5_base::async_auth(null_callback &&complete_handler)
 void socks5_base::async_auth_recv(const std::shared_ptr<null_callback> &callback)
 {
 	std::shared_ptr<std::array<char, 2>> method_chosen = std::make_shared<std::array<char, 2>>();
-	async_read(*socket.get(), mutable_buffer(method_chosen->data(), 2),
+	async_read(mutable_buffer(method_chosen->data(), 2),
 		[this, method_chosen, callback](error_code err)
 	{
 		try
@@ -112,12 +112,12 @@ error_code socks5_base::select(sockssel_callback &&selector)
 	{
 		char method_avail[257];
 		error_code err;
-		read(*socket.get(), mutable_buffer(method_avail, 2), err);
+		read(mutable_buffer(method_avail, 2), err);
 		if (err)
 			throw(socks5_error(err));
 		if (method_avail[0] != socks_version)
 			throw(socks5_error(ERR_BAD_ARG_REMOTE));
-		read(*socket.get(), mutable_buffer(method_avail + 2, (uint8_t)method_avail[1]), err);
+		read(mutable_buffer(method_avail + 2, (uint8_t)method_avail[1]), err);
 		if (err)
 			throw(socks5_error(err));
 		auth_method = selector((uint8_t)method_avail[1], (uint8_t*)(method_avail + 2));
@@ -125,7 +125,7 @@ error_code socks5_base::select(sockssel_callback &&selector)
 		char method_selected[2];
 		method_selected[0] = socks_version;
 		method_selected[1] = auth_method;
-		write(*socket.get(), const_buffer(method_selected, sizeof(method_selected)), err);
+		write(const_buffer(method_selected, sizeof(method_selected)), err);
 		if (err)
 			throw(socks5_error(err));
 	}
@@ -149,7 +149,7 @@ void socks5_base::async_select(sockssel_callback &&_selector, null_callback &&co
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 
 	std::shared_ptr<std::array<char, 257>> method_avail = std::make_shared<std::array<char, 257>>();
-	async_read(*socket.get(), mutable_buffer(method_avail->data(), 2),
+	async_read(mutable_buffer(method_avail->data(), 2),
 		[this, selector, callback, method_avail](error_code err)
 	{
 		try
@@ -175,7 +175,7 @@ void socks5_base::async_select(sockssel_callback &&_selector, null_callback &&co
 
 void socks5_base::async_select_recv_body(const std::shared_ptr<sockssel_callback> &selector, const std::shared_ptr<std::array<char, 257>> &method_avail, const std::shared_ptr<null_callback> &callback)
 {
-	async_read(*socket.get(), mutable_buffer(mutable_buffer(method_avail->data() + 2, (uint8_t)(*method_avail)[1])),
+	async_read(mutable_buffer(mutable_buffer(method_avail->data() + 2, (uint8_t)(*method_avail)[1])),
 		[this, selector, callback, method_avail](error_code err)
 	{
 		try
@@ -203,7 +203,7 @@ void socks5_base::async_select_send(const std::shared_ptr<null_callback> &callba
 	std::shared_ptr<std::array<char, 2>> method_selected = std::make_shared<std::array<char, 2>>();
 	(*method_selected)[0] = socks_version;
 	(*method_selected)[1] = auth_method;
-	async_write(*socket.get(), const_buffer(method_selected->data(), method_selected->size()),
+	async_write(const_buffer(method_selected->data(), method_selected->size()),
 		[this, method_selected, callback](error_code err)
 	{
 		if (err)
@@ -266,7 +266,7 @@ error_code socks5_base::send_s5(uint8_t type, const endpoint &ep)
 		req.push_back(0);              //RSV
 		ep.to_socks5(req);             //ATYP && DST.ADDR
 		error_code err;
-		write(*socket.get(), const_buffer(req), err);
+		write(const_buffer(req), err);
 		if (err)
 			throw(socks5_error(err));
 	}
@@ -294,7 +294,7 @@ void socks5_base::async_send_s5(uint8_t type, const endpoint &ep, null_callback 
 		req_data->push_back(0);              //RSV
 		ep.to_socks5(*req_data);             //ATYP && DST
 
-		async_write(*socket.get(), const_buffer(*req_data),
+		async_write(const_buffer(*req_data),
 			[this, req_data, callback](error_code err)
 		{
 			try
@@ -328,7 +328,7 @@ error_code socks5_base::recv_s5(uint8_t &resp, endpoint &result)
 	{
 		char resp_head[263];
 		error_code err;
-		read(*socket.get(), mutable_buffer(resp_head, 5), err);
+		read(mutable_buffer(resp_head, 5), err);
 		if (err)
 			throw(socks5_error(err));
 		if (resp_head[0] != socks_version || resp_head[2] != 0) //VER && RSV
@@ -337,21 +337,21 @@ error_code socks5_base::recv_s5(uint8_t &resp, endpoint &result)
 		switch (resp_head[3])   //ATYP
 		{
 		case 1:
-			read(*socket.get(), mutable_buffer(resp_head + 5, address_v4::addr_size + 1));
+			read(mutable_buffer(resp_head + 5, address_v4::addr_size + 1));
 			result = endpoint(
 				address_v4(resp_head + 4),
 				((uint8_t)(resp_head[4 + address_v4::addr_size]) << 8) | (uint8_t)(resp_head[4 + address_v4::addr_size + 1])
 			);
 			break;
 		case 3:
-			read(*socket.get(), mutable_buffer(resp_head + 5, resp_head[4] + 2));
+			read(mutable_buffer(resp_head + 5, resp_head[4] + 2));
 			result = endpoint(
 				address_str(resp_head + 5, (size_t)(uint8_t)(resp_head[4])),
 				((uint8_t)(resp_head[5 + resp_head[4]]) << 8) | (uint8_t)(resp_head[5 + resp_head[4] + 1])
 			);
 			break;
 		case 4:
-			read(*socket.get(), mutable_buffer(resp_head + 5, address_v6::addr_size + 1));
+			read(mutable_buffer(resp_head + 5, address_v6::addr_size + 1));
 			result = endpoint(
 				address_v6(resp_head + 4),
 				((uint8_t)(resp_head[4 + address_v6::addr_size]) << 8) | (uint8_t)(resp_head[4 + address_v6::addr_size + 1])
@@ -379,7 +379,7 @@ void socks5_base::async_recv_s5(socksreq_callback &&complete_handler)
 	std::shared_ptr<socksreq_callback> callback = std::make_shared<socksreq_callback>(complete_handler);
 
 	std::shared_ptr<std::array<char, 263>> resp_data = std::make_shared<std::array<char, 263>>();
-	async_read(*socket.get(), mutable_buffer(resp_data->data(), 5),
+	async_read(mutable_buffer(resp_data->data(), 5),
 		[this, resp_data, callback](error_code err)
 	{
 		try
@@ -422,7 +422,7 @@ void socks5_base::async_recv_s5_body(const std::shared_ptr<std::array<char, 263>
 		default:
 			throw(socks5_error(ERR_UNSUPPORTED));
 	}
-	async_read(*socket.get(), mutable_buffer(resp_data->data() + 5, bytes_last),
+	async_read(mutable_buffer(resp_data->data() + 5, bytes_last),
 		[this, bytes_last, resp_data, callback](error_code err)
 	{
 		try

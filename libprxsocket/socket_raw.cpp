@@ -39,6 +39,26 @@ static void raw_ep_to_ep(const asio::ip::udp::endpoint &raw_ep, endpoint &ep)
 	}
 }
 
+static const std::vector<asio::mutable_buffer> &to_raw_buffers(const mutable_buffer_sequence &buffers)
+{
+	thread_local std::vector<asio::mutable_buffer> raw_buffers;
+	raw_buffers.clear();
+	raw_buffers.reserve(buffers.count());
+	for (const auto &buffer : buffers)
+		raw_buffers.push_back(asio::mutable_buffer(buffer.data(), buffer.size()));
+	return raw_buffers;
+}
+
+static const std::vector<asio::const_buffer> &to_raw_buffers(const const_buffer_sequence &buffers)
+{
+	thread_local std::vector<asio::const_buffer> raw_buffers;
+	raw_buffers.clear();
+	raw_buffers.reserve(buffers.count());
+	for (const auto &buffer : buffers)
+		raw_buffers.push_back(asio::const_buffer(buffer.data(), buffer.size()));
+	return raw_buffers;
+}
+
 void raw_tcp_socket::set_keep_alive()
 {
 	asio::ip::tcp::socket::keep_alive option(true);
@@ -396,30 +416,10 @@ void raw_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback 
 	});
 }
 
-static const std::vector<asio::mutable_buffer> &to_raw_buffers(const mutable_buffer_sequence &buffers)
-{
-	thread_local std::vector<asio::mutable_buffer> raw_buffers;
-	raw_buffers.clear();
-	raw_buffers.reserve(buffers.count());
-	for (const auto &buffer : buffers)
-		raw_buffers.push_back(asio::mutable_buffer(buffer.data(), buffer.size()));
-	return raw_buffers;
-}
-
-static const std::vector<asio::const_buffer> &to_raw_buffers(const const_buffer_sequence &buffers)
-{
-	thread_local std::vector<asio::const_buffer> raw_buffers;
-	raw_buffers.clear();
-	raw_buffers.reserve(buffers.count());
-	for (const auto &buffer : buffers)
-		raw_buffers.push_back(asio::const_buffer(buffer.data(), buffer.size()));
-	return raw_buffers;
-}
-
 void raw_tcp_socket::read(mutable_buffer_sequence &&buffers, error_code &err)
 {
 	err = 0;
-	asio::read(socket, to_raw_buffers(buffers), 0, ec);
+	asio::read(socket, to_raw_buffers(buffers), ec);
 	if (ec)
 	{
 		socket.close(ec);
@@ -430,19 +430,19 @@ void raw_tcp_socket::read(mutable_buffer_sequence &&buffers, error_code &err)
 
 void raw_tcp_socket::async_read(mutable_buffer_sequence &&buffers, null_callback &&complete_handler)
 {
-	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
+	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 	asio::async_read(socket, to_raw_buffers(buffers),
-		[this, callback](const boost::system::error_code &e, std::size_t transferred)
+		[this, callback](const boost::system::error_code &e, std::size_t)
 	{
 		if (e)
 		{
 			socket.close(ec);
 			connected = false;
-			(*callback)(ERR_OPERATION_FAILURE, transferred);
+			(*callback)(ERR_OPERATION_FAILURE);
 		}
 		else
 		{
-			(*callback)(0, transferred);
+			(*callback)(0);
 		}
 	});
 }
@@ -450,7 +450,7 @@ void raw_tcp_socket::async_read(mutable_buffer_sequence &&buffers, null_callback
 void raw_tcp_socket::write(const_buffer_sequence &&buffers, error_code &err)
 {
 	err = 0;
-	asio::write(socket, to_raw_buffers(buffers), 0, ec);
+	asio::write(socket, to_raw_buffers(buffers), ec);
 	if (ec)
 	{
 		socket.close(ec);
@@ -461,19 +461,19 @@ void raw_tcp_socket::write(const_buffer_sequence &&buffers, error_code &err)
 
 void raw_tcp_socket::async_write(const_buffer_sequence &&buffers, null_callback &&complete_handler)
 {
-	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
+	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 	asio::async_write(socket, to_raw_buffers(buffers),
-		[this, callback](const boost::system::error_code &e, std::size_t transferred)
+		[this, callback](const boost::system::error_code &e, std::size_t)
 	{
 		if (e)
 		{
 			socket.close(ec);
 			connected = false;
-			(*callback)(ERR_OPERATION_FAILURE, transferred);
+			(*callback)(ERR_OPERATION_FAILURE);
 		}
 		else
 		{
-			(*callback)(0, transferred);
+			(*callback)(0);
 		}
 	});
 }

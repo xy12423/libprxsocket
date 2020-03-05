@@ -3,8 +3,6 @@
 
 #ifndef _LIBPRXSOCKET_BUILD
 #include <cassert>
-#include <vector>
-#include <string>
 #include <deque>
 #endif
 
@@ -43,8 +41,8 @@ public:
 	using const_iterator = typename Container::const_iterator;
 
 	buffer_sequence() = default;
-	buffer_sequence(const value_type &buffer) { list_.push_back(buffer); }
-	buffer_sequence(value_type &&buffer) { list_.push_back(std::move(buffer)); }
+	buffer_sequence(const value_type &buffer) { push_back(buffer); }
+	buffer_sequence(value_type &&buffer) { push_back(std::move(buffer)); }
 
 	size_t count() const { return list_.size(); }
 	size_t size_total() const { return size_total_; }
@@ -56,7 +54,9 @@ public:
 	const_iterator end() const { return list_.end(); }
 
 	void push_front(const value_type &item) { assert(item.size() > 0); list_.push_front(item); size_total_ += item.size(); }
+	void push_front(value_type &&item) { assert(item.size() > 0); size_t size = item.size(); list_.push_front(std::move(item)); size_total_ += size; }
 	void push_back(const value_type &item) { assert(item.size() > 0); list_.push_back(item); size_total_ += item.size(); }
+	void push_back(value_type &&item) { assert(item.size() > 0); size_t size = item.size(); list_.push_back(std::move(item)); size_total_ += size; }
 	void pop_front() { size_total_ -= list_.front().size(); list_.pop_front(); }
 	void pop_back() { size_total_ -= list_.back().size(); list_.pop_back(); }
 	void consume(size_t size)
@@ -80,7 +80,7 @@ public:
 	}
 private:
 	Container list_;
-	size_t size_total_;
+	size_t size_total_ = 0;
 };
 using const_buffer_sequence = buffer_sequence<const_buffer>;
 using mutable_buffer_sequence = buffer_sequence<mutable_buffer>;
