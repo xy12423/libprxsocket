@@ -33,11 +33,15 @@ public:
 	virtual void async_send(const const_buffer &buffer, transfer_callback &&complete_handler) override;
 	virtual void recv(const mutable_buffer &buffer, size_t &transferred, error_code &ec) override;
 	virtual void async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler) override;
+	virtual void read(mutable_buffer_sequence &&buffer, error_code &ec) override;
+	virtual void async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler) override;
+	virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
+	virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 
-	virtual void close(error_code &ec) override { state = STATE_INIT; return socket->close(ec); }
-	virtual void async_close(null_callback &&complete_handler) override { state = STATE_INIT; socket->async_close(std::move(complete_handler)); }
+	virtual void close(error_code &ec) override { state = STATE_INIT; recv_buf_ptr = recv_buf_ptr_end = 0; return socket->close(ec); }
+	virtual void async_close(null_callback &&complete_handler) override { state = STATE_INIT; recv_buf_ptr = recv_buf_ptr_end = 0; socket->async_close(std::move(complete_handler)); }
 private:
-	void close() { state = STATE_INIT; error_code ec; socket->close(ec); }
+	void close() { state = STATE_INIT; recv_buf_ptr = recv_buf_ptr_end = 0; error_code ec; socket->close(ec); }
 	void send_http_req(const std::shared_ptr<null_callback> &callback);
 	void recv_http_resp(const std::shared_ptr<null_callback> &callback, const std::shared_ptr<http_header> &header);
 
@@ -46,7 +50,7 @@ private:
 	std::unique_ptr<prx_tcp_socket> socket;
 	endpoint server_ep, remote_ep;
 	std::unique_ptr<char[]> recv_buf;
-	size_t recv_buf_ptr, recv_buf_ptr_end;
+	size_t recv_buf_ptr = 0, recv_buf_ptr_end = 0;
 };
 
 #endif

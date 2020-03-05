@@ -19,7 +19,7 @@ void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 		http_req.append(host);
 		http_req.append("\r\n\r\n");
 
-		write(*socket, const_buffer(http_req), err);
+		socket->write(const_buffer(http_req), err);
 		if (err)
 		{
 			close();
@@ -94,7 +94,7 @@ void http_tcp_socket::send_http_req(const std::shared_ptr<null_callback> &callba
 		return;
 	}
 
-	async_write(*socket, const_buffer(*http_req),
+	socket->async_write(const_buffer(*http_req),
 		[this, http_req, callback](error_code err)
 	{
 		if (err)
@@ -147,12 +147,6 @@ void http_tcp_socket::recv_http_resp(const std::shared_ptr<null_callback> &callb
 void http_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
-	if (!is_connected())
-	{
-		transferred = 0;
-		err = ERR_OPERATION_FAILURE;
-		return;
-	}
 	socket->send(buffer, transferred, err);
 	if (err)
 		close();
@@ -160,11 +154,6 @@ void http_tcp_socket::send(const const_buffer &buffer, size_t &transferred, erro
 
 void http_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
 {
-	if (!is_connected())
-	{
-		complete_handler(ERR_OPERATION_FAILURE, 0);
-		return;
-	}
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 	socket->async_send(buffer,
 		[this, callback](error_code err, size_t transferred)
@@ -179,12 +168,6 @@ void http_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &
 void http_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
-	if (!is_connected())
-	{
-		transferred = 0;
-		err = ERR_OPERATION_FAILURE;
-		return;
-	}
 	if (recv_buf_ptr < recv_buf_ptr_end)
 	{
 		transferred = std::min(buffer.size(), recv_buf_ptr_end - recv_buf_ptr);
@@ -199,11 +182,6 @@ void http_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, er
 
 void http_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
 {
-	if (!is_connected())
-	{
-		complete_handler(ERR_OPERATION_FAILURE, 0);
-		return;
-	}
 	if (recv_buf_ptr < recv_buf_ptr_end)
 	{
 		size_t transferred = std::min(buffer.size(), recv_buf_ptr_end - recv_buf_ptr);
@@ -220,5 +198,75 @@ void http_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback
 			async_close([callback, err, transferred](error_code) { (*callback)(err, transferred); });
 		else
 			(*callback)(0, transferred);
+	});
+}
+
+void http_tcp_socket::read(mutable_buffer_sequence &&buffer, error_code &err)
+{
+	err = 0;
+	if (buffer.empty())
+		return;
+	while (recv_buf_ptr < recv_buf_ptr_end)
+	{
+		size_t transferred = std::min(buffer.front().size(), recv_buf_ptr_end - recv_buf_ptr);
+		memcpy(buffer.front().data(), recv_buf.get() + recv_buf_ptr, transferred);
+		recv_buf_ptr += transferred;
+		buffer.consume(transferred);
+		if (buffer.empty())
+			return;
+	}
+	socket->read(std::move(buffer), err);
+	if (err)
+		close();
+}
+
+void http_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler)
+{
+	if (buffer.empty())
+	{
+		complete_handler(0);
+		return;
+	}
+	while (recv_buf_ptr < recv_buf_ptr_end)
+	{
+		size_t transferred = std::min(buffer.front().size(), recv_buf_ptr_end - recv_buf_ptr);
+		memcpy(buffer.front().data(), recv_buf.get() + recv_buf_ptr, transferred);
+		recv_buf_ptr += transferred;
+		buffer.consume(transferred);
+		if (buffer.empty())
+		{
+			complete_handler(0);
+			return;
+		}
+	}
+	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+	socket->async_read(std::move(buffer),
+		[this, callback](error_code err)
+	{
+		if (err)
+			async_close([callback, err](error_code) { (*callback)(err); });
+		else
+			(*callback)(0);
+	});
+}
+
+void http_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
+{
+	err = 0;
+	socket->write(std::move(buffer), err);
+	if (err)
+		close();
+}
+
+void http_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler)
+{
+	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+	socket->async_write(std::move(buffer),
+		[this, callback](error_code err)
+	{
+		if (err)
+			async_close([callback, err](error_code) { (*callback)(err); });
+		else
+			(*callback)(0);
 	});
 }

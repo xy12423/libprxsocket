@@ -61,11 +61,15 @@ public:
 	virtual void async_send(const const_buffer &buffer, transfer_callback &&complete_handler) override;
 	virtual void recv(const mutable_buffer &buffer, size_t &transferred, error_code &ec) override;
 	virtual void async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler) override;
+	virtual void read(mutable_buffer_sequence &&buffer, error_code &ec) override;
+	virtual void async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler) override;
+	virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
+	virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 
-	virtual void close(error_code &ec) override { state = STATE_INIT; return socket->close(ec); }
-	virtual void async_close(null_callback &&complete_handler) override { state = STATE_INIT; socket->async_close(std::move(complete_handler)); }
+	virtual void close(error_code &ec) override { state = STATE_INIT; recv_que.clear(); return socket->close(ec); }
+	virtual void async_close(null_callback &&complete_handler) override { state = STATE_INIT; recv_que.clear(); socket->async_close(std::move(complete_handler)); }
 private:
-	void close() { state = STATE_INIT; error_code ec; socket->close(ec); }
+	void close() { state = STATE_INIT; recv_que.clear(); error_code ec; socket->close(ec); }
 
 	void encode(std::string &dst, const char *src, size_t size);
 	void decode(std::string &dst, const char *src, size_t size);
@@ -80,9 +84,13 @@ private:
 	void async_recv_data_body(const std::shared_ptr<null_callback> &callback, size_t size);
 	size_t read_data(char *buf, size_t size);
 
+	void async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
+	void async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
+
 	int state = STATE_INIT;
 
 	std::unique_ptr<prx_tcp_socket> socket;
+	std::string send_buf;
 	std::unique_ptr<char[]> recv_buf;
 	std::list<std::string> recv_que;
 	size_t ptr_head = 0;
