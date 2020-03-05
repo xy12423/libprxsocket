@@ -36,6 +36,10 @@ public:
 	virtual void async_send(const const_buffer &buffer, transfer_callback &&complete_handler) override;
 	virtual void recv(const mutable_buffer &buffer, size_t &transferred, error_code &ec) override;
 	virtual void async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler) override;
+	virtual void read(mutable_buffer_sequence &&buffer, error_code &ec) override;
+	virtual void async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler) override;
+	virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
+	virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 
 	virtual void close(error_code &ec) override { state = STATE_INIT; socks5_base::close(ec); }
 	virtual void async_close(null_callback &&complete_handler) override { state = STATE_INIT; socks5_base::async_close(std::move(complete_handler)); }
@@ -75,6 +79,10 @@ public:
 	virtual void async_send_to(const endpoint &endpoint, const const_buffer &buffer, null_callback &&complete_handler) override;
 	virtual void recv_from(endpoint &endpoint, const mutable_buffer &buffer, size_t &transferred, error_code &ec) override;
 	virtual void async_recv_from(endpoint &endpoint, const mutable_buffer &buffer, transfer_callback &&complete_handler) override;
+	virtual void send_to(const endpoint &endpoint, const_buffer_sequence &&buffer, error_code &ec) override;
+	virtual void async_send_to(const endpoint &endpoint, const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
+	virtual void recv_from(endpoint &endpoint, mutable_buffer_sequence &&buffer, size_t &transferred, error_code &ec) override;
+	virtual void async_recv_from(endpoint &endpoint, mutable_buffer_sequence &&buffer, transfer_callback &&complete_handler) override;
 
 	virtual void close(error_code &ec) override { state = STATE_INIT; return socks5_base::close(ec); }
 	virtual void async_close(null_callback &&complete_handler) override { state = STATE_INIT; socks5_base::async_close(std::move(complete_handler)); }
@@ -85,6 +93,7 @@ private:
 	void udp_alive();
 	void async_skip(size_t size, const std::shared_ptr<transfer_callback> &callback);
 	error_code parse_udp(size_t udp_recv_size, endpoint &ep, const mutable_buffer &buffer, size_t &transferred);
+	error_code parse_udp(size_t udp_recv_size, endpoint &ep, mutable_buffer_sequence &&buffer, size_t &transferred);
 
 	int state = STATE_INIT;
 

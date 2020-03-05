@@ -396,6 +396,88 @@ void raw_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback 
 	});
 }
 
+static const std::vector<asio::mutable_buffer> &to_raw_buffers(const mutable_buffer_sequence &buffers)
+{
+	thread_local std::vector<asio::mutable_buffer> raw_buffers;
+	raw_buffers.clear();
+	raw_buffers.reserve(buffers.count());
+	for (const auto &buffer : buffers)
+		raw_buffers.push_back(asio::mutable_buffer(buffer.data(), buffer.size()));
+	return raw_buffers;
+}
+
+static const std::vector<asio::const_buffer> &to_raw_buffers(const const_buffer_sequence &buffers)
+{
+	thread_local std::vector<asio::const_buffer> raw_buffers;
+	raw_buffers.clear();
+	raw_buffers.reserve(buffers.count());
+	for (const auto &buffer : buffers)
+		raw_buffers.push_back(asio::const_buffer(buffer.data(), buffer.size()));
+	return raw_buffers;
+}
+
+void raw_tcp_socket::read(mutable_buffer_sequence &&buffers, error_code &err)
+{
+	err = 0;
+	asio::read(socket, to_raw_buffers(buffers), 0, ec);
+	if (ec)
+	{
+		socket.close(ec);
+		connected = false;
+		err = ERR_OPERATION_FAILURE;
+	}
+}
+
+void raw_tcp_socket::async_read(mutable_buffer_sequence &&buffers, null_callback &&complete_handler)
+{
+	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
+	asio::async_read(socket, to_raw_buffers(buffers),
+		[this, callback](const boost::system::error_code &e, std::size_t transferred)
+	{
+		if (e)
+		{
+			socket.close(ec);
+			connected = false;
+			(*callback)(ERR_OPERATION_FAILURE, transferred);
+		}
+		else
+		{
+			(*callback)(0, transferred);
+		}
+	});
+}
+
+void raw_tcp_socket::write(const_buffer_sequence &&buffers, error_code &err)
+{
+	err = 0;
+	asio::write(socket, to_raw_buffers(buffers), 0, ec);
+	if (ec)
+	{
+		socket.close(ec);
+		connected = false;
+		err = ERR_OPERATION_FAILURE;
+	}
+}
+
+void raw_tcp_socket::async_write(const_buffer_sequence &&buffers, null_callback &&complete_handler)
+{
+	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
+	asio::async_write(socket, to_raw_buffers(buffers),
+		[this, callback](const boost::system::error_code &e, std::size_t transferred)
+	{
+		if (e)
+		{
+			socket.close(ec);
+			connected = false;
+			(*callback)(ERR_OPERATION_FAILURE, transferred);
+		}
+		else
+		{
+			(*callback)(0, transferred);
+		}
+	});
+}
+
 void raw_tcp_socket::close(error_code &err)
 {
 	socket.shutdown(socket.shutdown_both, ec);
@@ -556,6 +638,71 @@ void raw_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buffer,
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 	socket.async_receive_from(asio::buffer(buffer.data(), buffer.size()), recv_ep,
+		[this, &ep, callback](const boost::system::error_code &e, size_t recved)
+	{
+		if (e)
+		{
+			(*callback)((socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE), recved);
+			return;
+		}
+		raw_ep_to_ep(recv_ep, ep);
+		(*callback)(0, recved);
+	});
+}
+
+void raw_udp_socket::send_to(const endpoint &ep, const_buffer_sequence &&buffers, error_code &err)
+{
+	err = 0;
+	asio::ip::udp::endpoint native_ep;
+	error_code e = to_udp_ep(ep, native_ep);
+	if (e)
+	{
+		err = e;
+		return;
+	}
+	socket.send_to(to_raw_buffers(buffers), native_ep, 0, ec);
+	if (ec)
+		err = (socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
+}
+
+void raw_udp_socket::async_send_to(const endpoint &ep, const_buffer_sequence &&buffers, null_callback &&complete_handler)
+{
+	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+	async_to_udp_ep(ep, [this, buffers = std::move(buffers), callback](error_code err, const asio::ip::udp::endpoint &native_ep)
+	{
+		if (err)
+		{
+			(*callback)(err);
+			return;
+		}
+		socket.async_send_to(to_raw_buffers(buffers), native_ep,
+			[this, callback](const boost::system::error_code &e, size_t)
+		{
+			if (e)
+				(*callback)(socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
+			else
+				(*callback)(0);
+		});
+	});
+}
+
+void raw_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buffers, size_t &transferred, error_code &err)
+{
+	err = 0;
+	asio::ip::udp::endpoint native_ep;
+	transferred = socket.receive_from(to_raw_buffers(buffers), native_ep, 0, ec);
+	if (ec)
+	{
+		err = (socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
+		return;
+	}
+	raw_ep_to_ep(native_ep, ep);
+}
+
+void raw_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&buffers, transfer_callback &&complete_handler)
+{
+	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
+	socket.async_receive_from(to_raw_buffers(buffers), recv_ep,
 		[this, &ep, callback](const boost::system::error_code &e, size_t recved)
 	{
 		if (e)

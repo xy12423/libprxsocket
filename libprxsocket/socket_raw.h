@@ -34,6 +34,10 @@ public:
 	virtual void async_send(const const_buffer &buffer, transfer_callback &&complete_handler) override;
 	virtual void recv(const mutable_buffer &buffer, size_t &transferred, error_code &err) override;
 	virtual void async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler) override;
+	virtual void read(mutable_buffer_sequence &&buffer, error_code &ec) override;
+	virtual void async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler) override;
+	virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
+	virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 
 	virtual void close(error_code &err) override;
 	virtual void async_close(null_callback &&complete_handler) override;
@@ -71,6 +75,10 @@ public:
 	virtual void async_send_to(const endpoint &endpoint, const const_buffer &buffer, null_callback &&complete_handler) override;
 	virtual void recv_from(endpoint &endpoint, const mutable_buffer &buffer, size_t &transferred, error_code &err) override;
 	virtual void async_recv_from(endpoint &endpoint, const mutable_buffer &buffer, transfer_callback &&complete_handler) override;
+	virtual void send_to(const endpoint &endpoint, const_buffer_sequence &&buffer, error_code &ec) override;
+	virtual void async_send_to(const endpoint &endpoint, const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
+	virtual void recv_from(endpoint &endpoint, mutable_buffer_sequence &&buffer, size_t &transferred, error_code &ec) override;
+	virtual void async_recv_from(endpoint &endpoint, mutable_buffer_sequence &&buffer, transfer_callback &&complete_handler) override;
 
 	virtual void close(error_code &err) override;
 	virtual void async_close(null_callback &&complete_handler) override;

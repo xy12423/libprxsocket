@@ -12,7 +12,7 @@ class const_buffer
 {
 public:
 	const_buffer(const char *data, size_t size) :data_(data), size_(size) {}
-	template <typename T> const_buffer(const T &data) :data_(data.data()), size_(data.size()) {}
+	template <typename T> explicit const_buffer(const T &data) :data_(data.data()), size_(data.size()) {}
 
 	const char *data() const { return data_; }
 	size_t size() const { return size_; }
@@ -25,7 +25,7 @@ class mutable_buffer
 {
 public:
 	mutable_buffer(char *data, size_t size) :data_(data), size_(size) {}
-	template <typename T> mutable_buffer(T &data) :data_(data.data()), size_(data.size()) {}
+	template <typename T> explicit mutable_buffer(T &data) :data_(data.data()), size_(data.size()) {}
 
 	char *data() const { return data_; }
 	size_t size() const { return size_; }
@@ -41,6 +41,10 @@ public:
 	using value_type = T;
 	using container_type = Container;
 	using const_iterator = typename Container::const_iterator;
+
+	buffer_sequence() = default;
+	buffer_sequence(const value_type &buffer) { list_.push_back(buffer); }
+	buffer_sequence(value_type &&buffer) { list_.push_back(std::move(buffer)); }
 
 	size_t count() const { return list_.size(); }
 	size_t size_total() const { return size_total_; }

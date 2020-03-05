@@ -51,13 +51,14 @@ public:
 
 	static error_code parse_udp(const char *recv, size_t recv_size, endpoint &ep, const char *&data_start_at, size_t &data_size);
 	
-	prx_tcp_socket &access_socket() { return *socket; }
-
-	template <typename... T> void recv(T &&...args) { return socket->recv(std::forward<T>(args)...); }
-	template <typename... T> void async_recv(T &&...args) { return socket->async_recv(std::forward<T>(args)...); }
-
 	template <typename... T> void send(T &&...args) { return socket->send(std::forward<T>(args)...); }
 	template <typename... T> void async_send(T &&...args) { return socket->async_send(std::forward<T>(args)...); }
+	template <typename... T> void recv(T &&...args) { return socket->recv(std::forward<T>(args)...); }
+	template <typename... T> void async_recv(T &&...args) { return socket->async_recv(std::forward<T>(args)...); }
+	template <typename... T> void read(T &&...args) { return socket->read(std::forward<T>(args)...); }
+	template <typename... T> void async_read(T &&...args) { return socket->async_read(std::forward<T>(args)...); }
+	template <typename... T> void write(T &&...args) { return socket->write(std::forward<T>(args)...); }
+	template <typename... T> void async_write(T &&...args) { return socket->async_write(std::forward<T>(args)...); }
 
 	template <typename... T> void close(T &&...args) { auth_method = 0xFF; return socket->close(std::forward<T>(args)...); }
 	template <typename... T> void async_close(T &&...args) { auth_method = 0xFF; return socket->async_close(std::forward<T>(args)...); }
