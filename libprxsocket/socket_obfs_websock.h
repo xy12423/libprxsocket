@@ -20,10 +20,14 @@ class obfs_websock_tcp_socket :public prx_tcp_socket
 	enum { STATE_INIT, STATE_OK };
 	static constexpr size_t sym_block_size = 16;
 	static constexpr size_t sha1_size = 20;
+	static constexpr size_t send_size_pref = 1320;
+	static constexpr size_t send_size_max = 1400;
 	static constexpr size_t recv_buf_size = 0x800;
+
+	static constexpr size_t transfer_size(size_t buffer_size) { return buffer_size > send_size_max ? send_size_pref : buffer_size; }
 public:
 	obfs_websock_tcp_socket(std::unique_ptr<prx_tcp_socket> &&_socket, const std::string &_key)
-		:socket(std::move(_socket)), recv_buf(std::make_unique<char[]>(recv_buf_size)),
+		:socket_(std::move(_socket)), recv_buf_(std::make_unique<char[]>(recv_buf_size)),
 		key(sym_block_size), iv(sym_block_size)
 	{
 		constexpr size_t block_size = sym_block_size;
@@ -31,7 +35,7 @@ public:
 	}
 	obfs_websock_tcp_socket(std::unique_ptr<prx_tcp_socket> &&_socket, const std::string &_key, const std::string &_iv)
 		:state(STATE_OK),
-		socket(std::move(_socket)), recv_buf(std::make_unique<char[]>(recv_buf_size)),
+		socket_(std::move(_socket)), recv_buf_(std::make_unique<char[]>(recv_buf_size)),
 		key(sym_block_size), iv(sym_block_size)
 	{
 		constexpr size_t block_size = sym_block_size;
@@ -42,17 +46,17 @@ public:
 	}
 	virtual ~obfs_websock_tcp_socket() override {}
 
-	virtual bool is_open() override { return socket->is_open(); }
-	virtual bool is_connected() override { return state >= STATE_OK && socket->is_connected(); }
+	virtual bool is_open() override { return socket_->is_open(); }
+	virtual bool is_connected() override { return state >= STATE_OK && socket_->is_connected(); }
 
-	virtual void local_endpoint(endpoint &ep, error_code &ec) override { return socket->local_endpoint(ep, ec); }
-	virtual void remote_endpoint(endpoint &ep, error_code &ec) override { return socket->remote_endpoint(ep, ec); }
+	virtual void local_endpoint(endpoint &ep, error_code &ec) override { return socket_->local_endpoint(ep, ec); }
+	virtual void remote_endpoint(endpoint &ep, error_code &ec) override { return socket_->remote_endpoint(ep, ec); }
 
-	virtual void open(error_code &ec) override { return socket->open(ec); }
-	virtual void async_open(null_callback &&complete_handler) override { socket->async_open(std::move(complete_handler)); }
+	virtual void open(error_code &ec) override { return socket_->open(ec); }
+	virtual void async_open(null_callback &&complete_handler) override { socket_->async_open(std::move(complete_handler)); }
 
-	virtual void bind(const endpoint &endpoint, error_code &ec) override { return socket->bind(endpoint, ec); }
-	virtual void async_bind(const endpoint &endpoint, null_callback &&complete_handler) override { socket->async_bind(endpoint, std::move(complete_handler)); }
+	virtual void bind(const endpoint &endpoint, error_code &ec) override { return socket_->bind(endpoint, ec); }
+	virtual void async_bind(const endpoint &endpoint, null_callback &&complete_handler) override { socket_->async_bind(endpoint, std::move(complete_handler)); }
 
 	virtual void connect(const endpoint &endpoint, error_code &ec) override;
 	virtual void async_connect(const endpoint &endpoint, null_callback &&complete_handler) override;
@@ -66,10 +70,10 @@ public:
 	virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
 	virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 
-	virtual void close(error_code &ec) override { state = STATE_INIT; recv_que.clear(); return socket->close(ec); }
-	virtual void async_close(null_callback &&complete_handler) override { state = STATE_INIT; recv_que.clear(); socket->async_close(std::move(complete_handler)); }
+	virtual void close(error_code &ec) override { state = STATE_INIT; dec_buf_.clear(); dec_ptr_ = 0; return socket_->close(ec); }
+	virtual void async_close(null_callback &&complete_handler) override { state = STATE_INIT; dec_buf_.clear(); dec_ptr_ = 0; socket_->async_close(std::move(complete_handler)); }
 private:
-	void close() { state = STATE_INIT; recv_que.clear(); error_code ec; socket->close(ec); }
+	void close() { error_code ec; close(ec); }
 
 	void encode(std::string &dst, const char *src, size_t size);
 	void decode(std::string &dst, const char *src, size_t size);
@@ -89,17 +93,16 @@ private:
 
 	int state = STATE_INIT;
 
-	std::unique_ptr<prx_tcp_socket> socket;
-	std::string send_buf;
-	std::unique_ptr<char[]> recv_buf;
-	std::list<std::string> recv_que;
-	size_t ptr_head = 0;
+	std::unique_ptr<prx_tcp_socket> socket_;
+	std::string enc_buf_;
+	std::unique_ptr<char[]> recv_buf_;
+	std::string dec_buf_;
+	size_t dec_ptr_ = 0;
 
-	CryptoPP::AutoSeededRandomPool prng;
+	thread_local static CryptoPP::AutoSeededRandomPool prng;
 	CryptoPP::CBC_Mode<CryptoPP::AES>::Encryption e;
 	CryptoPP::CBC_Mode<CryptoPP::AES>::Decryption d;
 	CryptoPP::SecByteBlock key, iv;
-	std::mutex enc_mutex, dec_mutex;
 };
 
 class obfs_websock_listener :public prx_listener

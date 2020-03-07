@@ -40,7 +40,7 @@ public:
 	virtual void close(error_code &ec) override { state = STATE_INIT; socket->close(ec); }
 	virtual void async_close(null_callback &&complete_handler) override { state = STATE_INIT; socket->async_close(std::move(complete_handler)); }
 private:
-	void close() { state = STATE_INIT; error_code ec; socket->close(ec); }
+	void close() { error_code ec; close(ec); }
 
 	int state = STATE_INIT;
 

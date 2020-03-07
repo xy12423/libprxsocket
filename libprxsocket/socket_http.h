@@ -41,7 +41,7 @@ public:
 	virtual void close(error_code &ec) override { state = STATE_INIT; recv_buf_ptr = recv_buf_ptr_end = 0; return socket->close(ec); }
 	virtual void async_close(null_callback &&complete_handler) override { state = STATE_INIT; recv_buf_ptr = recv_buf_ptr_end = 0; socket->async_close(std::move(complete_handler)); }
 private:
-	void close() { state = STATE_INIT; recv_buf_ptr = recv_buf_ptr_end = 0; error_code ec; socket->close(ec); }
+	void close() { error_code ec; close(ec); }
 	void send_http_req(const std::shared_ptr<null_callback> &callback);
 	void recv_http_resp(const std::shared_ptr<null_callback> &callback, const std::shared_ptr<http_header> &header);
 
