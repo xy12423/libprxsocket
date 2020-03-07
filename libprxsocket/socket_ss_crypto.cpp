@@ -1,0 +1,456 @@
+#include "stdafx.h"
+#include "socket_ss_crypto.h"
+
+void ss_crypto_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
+{
+	if (!iv_sent_)
+	{
+		write(const_buffer_sequence(buffer), err);
+		if (!err)
+			transferred = buffer.size();
+		return;
+	}
+	err = 0;
+	transferred = 0;
+
+	size_t size_trans = transfer_size(buffer.size());
+	try
+	{
+		enc_buf_.clear();
+		enc_->encrypt(enc_buf_, buffer.data(), size_trans);
+	}
+	catch (std::exception &)
+	{
+		close();
+		err = ERR_OPERATION_FAILURE;
+		return;
+	}
+	socket_->write(const_buffer(enc_buf_), err);
+	if (err)
+	{
+		close();
+		return;
+	}
+	transferred = size_trans;
+}
+
+void ss_crypto_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
+{
+	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
+	if (!iv_sent_)
+	{
+		async_write(const_buffer_sequence(buffer),
+			[this, transferred = buffer.size(), callback](error_code err)
+		{
+			if (err)
+			{
+				async_close([callback, err](error_code) { (*callback)(err, 0); });
+				return;
+			}
+			(*callback)(0, transferred);
+		});
+		return;
+	}
+
+	size_t size_trans = transfer_size(buffer.size());
+	try
+	{
+		enc_buf_.clear();
+		enc_->encrypt(enc_buf_, buffer.data(), size_trans);
+	}
+	catch (std::exception &)
+	{
+		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, 0); });
+		return;
+	}
+
+	socket_->async_write(const_buffer(enc_buf_),
+		[this, size_trans, callback](error_code err)
+	{
+		if (err)
+		{
+			async_close([callback, err](error_code) { (*callback)(err, 0); });
+			return;
+		}
+		(*callback)(0, size_trans);
+	});
+}
+
+void ss_crypto_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
+{
+	err = 0;
+	transferred = 0;
+	if (dec_buf_.empty())
+	{
+		recv_data(err);
+		if (err)
+			return;
+	}
+	transferred = read_data(buffer.data(), buffer.size());
+}
+
+void ss_crypto_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
+{
+	if (dec_buf_.empty())
+	{
+		std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
+		async_recv_data([this, buffer, callback](error_code err)
+		{
+			if (err)
+			{
+				(*callback)(err, 0);
+				return;
+			}
+			size_t transferred = read_data(buffer.data(), buffer.size());
+			(*callback)(0, transferred);
+		});
+		return;
+	}
+	size_t transferred = read_data(buffer.data(), buffer.size());
+	complete_handler(0, transferred);
+}
+
+void ss_crypto_tcp_socket::read(mutable_buffer_sequence &&buffer, error_code &err)
+{
+	err = 0;
+	while (!buffer.empty())
+	{
+		if (dec_buf_.empty())
+		{
+			recv_data(err);
+			if (err)
+				return;
+		}
+		size_t transferred = read_data(buffer.front().data(), buffer.front().size());
+		buffer.consume(transferred);
+	}
+}
+
+void ss_crypto_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler)
+{
+	while (!buffer.empty())
+	{
+		if (dec_buf_.empty())
+		{
+			std::shared_ptr<mutable_buffer_sequence> buffer_ptr = std::make_shared<mutable_buffer_sequence>(std::move(buffer));
+			std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+			async_recv_data([this, buffer_ptr, callback](error_code err)
+			{
+				if (err)
+				{
+					(*callback)(err);
+					return;
+				}
+				async_read(buffer_ptr, callback);
+			});
+			return;
+		}
+		size_t transferred = read_data(buffer.front().data(), buffer.front().size());
+		buffer.consume(transferred);
+	}
+	complete_handler(0);
+}
+
+void ss_crypto_tcp_socket::async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback)
+{
+	while (!buffer->empty())
+	{
+		if (dec_buf_.empty())
+		{
+			async_recv_data([this, buffer, callback](error_code err)
+			{
+				if (err)
+				{
+					(*callback)(err);
+					return;
+				}
+				async_read(buffer, callback);
+			});
+			return;
+		}
+		size_t transferred = read_data(buffer->front().data(), buffer->front().size());
+		buffer->consume(transferred);
+	}
+	(*callback)(0);
+}
+
+void ss_crypto_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
+{
+	err = 0;
+	if (!iv_sent_)
+	{
+		enc_->set_key(key_.data());
+		if (buffer.empty())
+		{
+			socket_->write(const_buffer(enc_->iv(), enc_->iv_size()), err);
+			if (err)
+			{
+				close();
+				return;
+			}
+			iv_sent_ = true;
+			return;
+		}
+	}
+	else
+	{
+		if (buffer.count() == 1)
+			return prx_tcp_socket::write(buffer.front(), err);
+		if (buffer.empty())
+			return;
+	}
+
+	thread_local std::unique_ptr<char[]> buf = std::make_unique<char[]>(send_size_max);
+	size_t transferring = transfer_size(buffer.size_total());
+
+	while (!buffer.empty())
+	{
+		size_t copied = 0;
+		while (!buffer.empty() && copied < transferring)
+		{
+			size_t copying = std::min(buffer.front().size(), transferring - copied);
+			memcpy(buf.get() + copied, buffer.front().data(), copying);
+			copied += copying;
+			buffer.consume(copying);
+		}
+
+		try
+		{
+			enc_buf_.clear();
+			enc_->encrypt(enc_buf_, buf.get(), copied);
+		}
+		catch (std::exception &)
+		{
+			close();
+			err = ERR_OPERATION_FAILURE;
+			return;
+		}
+		if (!iv_sent_)
+		{
+			const_buffer_sequence iv_seq(const_buffer(enc_->iv(), enc_->iv_size()));
+			iv_seq.push_back(const_buffer(enc_buf_));
+			socket_->write(std::move(iv_seq), err);
+			if (err)
+			{
+				close();
+				return;
+			}
+			iv_sent_ = true;
+		}
+		else
+		{
+			socket_->write(const_buffer(enc_buf_), err);
+			if (err)
+			{
+				close();
+				return;
+			}
+		}
+	}
+}
+
+void ss_crypto_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler)
+{
+	if (!iv_sent_)
+	{
+		enc_->set_key(key_.data());
+		if (buffer.empty())
+		{
+			std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+			socket_->async_write(const_buffer(enc_->iv(), enc_->iv_size()),
+				[this, callback](error_code err)
+			{
+				if (err)
+				{
+					async_close([callback, err](error_code) { (*callback)(err); });
+					return;
+				}
+				iv_sent_ = true;
+				(*callback)(0);
+			});
+			return;
+		}
+	}
+	else
+	{
+		if (buffer.count() == 1)
+			return prx_tcp_socket::async_write(buffer.front(), std::move(complete_handler));
+		if (buffer.empty())
+			return complete_handler(0);
+	}
+
+	async_write(std::make_shared<const_buffer_sequence>(std::move(buffer)), std::make_shared<null_callback>(std::move(complete_handler)));
+}
+
+void ss_crypto_tcp_socket::async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback)
+{
+	thread_local std::unique_ptr<char[]> buf = std::make_unique<char[]>(send_size_max);
+	size_t transferring = transfer_size(buffer->size_total());
+
+	size_t copied = 0;
+	while (!buffer->empty() && copied < transferring)
+	{
+		size_t copying = std::min(buffer->front().size(), transferring - copied);
+		memcpy(buf.get() + copied, buffer->front().data(), copying);
+		copied += copying;
+		buffer->consume(copying);
+	}
+
+	try
+	{
+		enc_buf_.clear();
+		enc_->encrypt(enc_buf_, buf.get(), copied);
+	}
+	catch (std::exception &)
+	{
+		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
+		return;
+	}
+
+	if (!iv_sent_)
+	{
+		const_buffer_sequence iv_seq(const_buffer(enc_->iv(), enc_->iv_size()));
+		iv_seq.push_back(const_buffer(enc_buf_));
+		socket_->async_write(std::move(iv_seq),
+			[this, buffer, callback](error_code err)
+		{
+			if (err)
+			{
+				async_close([callback, err](error_code) { (*callback)(err); });
+				return;
+			}
+			iv_sent_ = true;
+			if (buffer->count() == 1)
+			{
+				prx_tcp_socket::async_write(buffer->front(), std::move(*callback));
+				return;
+			}
+			if (buffer->empty())
+			{
+				(*callback)(0);
+				return;
+			}
+			async_write(buffer, callback);
+		});
+	}
+	else
+	{
+		socket_->async_write(const_buffer(enc_buf_),
+			[this, buffer, callback](error_code err)
+		{
+			if (err)
+			{
+				async_close([callback, err](error_code) { (*callback)(err); });
+				return;
+			}
+			if (buffer->count() == 1)
+			{
+				prx_tcp_socket::async_write(buffer->front(), std::move(*callback));
+				return;
+			}
+			if (buffer->empty())
+			{
+				(*callback)(0);
+				return;
+			}
+			async_write(buffer, callback);
+		});
+	}
+}
+
+void ss_crypto_tcp_socket::recv_data(error_code &err)
+{
+	if (!iv_received_)
+	{
+		assert(dec_->iv_size() <= recv_buf_size);
+		socket_->read(mutable_buffer(recv_buf_.get(), dec_->iv_size()), err);
+		if (err)
+		{
+			close();
+			return;
+		}
+		iv_received_ = true;
+		dec_->set_key_iv(key_.data(), recv_buf_.get());
+	}
+
+	size_t transferred;
+	socket_->recv(mutable_buffer(recv_buf_.get(), recv_buf_size), transferred, err);
+	if (err)
+	{
+		close();
+		return;
+	}
+
+	try
+	{
+		assert(dec_buf_.empty());
+		dec_->decrypt(dec_buf_, recv_buf_.get(), transferred);
+	}
+	catch (std::exception &)
+	{
+		close();
+		err = ERR_OPERATION_FAILURE;
+		return;
+	}
+}
+
+void ss_crypto_tcp_socket::async_recv_data(null_callback &&complete_handler)
+{
+	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+	if (!iv_received_)
+	{
+		assert(dec_->iv_size() <= recv_buf_size);
+		socket_->async_read(mutable_buffer(recv_buf_.get(), dec_->iv_size()),
+			[this, callback](error_code err)
+		{
+			if (err)
+			{
+				async_close([callback, err](error_code) { (*callback)(err); });
+				return;
+			}
+			iv_received_ = true;
+			dec_->set_key_iv(key_.data(), recv_buf_.get());
+			async_recv_data(std::move(*callback));
+		});
+		return;
+	}
+
+	socket_->async_recv(mutable_buffer(recv_buf_.get(), recv_buf_size),
+		[this, callback](error_code err, size_t transferred)
+	{
+		if (err)
+		{
+			async_close([callback, err](error_code) { (*callback)(err); });
+			return;
+		}
+
+		try
+		{
+			assert(dec_buf_.empty());
+			dec_->decrypt(dec_buf_, recv_buf_.get(), transferred);
+		}
+		catch (std::exception &)
+		{
+			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
+			return;
+		}
+
+		(*callback)(0);
+	});
+}
+
+size_t ss_crypto_tcp_socket::read_data(char *dst, size_t dst_size)
+{
+	assert(dec_ptr_ <= dec_buf_.size());
+	size_t size_cpy = std::min(dec_buf_.size() - dec_ptr_, dst_size);
+	memcpy(dst, dec_buf_.data() + dec_ptr_, size_cpy);
+	dec_ptr_ += size_cpy;
+	assert(dec_ptr_ <= dec_buf_.size());
+	if (dec_ptr_ == dec_buf_.size())
+	{
+		dec_buf_.clear();
+		dec_ptr_ = 0;
+	}
+
+	return size_cpy;
+}

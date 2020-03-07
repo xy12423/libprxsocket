@@ -3,6 +3,8 @@
 
 #pragma once
 
+#define _LIBPRXSOCKET_BUILD
+
 #include <cassert>
 #include <cstdint>
 #include <cstring>
