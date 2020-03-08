@@ -12,9 +12,14 @@ class ss_crypto_tcp_socket : public prx_tcp_socket
 
 	static constexpr size_t transfer_size(size_t buffer_size) { return buffer_size > send_size_max ? send_size_pref : buffer_size; }
 public:
-	ss_crypto_tcp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const std::string &key, std::unique_ptr<encryptor> &&enc, std::unique_ptr<decryptor> &&dec)
-		:socket_(std::move(base_socket)), key_(key), enc_(std::move(enc)), dec_(std::move(dec)), recv_buf_(std::make_unique<char[]>(recv_buf_size))
-	{}
+	ss_crypto_tcp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const std::vector<char> &key, std::unique_ptr<encryptor> &&enc, std::unique_ptr<decryptor> &&dec)
+		:socket_(std::move(base_socket)),
+		key_(key), enc_(std::move(enc)), enc_iv_size_(enc_->iv_size()), dec_(std::move(dec)), dec_iv_size_(dec_->iv_size()),
+		recv_buf_(std::make_unique<char[]>(recv_buf_size))
+	{
+		assert(key_.size() == enc->key_size());
+		assert(key_.size() == dec->key_size());
+	}
 	virtual ~ss_crypto_tcp_socket() override {}
 
 	virtual bool is_open() override { return socket_->is_open(); }
@@ -54,11 +59,13 @@ private:
 	void async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
 
 	std::unique_ptr<prx_tcp_socket> socket_;
-	std::string key_;
+	std::vector<char> key_;
 	std::unique_ptr<encryptor> enc_;
+	size_t enc_iv_size_;
 	std::unique_ptr<decryptor> dec_;
+	size_t dec_iv_size_;
 
-	std::vector<char> enc_buf_;
+	std::vector<char> send_buf_;
 	bool iv_sent_ = false;
 	std::unique_ptr<char[]> recv_buf_;
 	bool iv_received_ = false;
@@ -70,9 +77,14 @@ class ss_crypto_udp_socket : public prx_udp_socket
 {
 	static constexpr size_t udp_buf_size = 0x10000;
 public:
-	ss_crypto_udp_socket(std::unique_ptr<prx_udp_socket> &&base_udp_socket, const std::string &key, std::unique_ptr<encryptor> &&enc, std::unique_ptr<decryptor> &&dec)
-		:udp_socket_(std::move(base_udp_socket)), key_(key), enc_(std::move(enc)), dec_(std::move(dec)), udp_recv_buf_(std::make_unique<char[]>(udp_buf_size))
-	{}
+	ss_crypto_udp_socket(std::unique_ptr<prx_udp_socket> &&base_udp_socket, const std::vector<char> &key, std::unique_ptr<encryptor> &&enc, std::unique_ptr<decryptor> &&dec)
+		:udp_socket_(std::move(base_udp_socket)),
+		key_(key), enc_(std::move(enc)), enc_iv_size_(enc_->iv_size()), dec_(std::move(dec)), dec_iv_size_(dec_->iv_size()),
+		udp_recv_buf_(std::make_unique<char[]>(udp_buf_size))
+	{
+		assert(key_.size() == enc->key_size());
+		assert(key_.size() == dec->key_size());
+	}
 	virtual ~ss_crypto_udp_socket() override {}
 
 	virtual bool is_open() override { return udp_socket_->is_open(); }
@@ -97,10 +109,18 @@ public:
 	virtual void close(error_code &ec) override { udp_socket_->close(ec); }
 	virtual void async_close(null_callback &&complete_handler) override { udp_socket_->async_close(std::move(complete_handler)); }
 private:
+	void close() { error_code ec; close(ec); }
+
+	void encode(std::vector<char> &dst, const char *src, size_t src_size);
+	//Returns thread_local buffer. Use with caution.
+	std::vector<char> &decode(const char *src, size_t src_size);
+
 	std::unique_ptr<prx_udp_socket> udp_socket_;
-	std::string key_;
+	std::vector<char> key_;
 	std::unique_ptr<encryptor> enc_;
+	size_t enc_iv_size_;
 	std::unique_ptr<decryptor> dec_;
+	size_t dec_iv_size_;
 
 	std::vector<char> udp_send_buf_;
 	std::unique_ptr<char[]> udp_recv_buf_;
