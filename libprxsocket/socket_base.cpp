@@ -150,6 +150,20 @@ void prx_tcp_socket::write(const const_buffer &buffer)
 	check_ec(ec);
 }
 
+void prx_tcp_socket::read(mutable_buffer_sequence &&buffer)
+{
+	error_code ec;
+	read(std::move(buffer), ec);
+	check_ec(ec);
+}
+
+void prx_tcp_socket::write(const_buffer_sequence &&buffer)
+{
+	error_code ec;
+	write(std::move(buffer), ec);
+	check_ec(ec);
+}
+
 void prx_tcp_socket::close()
 {
 	error_code ec;

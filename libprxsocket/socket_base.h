@@ -85,6 +85,8 @@ public:
 	void recv(const mutable_buffer &buffer, size_t &transferred);
 	void read(const mutable_buffer &buffer);
 	void write(const const_buffer &buffer);
+	void read(mutable_buffer_sequence &&buffer);
+	void write(const_buffer_sequence &&buffer);
 	void close();
 #endif
 };
