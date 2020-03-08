@@ -838,6 +838,29 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&
 	}
 }
 
+void socks5_udp_socket::close(error_code &ec)
+{
+	state = STATE_INIT;
+	if (udp_socket)
+	{
+		error_code err;
+		udp_socket->close(err);
+	}
+	return socks5_base::close(ec);
+}
+
+void socks5_udp_socket::async_close(null_callback &&complete_handler)
+{
+	state = STATE_INIT;
+	if (udp_socket)
+	{
+		std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+		udp_socket->async_close([this, callback](error_code){ socks5_base::async_close(std::move(*callback)); });
+		return;
+	}
+	socks5_base::async_close(std::move(complete_handler));
+}
+
 void socks5_udp_socket::async_skip(size_t size, const std::shared_ptr<transfer_callback> &callback)
 {
 	if (size == 0)

@@ -5,15 +5,13 @@
 
 #ifndef _LIBPRXSOCKET_BUILD
 #include <cryptopp/cryptlib.h>
-#include <cryptopp/aes.h>
 #include <cryptopp/osrng.h>
-#include <cryptopp/oids.h>
-#include <cryptopp/modes.h>
 #endif
 
 template <typename CRYPTO, size_t KEY_LENGTH>
-class encryptor_cryptopp_aes_cbc : public encryptor
+class encryptor_cryptopp : public encryptor
 {
+	using encryptor_type = typename CRYPTO::Encryption;
 	static constexpr size_t KEY_SIZE = KEY_LENGTH / 8;
 public:
 	virtual size_t key_size() const override { return KEY_SIZE; }
@@ -40,13 +38,14 @@ public:
 		);
 	}
 private:
-	CRYPTO::Encryption e_;
+	encryptor_type e_;
 	CryptoPP::byte iv_[KEY_SIZE];
 };
 
-template <typename CRYPTO, size_t KEY_SIZE>
-class decryptor_cryptopp_aes_cbc : public decryptor
+template <typename CRYPTO, size_t KEY_LENGTH>
+class decryptor_cryptopp : public decryptor
 {
+	using decryptor_type = typename CRYPTO::Decryption;
 	static constexpr size_t KEY_SIZE = KEY_LENGTH / 8;
 public:
 	virtual size_t key_size() const override { return KEY_SIZE; }
@@ -56,12 +55,12 @@ public:
 	{
 		thread_local CryptoPP::AutoSeededRandomPool prng;
 		prng.GenerateBlock(iv_, sizeof(iv_));
-		e_.SetKeyWithIV((const CryptoPP::byte *)key, KEY_SIZE, iv_);
+		d_.SetKeyWithIV((const CryptoPP::byte *)key, KEY_SIZE, iv_);
 	}
 	virtual void set_key_iv(const char *key, const char *iv) override
 	{
 		memcpy(iv_, iv, KEY_SIZE);
-		e_.SetKeyWithIV((const CryptoPP::byte *)key, KEY_SIZE, iv_);
+		d_.SetKeyWithIV((const CryptoPP::byte *)key, KEY_SIZE, iv_);
 	}
 
 	virtual void decrypt(std::vector<char> &dst, const char *src, size_t src_size) override
@@ -73,7 +72,7 @@ public:
 		);
 	}
 private:
-	CRYPTO::Decryption d_;
+	decryptor_type d_;
 	CryptoPP::byte iv_[KEY_SIZE];
 };
 

@@ -94,7 +94,7 @@ private:
 	int state = STATE_INIT;
 
 	std::unique_ptr<prx_tcp_socket> socket_;
-	std::string enc_buf_;
+	std::string send_buf_;
 	std::unique_ptr<char[]> recv_buf_;
 	std::string dec_buf_;
 	size_t dec_ptr_ = 0;

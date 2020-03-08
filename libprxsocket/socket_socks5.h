@@ -84,8 +84,8 @@ public:
 	virtual void recv_from(endpoint &endpoint, mutable_buffer_sequence &&buffer, size_t &transferred, error_code &ec) override;
 	virtual void async_recv_from(endpoint &endpoint, mutable_buffer_sequence &&buffer, transfer_callback &&complete_handler) override;
 
-	virtual void close(error_code &ec) override { state = STATE_INIT; return socks5_base::close(ec); }
-	virtual void async_close(null_callback &&complete_handler) override { state = STATE_INIT; socks5_base::async_close(std::move(complete_handler)); }
+	virtual void close(error_code &ec) override;
+	virtual void async_close(null_callback &&complete_handler) override;
 private:
 	void open(const endpoint &endpoint, error_code &ec);
 	void async_open(const endpoint &endpoint, null_callback &&complete_handler);
