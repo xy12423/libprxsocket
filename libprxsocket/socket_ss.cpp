@@ -324,13 +324,7 @@ void ss_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buffers, s
 		char *payload = udp_recv_buf.get() + ep_size;
 		size_t payload_size = udp_recv_size - ep_size;
 
-		while (transferred < payload_size && !buffers.empty())
-		{
-			size_t transferred_once = std::min(buffers.front().size(), payload_size - transferred);
-			memcpy(buffers.front().data(), payload + transferred, transferred_once);
-			transferred += transferred_once;
-			buffers.consume(transferred_once);
-		}
+		transferred = buffers.scatter(payload, payload_size);
 	}
 	catch (std::exception &)
 	{
@@ -373,14 +367,7 @@ void ss_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&buff
 			char *payload = udp_recv_buf.get() + ep_size;
 			size_t payload_size = udp_recv_size - ep_size;
 			
-			size_t transferred = 0;
-			while (transferred < payload_size && !buffer->empty())
-			{
-				size_t transferred_once = std::min(buffer->front().size(), payload_size - transferred);
-				memcpy(buffer->front().data(), payload + transferred, transferred_once);
-				transferred += transferred_once;
-				buffer->consume(transferred_once);
-			}
+			size_t transferred = buffer->scatter(payload, payload_size);
 
 			(*callback)(err, transferred);
 		}

@@ -40,10 +40,6 @@ public:
 	using container_type = Container;
 	using const_iterator = typename Container::const_iterator;
 
-	buffer_sequence() = default;
-	buffer_sequence(const value_type &buffer) { push_back(buffer); }
-	buffer_sequence(value_type &&buffer) { push_back(std::move(buffer)); }
-
 	size_t count() const { return list_.size(); }
 	size_t size_total() const { return size_total_; }
 	bool empty() const { return list_.empty(); }
@@ -78,11 +74,75 @@ public:
 		}
 		size_total_ -= size;
 	}
-private:
+protected:
 	Container list_;
 	size_t size_total_ = 0;
 };
-using const_buffer_sequence = buffer_sequence<const_buffer>;
-using mutable_buffer_sequence = buffer_sequence<mutable_buffer>;
+
+class const_buffer_sequence final : public buffer_sequence<const_buffer>
+{
+public:
+	const_buffer_sequence() = default;
+	const_buffer_sequence(const const_buffer &buffer) { push_back(buffer); }
+	const_buffer_sequence(const_buffer &&buffer) { push_back(std::move(buffer)); }
+
+	size_t gather(char *dst, size_t dst_size)
+	{
+		size_t copied = 0;
+		while (!list_.empty() && copied < dst_size)
+		{
+			value_type &next = list_.front();
+			if (next.size() <= dst_size - copied)
+			{
+				size_t copying = next.size();
+				memcpy(dst + copied, next.data(), copying);
+				copied += copying;
+				list_.pop_front();
+			}
+			else
+			{
+				size_t copying = dst_size - copied;
+				memcpy(dst + copied, next.data(), copying);
+				next = value_type(next.data() + copying, next.size() - copying);
+				copied = dst_size;
+			}
+		}
+		size_total_ -= copied;
+		return copied;
+	}
+};
+
+class mutable_buffer_sequence final : public buffer_sequence<mutable_buffer>
+{
+public:
+	mutable_buffer_sequence() = default;
+	mutable_buffer_sequence(const mutable_buffer &buffer) { push_back(buffer); }
+	mutable_buffer_sequence(mutable_buffer &&buffer) { push_back(std::move(buffer)); }
+
+	size_t scatter(const char *src, size_t src_size)
+	{
+		size_t copied = 0;
+		while (!list_.empty() && copied < src_size)
+		{
+			value_type &next = list_.front();
+			if (next.size() <= src_size - copied)
+			{
+				size_t copying = next.size();
+				memcpy(next.data(), src + copied, copying);
+				copied += copying;
+				list_.pop_front();
+			}
+			else
+			{
+				size_t copying = src_size - copied;
+				memcpy(next.data(), src + copied, copying);
+				next = value_type(next.data() + copying, next.size() - copying);
+				copied = src_size;
+			}
+		}
+		size_total_ -= copied;
+		return copied;
+	}
+};
 
 #endif

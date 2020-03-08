@@ -205,15 +205,7 @@ void ss_crypto_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err
 
 	while (!buffer.empty())
 	{
-		size_t copied = 0;
-		while (!buffer.empty() && copied < transferring)
-		{
-			size_t copying = std::min(buffer.front().size(), transferring - copied);
-			memcpy(buf.get() + copied, buffer.front().data(), copying);
-			copied += copying;
-			buffer.consume(copying);
-		}
-
+		size_t copied = buffer.gather(buf.get(), transferring);
 		try
 		{
 			enc_buf_.clear();
@@ -287,15 +279,7 @@ void ss_crypto_tcp_socket::async_write(const std::shared_ptr<const_buffer_sequen
 	thread_local std::unique_ptr<char[]> buf = std::make_unique<char[]>(send_size_max);
 	size_t transferring = transfer_size(buffer->size_total());
 
-	size_t copied = 0;
-	while (!buffer->empty() && copied < transferring)
-	{
-		size_t copying = std::min(buffer->front().size(), transferring - copied);
-		memcpy(buf.get() + copied, buffer->front().data(), copying);
-		copied += copying;
-		buffer->consume(copying);
-	}
-
+	size_t copied = buffer->gather(buf.get(), transferring);
 	try
 	{
 		enc_buf_.clear();

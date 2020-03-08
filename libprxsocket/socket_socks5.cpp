@@ -880,13 +880,7 @@ error_code socks5_udp_socket::parse_udp(size_t udp_recv_size, endpoint &ep, muta
 	if (err)
 		return err;
 
-	while (transferred < buf_size && !buffers.empty())
-	{
-		size_t transferred_once = std::min(buffers.front().size(), buf_size - transferred);
-		memcpy(buffers.front().data(), buf + transferred, transferred_once);
-		transferred += transferred_once;
-		buffers.consume(transferred_once);
-	}
+	transferred = buffers.scatter(buf, buf_size);
 	return 0;
 }
 

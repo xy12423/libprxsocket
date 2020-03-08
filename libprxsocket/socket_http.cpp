@@ -206,12 +206,10 @@ void http_tcp_socket::read(mutable_buffer_sequence &&buffer, error_code &err)
 	err = 0;
 	if (buffer.empty())
 		return;
-	while (recv_buf_ptr < recv_buf_ptr_end)
+	if (recv_buf_ptr < recv_buf_ptr_end)
 	{
-		size_t transferred = std::min(buffer.front().size(), recv_buf_ptr_end - recv_buf_ptr);
-		memcpy(buffer.front().data(), recv_buf.get() + recv_buf_ptr, transferred);
+		size_t transferred = buffer.scatter(recv_buf.get() + recv_buf_ptr, recv_buf_ptr_end - recv_buf_ptr);
 		recv_buf_ptr += transferred;
-		buffer.consume(transferred);
 		if (buffer.empty())
 			return;
 	}
@@ -227,17 +225,12 @@ void http_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback
 		complete_handler(0);
 		return;
 	}
-	while (recv_buf_ptr < recv_buf_ptr_end)
+	if (recv_buf_ptr < recv_buf_ptr_end)
 	{
-		size_t transferred = std::min(buffer.front().size(), recv_buf_ptr_end - recv_buf_ptr);
-		memcpy(buffer.front().data(), recv_buf.get() + recv_buf_ptr, transferred);
+		size_t transferred = buffer.scatter(recv_buf.get() + recv_buf_ptr, recv_buf_ptr_end - recv_buf_ptr);
 		recv_buf_ptr += transferred;
-		buffer.consume(transferred);
 		if (buffer.empty())
-		{
-			complete_handler(0);
 			return;
-		}
 	}
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 	socket->async_read(std::move(buffer),
