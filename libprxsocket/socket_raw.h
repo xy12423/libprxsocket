@@ -8,7 +8,7 @@
 namespace asio = boost::asio;
 #endif
 
-class raw_tcp_socket :public prx_tcp_socket
+class raw_tcp_socket : public prx_tcp_socket
 {
 public:
 	raw_tcp_socket(asio::io_context &iosrv) :socket(iosrv), resolver(iosrv) {}
@@ -55,7 +55,7 @@ private:
 	bool binded = false, connected = false;
 };
 
-class raw_udp_socket :public prx_udp_socket
+class raw_udp_socket : public prx_udp_socket
 {
 public:
 	raw_udp_socket(asio::io_context &iosrv) :socket(iosrv), resolver(iosrv) {}
@@ -92,7 +92,7 @@ private:
 	asio::ip::udp::resolver resolver;
 };
 
-class raw_listener :public prx_listener
+class raw_listener : public prx_listener
 {
 public:
 	raw_listener(asio::io_context &_iosrv) :iosrv(_iosrv), acceptor(iosrv) {}

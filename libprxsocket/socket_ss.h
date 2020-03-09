@@ -10,7 +10,8 @@ class ss_tcp_socket : public prx_tcp_socket
 public:
 	ss_tcp_socket(const endpoint &server_endpoint, std::unique_ptr<prx_tcp_socket> &&base_socket)
 		:socket(std::move(base_socket)), server_ep(server_endpoint), recv_buf(std::make_unique<char[]>(recv_buf_size))
-	{}
+	{
+	}
 	virtual ~ss_tcp_socket() override {}
 
 	virtual bool is_open() override { return socket->is_open(); }

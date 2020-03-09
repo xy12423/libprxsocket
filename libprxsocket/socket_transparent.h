@@ -15,8 +15,8 @@ public:
 	virtual bool is_open() override { return socket_->is_open(); }
 	virtual bool is_connected() override { return socket_->is_connected(); }
 
-	virtual void local_endpoint(endpoint &ep, error_code &ec) override { return socket_->local_endpoint(ep, ec); }
-	virtual void remote_endpoint(endpoint &ep, error_code &ec) override { return socket_->remote_endpoint(ep, ec); }
+	virtual void local_endpoint(endpoint &endpoint, error_code &ec) override { return socket_->local_endpoint(endpoint, ec); }
+	virtual void remote_endpoint(endpoint &endpoint, error_code &ec) override { return socket_->remote_endpoint(endpoint, ec); }
 
 	virtual void open(error_code &ec) override { return socket_->open(ec); }
 	virtual void async_open(null_callback &&complete_handler) override { socket_->async_open(std::move(complete_handler)); }
@@ -53,7 +53,7 @@ public:
 
 	virtual bool is_open() override { return udp_socket_->is_open(); }
 
-	virtual void local_endpoint(endpoint &ep, error_code &ec) override { return udp_socket_->local_endpoint(ep, ec); }
+	virtual void local_endpoint(endpoint &endpoint, error_code &ec) override { return udp_socket_->local_endpoint(endpoint, ec); }
 
 	virtual void open(error_code &ec) override { return udp_socket_->open(ec); }
 	virtual void async_open(null_callback &&complete_handler) override { udp_socket_->async_open(std::move(complete_handler)); }
@@ -76,7 +76,7 @@ protected:
 	std::unique_ptr<prx_udp_socket> udp_socket_;
 };
 
-class transparent_listener :public prx_listener
+class transparent_listener : public prx_listener
 {
 public:
 	transparent_listener(std::unique_ptr<prx_listener> &&base_acceptor)

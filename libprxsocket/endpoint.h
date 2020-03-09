@@ -9,9 +9,7 @@ class endpoint
 {
 public:
 	endpoint() :port_(0) {}
-	template <typename T>
-	endpoint(T &&addr, port_type port) : addr_(std::forward<T>(addr)), port_(port)
-	{}
+	template <typename T> endpoint(T &&addr, port_type port) : addr_(std::forward<T>(addr)), port_(port) {}
 
 	const address &addr() const { return addr_; }
 	port_type port() const { return port_; }

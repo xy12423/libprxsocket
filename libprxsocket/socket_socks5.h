@@ -3,7 +3,7 @@
 
 #include "socks5_base.h"
 
-class socks5_tcp_socket :public prx_tcp_socket, private socks5_base
+class socks5_tcp_socket : public prx_tcp_socket, private socks5_base
 {
 	enum { STATE_INIT, STATE_OPEN, STATE_CONNECTED };
 
@@ -11,10 +11,12 @@ class socks5_tcp_socket :public prx_tcp_socket, private socks5_base
 public:
 	socks5_tcp_socket(const endpoint &server_endpoint, std::unique_ptr<prx_tcp_socket> &&base_socket)
 		:socks5_base(std::move(base_socket)), server_ep(server_endpoint)
-	{}
+	{
+	}
 	socks5_tcp_socket(const endpoint &server_endpoint, std::unique_ptr<prx_tcp_socket> &&base_socket, const std::string &methods)
 		:socks5_base(std::move(base_socket), methods), server_ep(server_endpoint)
-	{}
+	{
+	}
 	virtual ~socks5_tcp_socket() override {}
 
 	virtual bool is_open() override { return state >= STATE_OPEN; }
@@ -49,7 +51,7 @@ private:
 	endpoint server_ep, local_ep, remote_ep;
 };
 
-class socks5_udp_socket :public prx_udp_socket, private socks5_base
+class socks5_udp_socket : public prx_udp_socket, private socks5_base
 {
 	enum { STATE_INIT, STATE_ASSOCIATED };
 
@@ -103,12 +105,13 @@ private:
 	char udp_alive_buf;
 };
 
-class socks5_listener :public prx_listener
+class socks5_listener : public prx_listener
 {
 public:
 	socks5_listener(const endpoint &_server_ep, std::function<std::unique_ptr<prx_tcp_socket>()> &&_gen_socket)
 		:server_ep(_server_ep), local_ep(0ul, 0), methods("\x80\x00", 2), gen_socket(std::move(_gen_socket))
-	{}
+	{
+	}
 	virtual ~socks5_listener() override {}
 
 	virtual bool is_open() override { return cur_socket && cur_socket->is_open(); }

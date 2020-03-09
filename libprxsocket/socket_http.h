@@ -4,14 +4,15 @@
 #include "socket_base.h"
 #include "http_header.h"
 
-class http_tcp_socket :public prx_tcp_socket
+class http_tcp_socket : public prx_tcp_socket
 {
 	enum { STATE_INIT, STATE_OK };
 	static constexpr size_t recv_buf_size = 0x800;
 public:
 	http_tcp_socket(const endpoint &server_endpoint, std::unique_ptr<prx_tcp_socket> &&base_socket)
 		:socket(std::move(base_socket)), server_ep(server_endpoint), recv_buf(std::make_unique<char[]>(recv_buf_size))
-	{}
+	{
+	}
 	virtual ~http_tcp_socket() override {}
 
 	virtual bool is_open() override { return socket->is_open(); }

@@ -15,7 +15,7 @@
 #include <cryptopp/modes.h>
 #endif
 
-class obfs_websock_tcp_socket :public prx_tcp_socket
+class obfs_websock_tcp_socket : public prx_tcp_socket
 {
 	enum { STATE_INIT, STATE_OK };
 	static constexpr size_t sym_block_size = 16;
@@ -105,7 +105,7 @@ private:
 	CryptoPP::SecByteBlock key, iv;
 };
 
-class obfs_websock_listener :public prx_listener
+class obfs_websock_listener : public prx_listener
 {
 private:
 	static constexpr size_t sym_block_size = 16;
@@ -114,7 +114,8 @@ public:
 	obfs_websock_listener(std::unique_ptr<prx_listener> &&_acceptor, const std::string &_key)
 		:acceptor(std::move(_acceptor)), recv_buf(std::make_unique<char[]>(recv_buf_size)),
 		key(_key)
-	{}
+	{
+	}
 	virtual ~obfs_websock_listener() override {}
 
 	virtual bool is_open() override { return acceptor->is_open(); }

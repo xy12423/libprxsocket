@@ -20,11 +20,13 @@ public:
 
 	socks5_base(std::unique_ptr<prx_tcp_socket> &&arg)
 		:socket(std::move(arg)), available_methods("\x00", 1)
-	{}
+	{
+	}
 	template <typename... T>
 	socks5_base(std::unique_ptr<prx_tcp_socket> &&arg, T &&...args)
 		:socket(std::move(arg)), available_methods(std::forward<T>(args)...)
-	{}
+	{
+	}
 
 	template <typename... T> void open(T &&...args) { return socket->open(std::forward<T>(args)...); }
 	template <typename... T> void async_open(T &&...args) { socket->async_open(std::forward<T>(args)...); }
@@ -75,7 +77,7 @@ private:
 	uint8_t auth_method = 0xFF;
 };
 
-class socks5_error :public std::runtime_error
+class socks5_error : public std::runtime_error
 {
 public:
 	socks5_error(error_code _err) :std::runtime_error("SOCKS5 error"), err(_err) {}

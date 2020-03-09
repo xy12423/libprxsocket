@@ -28,7 +28,7 @@ enum {
 	ERR_ALREADY_IN_STATE = 11,
 };
 
-class socket_exception :public std::runtime_error
+class socket_exception : public std::runtime_error
 {
 public:
 	socket_exception(const error_code &ec) :std::runtime_error("SOCK ERR " + std::to_string(ec)) {}
