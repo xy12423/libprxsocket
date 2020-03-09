@@ -98,5 +98,8 @@
     <ClInclude Include="socket_ss_crypto.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="socket_transparent.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

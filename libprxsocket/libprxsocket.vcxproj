@@ -199,6 +199,7 @@
     <ClInclude Include="socket_ss.h" />
     <ClInclude Include="socket_obfs_websock.h" />
     <ClInclude Include="socket_ss_crypto.h" />
+    <ClInclude Include="socket_transparent.h" />
     <ClInclude Include="socks5_base.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
