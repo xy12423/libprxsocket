@@ -4,7 +4,7 @@
 #include "socket_base.h"
 #include "http_header.h"
 
-class http_tcp_socket : public prx_tcp_socket
+class http_tcp_socket final : public prx_tcp_socket
 {
 	enum { STATE_INIT, STATE_OK };
 	static constexpr size_t recv_buf_size = 0x800;

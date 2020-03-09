@@ -5,9 +5,6 @@
 #include "http_header.h"
 
 #ifndef _LIBPRXSOCKET_BUILD
-#include <list>
-#include <mutex>
-
 #include <cryptopp/cryptlib.h>
 #include <cryptopp/aes.h>
 #include <cryptopp/osrng.h>
@@ -15,7 +12,7 @@
 #include <cryptopp/modes.h>
 #endif
 
-class obfs_websock_tcp_socket : public prx_tcp_socket
+class obfs_websock_tcp_socket final : public prx_tcp_socket
 {
 	enum { STATE_INIT, STATE_OK };
 	static constexpr size_t sym_block_size = 16;
@@ -105,7 +102,7 @@ private:
 	CryptoPP::SecByteBlock key, iv;
 };
 
-class obfs_websock_listener : public prx_listener
+class obfs_websock_listener final : public prx_listener
 {
 private:
 	static constexpr size_t sym_block_size = 16;

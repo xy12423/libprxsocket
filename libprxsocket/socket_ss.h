@@ -3,25 +3,23 @@
 
 #include "socket_base.h"
 
-class ss_tcp_socket : public prx_tcp_socket
+class ss_tcp_socket final : public prx_tcp_socket
 {
-	enum { STATE_INIT, STATE_OK };
-	static constexpr size_t recv_buf_size = 0x800;
 public:
 	ss_tcp_socket(const endpoint &server_endpoint, std::unique_ptr<prx_tcp_socket> &&base_socket)
-		:socket(std::move(base_socket)), server_ep(server_endpoint), recv_buf(std::make_unique<char[]>(recv_buf_size))
+		:socket_(std::move(base_socket)), server_ep_(server_endpoint)
 	{
 	}
 	virtual ~ss_tcp_socket() override {}
 
-	virtual bool is_open() override { return socket->is_open(); }
-	virtual bool is_connected() override { return state >= STATE_OK && socket->is_connected(); }
+	virtual bool is_open() override { return socket_->is_open(); }
+	virtual bool is_connected() override { return socket_->is_connected(); }
 
 	virtual void local_endpoint(endpoint &ep, error_code &ec) override { ec = ERR_UNSUPPORTED; }
-	virtual void remote_endpoint(endpoint &ep, error_code &ec) override { ec = 0; if (!is_connected()) { ec = ERR_OPERATION_FAILURE; return; } ep = remote_ep; }
+	virtual void remote_endpoint(endpoint &ep, error_code &ec) override { ec = 0; if (!is_connected()) { ec = ERR_OPERATION_FAILURE; return; } ep = remote_ep_; }
 
-	virtual void open(error_code &ec) override { return socket->open(ec); }
-	virtual void async_open(null_callback &&complete_handler) override { socket->async_open(std::move(complete_handler)); }
+	virtual void open(error_code &ec) override { return socket_->open(ec); }
+	virtual void async_open(null_callback &&complete_handler) override { socket_->async_open(std::move(complete_handler)); }
 
 	virtual void bind(const endpoint &endpoint, error_code &ec) override { ec = ERR_UNSUPPORTED; }
 	virtual void async_bind(const endpoint &endpoint, null_callback &&complete_handler) override { complete_handler(ERR_UNSUPPORTED); }
@@ -38,19 +36,17 @@ public:
 	virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
 	virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 
-	virtual void close(error_code &ec) override { state = STATE_INIT; socket->close(ec); }
-	virtual void async_close(null_callback &&complete_handler) override { state = STATE_INIT; socket->async_close(std::move(complete_handler)); }
+	virtual void close(error_code &ec) override { remote_ep_sent_ = false; socket_->close(ec); }
+	virtual void async_close(null_callback &&complete_handler) override { remote_ep_sent_ = false; socket_->async_close(std::move(complete_handler)); }
 private:
 	void close() { error_code ec; close(ec); }
 
-	int state = STATE_INIT;
-
-	std::unique_ptr<prx_tcp_socket> socket;
-	endpoint server_ep, remote_ep;
-	std::unique_ptr<char[]> recv_buf;
+	std::unique_ptr<prx_tcp_socket> socket_;
+	endpoint server_ep_, remote_ep_;
+	bool remote_ep_sent_ = false;
 };
 
-class ss_udp_socket : public prx_udp_socket
+class ss_udp_socket final : public prx_udp_socket
 {
 	static constexpr size_t udp_buf_size = 0x10000;
 public:

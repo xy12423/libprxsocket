@@ -40,7 +40,7 @@ void ss_crypto_tcp_socket::async_send(const const_buffer &buffer, transfer_callb
 	if (!iv_sent_)
 	{
 		async_write(buffer.size() == 0 ? const_buffer_sequence() : const_buffer_sequence(buffer),
-			[this, transferred = buffer.size(), callback](error_code err)
+			[this, callback, transferred = buffer.size()](error_code err)
 		{
 			if (err)
 			{
