@@ -6,8 +6,8 @@
 
 class ss_crypto_tcp_socket final : public transparent_tcp_socket
 {
-	static constexpr size_t send_size_pref = 1360;
-	static constexpr size_t send_size_max = 1440;
+	static constexpr size_t send_size_pref = 0x600;
+	static constexpr size_t send_size_max = 0x600;
 	static constexpr size_t recv_buf_size = 0x800;
 
 	static constexpr size_t transfer_size(size_t buffer_size) { return buffer_size > send_size_max ? send_size_pref : buffer_size; }

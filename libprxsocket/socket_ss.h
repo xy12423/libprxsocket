@@ -51,17 +51,17 @@ class ss_udp_socket final : public prx_udp_socket
 	static constexpr size_t udp_buf_size = 0x10000;
 public:
 	ss_udp_socket(const endpoint &_udp_server_ep, std::unique_ptr<prx_udp_socket> &&base_udp_socket)
-		:udp_socket(std::move(base_udp_socket)), udp_server_ep(_udp_server_ep), udp_recv_buf(std::make_unique<char[]>(udp_buf_size))
+		:udp_socket_(std::move(base_udp_socket)), udp_server_ep_(_udp_server_ep), udp_recv_buf_(std::make_unique<char[]>(udp_buf_size))
 	{
 	}
 	virtual ~ss_udp_socket() override {}
 
-	virtual bool is_open() override { return udp_socket->is_open(); }
+	virtual bool is_open() override { return udp_socket_->is_open(); }
 
 	virtual void local_endpoint(endpoint &ep, error_code &ec) override { ec = ERR_UNSUPPORTED; }
 
-	virtual void open(error_code &ec) override { return udp_socket->open(ec); }
-	virtual void async_open(null_callback &&complete_handler) override { udp_socket->async_open(std::move(complete_handler)); }
+	virtual void open(error_code &ec) override { return udp_socket_->open(ec); }
+	virtual void async_open(null_callback &&complete_handler) override { udp_socket_->async_open(std::move(complete_handler)); }
 
 	virtual void bind(const endpoint &endpoint, error_code &ec) override { ec = ERR_UNSUPPORTED; }
 	virtual void async_bind(const endpoint &endpoint, null_callback &&complete_handler) override { complete_handler(ERR_UNSUPPORTED); }
@@ -75,12 +75,12 @@ public:
 	virtual void recv_from(endpoint &endpoint, mutable_buffer_sequence &&buffer, size_t &transferred, error_code &ec) override;
 	virtual void async_recv_from(endpoint &endpoint, mutable_buffer_sequence &&buffer, transfer_callback &&complete_handler) override;
 
-	virtual void close(error_code &ec) override { udp_socket->close(ec); }
-	virtual void async_close(null_callback &&complete_handler) override { udp_socket->async_close(std::move(complete_handler)); }
+	virtual void close(error_code &ec) override { udp_socket_->close(ec); }
+	virtual void async_close(null_callback &&complete_handler) override { udp_socket_->async_close(std::move(complete_handler)); }
 private:
-	std::unique_ptr<prx_udp_socket> udp_socket;
-	endpoint udp_server_ep, udp_recv_ep;
-	std::unique_ptr<char[]> udp_recv_buf;
+	std::unique_ptr<prx_udp_socket> udp_socket_;
+	endpoint udp_server_ep_, udp_recv_ep_;
+	std::unique_ptr<char[]> udp_recv_buf_;
 };
 
 #endif

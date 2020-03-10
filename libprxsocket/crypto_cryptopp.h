@@ -8,10 +8,10 @@
 #include <cryptopp/osrng.h>
 #endif
 
-template <typename CRYPTO, size_t KEY_LENGTH>
+template <typename Crypto, size_t KEY_LENGTH>
 class encryptor_cryptopp : public encryptor
 {
-	using encryptor_type = typename CRYPTO::Encryption;
+	using encryptor_type = typename Crypto::Encryption;
 	static constexpr size_t KEY_SIZE = KEY_LENGTH / 8;
 public:
 	virtual size_t key_size() const override { return KEY_SIZE; }
@@ -42,10 +42,10 @@ private:
 	CryptoPP::byte iv_[KEY_SIZE];
 };
 
-template <typename CRYPTO, size_t KEY_LENGTH>
+template <typename Crypto, size_t KEY_LENGTH>
 class decryptor_cryptopp : public decryptor
 {
-	using decryptor_type = typename CRYPTO::Decryption;
+	using decryptor_type = typename Crypto::Decryption;
 	static constexpr size_t KEY_SIZE = KEY_LENGTH / 8;
 public:
 	virtual size_t key_size() const override { return KEY_SIZE; }

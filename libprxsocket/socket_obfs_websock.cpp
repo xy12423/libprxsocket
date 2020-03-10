@@ -319,10 +319,10 @@ void obfs_websock_tcp_socket::send(const const_buffer &buffer, size_t &transferr
 	err = 0;
 	transferred = 0;
 
-	size_t size_trans = transfer_size(buffer.size());
+	size_t transferring = transfer_size(buffer.size());
 	try
 	{
-		encode(send_buf_, buffer.data(), size_trans);
+		encode(send_buf_, buffer.data(), transferring);
 	}
 	catch (std::exception &)
 	{
@@ -336,17 +336,17 @@ void obfs_websock_tcp_socket::send(const const_buffer &buffer, size_t &transferr
 		close();
 		return;
 	}
-	transferred = size_trans;
+	transferred = transferring;
 }
 
 void obfs_websock_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
 {
-	size_t size_trans = transfer_size(buffer.size());
+	size_t transferring = transfer_size(buffer.size());
 
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 	try
 	{
-		encode(send_buf_, buffer.data(), size_trans);
+		encode(send_buf_, buffer.data(), transferring);
 	}
 	catch (std::exception &)
 	{
@@ -355,14 +355,14 @@ void obfs_websock_tcp_socket::async_send(const const_buffer &buffer, transfer_ca
 	}
 
 	socket_->async_write(const_buffer(send_buf_),
-		[this, size_trans, callback](error_code err)
+		[this, transferring, callback](error_code err)
 	{
 		if (err)
 		{
 			async_close([callback, err](error_code) { (*callback)(err, 0); });
 			return;
 		}
-		(*callback)(0, size_trans);
+		(*callback)(0, transferring);
 	});
 }
 

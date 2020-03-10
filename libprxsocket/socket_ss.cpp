@@ -87,17 +87,14 @@ void ss_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&c
 		}
 		return;
 	}
-	else
+	socket_->async_send(buffer,
+		[this, callback](error_code err, size_t transferred)
 	{
-		socket_->async_send(buffer,
-			[this, callback](error_code err, size_t transferred)
-		{
-			if (err)
-				async_close([callback, err, transferred](error_code) { (*callback)(err, transferred); });
-			else
-				(*callback)(0, transferred);
-		});
-	}
+		if (err)
+			async_close([callback, err, transferred](error_code) { (*callback)(err, transferred); });
+		else
+			(*callback)(0, transferred);
+	});
 }
 
 void ss_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
@@ -179,10 +176,10 @@ void ss_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_t
 	transferred = 0;
 
 	size_t udp_recv_size;
-	udp_socket->recv_from(udp_recv_ep, mutable_buffer(udp_recv_buf.get(), udp_buf_size), udp_recv_size, err);
+	udp_socket_->recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), udp_buf_size), udp_recv_size, err);
 	if (err)
 	{
-		if (!udp_socket->is_open())
+		if (!udp_socket_->is_open())
 		{
 			error_code ec;
 			close(ec);
@@ -192,14 +189,14 @@ void ss_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_t
 
 	try
 	{
-		size_t ep_size = ep.from_socks5(udp_recv_buf.get());
+		size_t ep_size = ep.from_socks5(udp_recv_buf_.get());
 		if (ep_size == 0 || ep_size > udp_recv_size)
 		{
 			err = WARN_OPERATION_FAILURE;
 			return;
 		}
 
-		char *payload = udp_recv_buf.get() + ep_size;
+		char *payload = udp_recv_buf_.get() + ep_size;
 		size_t payload_size = udp_recv_size - ep_size;
 		transferred = std::min(buffer.size(), payload_size);
 		memcpy(buffer.data(), payload, transferred);
@@ -216,12 +213,12 @@ void ss_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buffer, 
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 
-	udp_socket->async_recv_from(udp_recv_ep, mutable_buffer(udp_recv_buf.get(), udp_buf_size),
+	udp_socket_->async_recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), udp_buf_size),
 		[this, &ep, buffer, callback](error_code err, size_t udp_recv_size)
 	{
 		if (err)
 		{
-			if (!udp_socket->is_open())
+			if (!udp_socket_->is_open())
 			{
 				async_close([this, err, callback](error_code) { (*callback)(err, 0); });
 			}
@@ -234,14 +231,14 @@ void ss_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buffer, 
 
 		try
 		{
-			size_t ep_size = ep.from_socks5(udp_recv_buf.get());
+			size_t ep_size = ep.from_socks5(udp_recv_buf_.get());
 			if (ep_size == 0 || ep_size > udp_recv_size)
 			{
 				(*callback)(WARN_OPERATION_FAILURE, 0);
 				return;
 			}
 
-			char *payload = udp_recv_buf.get() + ep_size;
+			char *payload = udp_recv_buf_.get() + ep_size;
 			size_t payload_size = udp_recv_size - ep_size;
 			size_t transferred = std::min(buffer.size(), payload_size);
 			memcpy(buffer.data(), payload, transferred);
@@ -271,8 +268,8 @@ void ss_udp_socket::send_to(const endpoint &ep, const_buffer_sequence &&buffers,
 		return;
 	}
 
-	udp_socket->send_to(udp_server_ep, std::move(buffers), err);
-	if (!udp_socket->is_open())
+	udp_socket_->send_to(udp_server_ep_, std::move(buffers), err);
+	if (!udp_socket_->is_open())
 	{
 		error_code ec;
 		close(ec);
@@ -294,10 +291,10 @@ void ss_udp_socket::async_send_to(const endpoint &ep, const_buffer_sequence &&bu
 	}
 
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	udp_socket->async_send_to(udp_server_ep, std::move(buffers),
+	udp_socket_->async_send_to(udp_server_ep_, std::move(buffers),
 		[this, header, callback](error_code err)
 	{
-		if (!udp_socket->is_open())
+		if (!udp_socket_->is_open())
 		{
 			async_close([err, callback](error_code) { (*callback)(err); });
 		}
@@ -314,10 +311,10 @@ void ss_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buffers, s
 	transferred = 0;
 
 	size_t udp_recv_size;
-	udp_socket->recv_from(udp_recv_ep, mutable_buffer(udp_recv_buf.get(), udp_buf_size), udp_recv_size, err);
+	udp_socket_->recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), udp_buf_size), udp_recv_size, err);
 	if (err)
 	{
-		if (!udp_socket->is_open())
+		if (!udp_socket_->is_open())
 		{
 			error_code ec;
 			close(ec);
@@ -327,14 +324,14 @@ void ss_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buffers, s
 
 	try
 	{
-		size_t ep_size = ep.from_socks5(udp_recv_buf.get());
+		size_t ep_size = ep.from_socks5(udp_recv_buf_.get());
 		if (ep_size == 0 || ep_size > udp_recv_size)
 		{
 			err = WARN_OPERATION_FAILURE;
 			return;
 		}
 
-		char *payload = udp_recv_buf.get() + ep_size;
+		char *payload = udp_recv_buf_.get() + ep_size;
 		size_t payload_size = udp_recv_size - ep_size;
 
 		transferred = buffers.scatter(payload, payload_size);
@@ -352,12 +349,12 @@ void ss_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&buff
 	std::shared_ptr<mutable_buffer_sequence> buffer = std::make_shared<mutable_buffer_sequence>(std::move(buffers));
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 
-	udp_socket->async_recv_from(udp_recv_ep, mutable_buffer(udp_recv_buf.get(), udp_buf_size),
+	udp_socket_->async_recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), udp_buf_size),
 		[this, &ep, buffer, callback](error_code err, size_t udp_recv_size)
 	{
 		if (err)
 		{
-			if (!udp_socket->is_open())
+			if (!udp_socket_->is_open())
 			{
 				async_close([this, err, callback](error_code) { (*callback)(err, 0); });
 			}
@@ -370,14 +367,14 @@ void ss_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&buff
 
 		try
 		{
-			size_t ep_size = ep.from_socks5(udp_recv_buf.get());
+			size_t ep_size = ep.from_socks5(udp_recv_buf_.get());
 			if (ep_size == 0 || ep_size > udp_recv_size)
 			{
 				(*callback)(WARN_OPERATION_FAILURE, 0);
 				return;
 			}
 
-			char *payload = udp_recv_buf.get() + ep_size;
+			char *payload = udp_recv_buf_.get() + ep_size;
 			size_t payload_size = udp_recv_size - ep_size;
 			
 			size_t transferred = buffer->scatter(payload, payload_size);

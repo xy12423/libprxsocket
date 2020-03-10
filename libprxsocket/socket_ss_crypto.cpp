@@ -12,11 +12,11 @@ void ss_crypto_tcp_socket::send(const const_buffer &buffer, size_t &transferred,
 	err = 0;
 	transferred = 0;
 
-	size_t size_trans = transfer_size(buffer.size());
+	size_t transferring = transfer_size(buffer.size());
 	try
 	{
 		send_buf_.clear();
-		enc_->encrypt(send_buf_, buffer.data(), size_trans);
+		enc_->encrypt(send_buf_, buffer.data(), transferring);
 	}
 	catch (std::exception &)
 	{
@@ -30,7 +30,7 @@ void ss_crypto_tcp_socket::send(const const_buffer &buffer, size_t &transferred,
 		close();
 		return;
 	}
-	transferred = size_trans;
+	transferred = transferring;
 }
 
 void ss_crypto_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
@@ -51,11 +51,11 @@ void ss_crypto_tcp_socket::async_send(const const_buffer &buffer, transfer_callb
 		return;
 	}
 
-	size_t size_trans = transfer_size(buffer.size());
+	size_t transferring = transfer_size(buffer.size());
 	try
 	{
 		send_buf_.clear();
-		enc_->encrypt(send_buf_, buffer.data(), size_trans);
+		enc_->encrypt(send_buf_, buffer.data(), transferring);
 	}
 	catch (std::exception &)
 	{
@@ -64,14 +64,14 @@ void ss_crypto_tcp_socket::async_send(const const_buffer &buffer, transfer_callb
 	}
 
 	socket_->async_write(const_buffer(send_buf_),
-		[this, size_trans, callback](error_code err)
+		[this, transferring, callback](error_code err)
 	{
 		if (err)
 		{
 			async_close([callback, err](error_code) { (*callback)(err, 0); });
 			return;
 		}
-		(*callback)(0, size_trans);
+		(*callback)(0, transferring);
 	});
 }
 

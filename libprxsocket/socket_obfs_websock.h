@@ -17,8 +17,8 @@ class obfs_websock_tcp_socket final : public prx_tcp_socket
 	enum { STATE_INIT, STATE_OK };
 	static constexpr size_t sym_block_size = 16;
 	static constexpr size_t sha1_size = 20;
-	static constexpr size_t send_size_pref = 1340;
-	static constexpr size_t send_size_max = 1420;
+	static constexpr size_t send_size_pref = 0x600;
+	static constexpr size_t send_size_max = 0x600;
 	static constexpr size_t recv_buf_size = 0x800;
 
 	static constexpr size_t transfer_size(size_t buffer_size) { return buffer_size > send_size_max ? send_size_pref : buffer_size; }
