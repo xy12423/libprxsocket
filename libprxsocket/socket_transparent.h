@@ -3,14 +3,15 @@
 
 #include "socket_base.h"
 
-class transparent_tcp_socket : public prx_tcp_socket
+template <typename BaseTcpSocket>
+class transparent_tcp_socket_template : public prx_tcp_socket
 {
 public:
-	transparent_tcp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket)
+	transparent_tcp_socket_template(std::unique_ptr<BaseTcpSocket> &&base_socket)
 		:socket_(std::move(base_socket))
 	{
 	}
-	virtual ~transparent_tcp_socket() override {}
+	virtual ~transparent_tcp_socket_template() override {}
 
 	virtual bool is_open() override { return socket_->is_open(); }
 	virtual bool is_connected() override { return socket_->is_connected(); }
@@ -39,17 +40,19 @@ public:
 	virtual void close(error_code &ec) override { return socket_->close(ec); }
 	virtual void async_close(null_callback &&complete_handler) override { socket_->async_close(std::move(complete_handler)); }
 protected:
-	std::unique_ptr<prx_tcp_socket> socket_;
+	std::unique_ptr<BaseTcpSocket> socket_;
 };
+using transparent_tcp_socket = transparent_tcp_socket_template<prx_tcp_socket>;
 
-class transparent_udp_socket : public prx_udp_socket
+template <typename BaseUdpSocket>
+class transparent_udp_socket_template : public prx_udp_socket
 {
 public:
-	transparent_udp_socket(std::unique_ptr<prx_udp_socket> &&base_udp_socket)
+	transparent_udp_socket_template(std::unique_ptr<BaseUdpSocket> &&base_udp_socket)
 		:udp_socket_(std::move(base_udp_socket))
 	{
 	}
-	virtual ~transparent_udp_socket() override {}
+	virtual ~transparent_udp_socket_template() override {}
 
 	virtual bool is_open() override { return udp_socket_->is_open(); }
 
@@ -73,17 +76,19 @@ public:
 	virtual void close(error_code &ec) override { return udp_socket_->close(ec); }
 	virtual void async_close(null_callback &&complete_handler) override { udp_socket_->async_close(std::move(complete_handler)); }
 protected:
-	std::unique_ptr<prx_udp_socket> udp_socket_;
+	std::unique_ptr<BaseUdpSocket> udp_socket_;
 };
+using transparent_udp_socket = transparent_udp_socket_template<prx_udp_socket>;
 
-class transparent_listener : public prx_listener
+template <typename BaseListener>
+class transparent_listener_template : public prx_listener
 {
 public:
-	transparent_listener(std::unique_ptr<prx_listener> &&base_acceptor)
+	transparent_listener_template(std::unique_ptr<BaseListener> &&base_acceptor)
 		:acceptor_(std::move(base_acceptor))
 	{
 	}
-	virtual ~transparent_listener() override {}
+	virtual ~transparent_listener_template() override {}
 
 	virtual bool is_open() override { return acceptor_->is_open(); }
 	virtual bool is_listening() override { return acceptor_->is_listening(); }
@@ -105,7 +110,8 @@ public:
 	virtual void close(error_code &ec) override { return acceptor_->close(ec); }
 	virtual void async_close(null_callback &&complete_handler) override { acceptor_->async_close(std::move(complete_handler)); }
 protected:
-	std::unique_ptr<prx_listener> acceptor_;
+	std::unique_ptr<BaseListener> acceptor_;
 };
+using transparent_listener = transparent_listener_template<prx_listener>;
 
 #endif
