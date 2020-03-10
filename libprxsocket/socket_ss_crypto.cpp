@@ -6,8 +6,7 @@ void ss_crypto_tcp_socket::send(const const_buffer &buffer, size_t &transferred,
 	if (!iv_sent_)
 	{
 		write(buffer.size() == 0 ? const_buffer_sequence() : const_buffer_sequence(buffer), err);
-		if (!err)
-			transferred = buffer.size();
+		transferred = err ? 0 : buffer.size();
 		return;
 	}
 	err = 0;
@@ -201,10 +200,11 @@ void ss_crypto_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err
 	}
 
 	thread_local std::unique_ptr<char[]> buf = std::make_unique<char[]>(send_size_max);
-	size_t transferring = transfer_size(buffer.size_total());
 
 	while (!buffer.empty())
 	{
+		size_t iv_reserved = iv_sent_ ? 0 : enc_iv_size_;
+		size_t transferring = transfer_size(buffer.size_total() + iv_reserved) - iv_reserved;
 		size_t copied = buffer.gather(buf.get(), transferring);
 		try
 		{
@@ -277,8 +277,9 @@ void ss_crypto_tcp_socket::async_write(const_buffer_sequence &&buffer, null_call
 void ss_crypto_tcp_socket::async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback)
 {
 	thread_local std::unique_ptr<char[]> buf = std::make_unique<char[]>(send_size_max);
-	size_t transferring = transfer_size(buffer->size_total());
 
+	size_t iv_reserved = iv_sent_ ? 0 : enc_iv_size_;
+	size_t transferring = transfer_size(buffer->size_total() + iv_reserved) - iv_reserved;
 	size_t copied = buffer->gather(buf.get(), transferring);
 	try
 	{
