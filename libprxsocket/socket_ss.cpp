@@ -73,7 +73,7 @@ void ss_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&c
 				return;
 			}
 			remote_ep_sent_ = true;
-			(*callback)(err, transferred);
+			(*callback)(0, transferred);
 		};
 		if (buffer.size() == 0)
 		{
@@ -142,6 +142,27 @@ void ss_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback &
 void ss_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
 {
 	err = 0;
+	if (!remote_ep_sent_)
+	{
+		std::string header;
+		remote_ep_.to_socks5(header);
+		if (buffer.empty())
+		{
+			socket_->write(const_buffer(header), err);
+		}
+		else
+		{
+			buffer.push_front(const_buffer(header));
+			socket_->write(std::move(buffer), err);
+		}
+		if (err)
+		{
+			close();
+			return;
+		}
+		remote_ep_sent_ = true;
+		return;
+	}
 	socket_->write(std::move(buffer), err);
 	if (err)
 		close();
@@ -150,6 +171,32 @@ void ss_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
 void ss_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler)
 {
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+	if (!remote_ep_sent_)
+	{
+		std::shared_ptr<std::string> header = std::make_shared<std::string>();
+		remote_ep_.to_socks5(*header);
+
+		auto func = [this, header, callback](error_code err)
+		{
+			if (err)
+			{
+				async_close([callback, err](error_code) { (*callback)(err); });
+				return;
+			}
+			remote_ep_sent_ = true;
+			(*callback)(0);
+		};
+		if (buffer.empty())
+		{
+			socket_->async_write(const_buffer(*header), std::move(func));
+		}
+		else
+		{
+			buffer.push_front(const_buffer(*header));
+			socket_->async_write(std::move(buffer), std::move(func));
+		}
+		return;
+	}
 	socket_->async_write(std::move(buffer),
 		[this, callback](error_code err)
 	{
