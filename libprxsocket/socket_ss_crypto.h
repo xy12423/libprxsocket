@@ -6,19 +6,20 @@
 
 class ss_crypto_tcp_socket final : public transparent_tcp_socket
 {
-	static constexpr size_t send_size_pref = 0x600;
-	static constexpr size_t send_size_max = 0x600;
+	static constexpr size_t send_size_pref = 0x780;
+	static constexpr size_t send_size_max = 0x800;
 	static constexpr size_t recv_buf_size = 0x800;
 
 	static constexpr size_t transfer_size(size_t buffer_size) { return buffer_size > send_size_max ? send_size_pref : buffer_size; }
+	void reset() { iv_sent_ = iv_received_ = false; dec_buf_.clear(); dec_ptr_ = 0; }
 public:
 	ss_crypto_tcp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const std::vector<char> &key, std::unique_ptr<encryptor> &&enc, std::unique_ptr<decryptor> &&dec)
 		:transparent_tcp_socket(std::move(base_socket)),
 		key_(key), enc_(std::move(enc)), enc_iv_size_(enc_->iv_size()), dec_(std::move(dec)), dec_iv_size_(dec_->iv_size()),
 		recv_buf_(std::make_unique<char[]>(recv_buf_size))
 	{
-		assert(key_.size() == enc->key_size());
-		assert(key_.size() == dec->key_size());
+		assert(key_.size() >= enc_->key_size());
+		assert(key_.size() >= dec_->key_size());
 	}
 	virtual ~ss_crypto_tcp_socket() override {}
 
@@ -31,8 +32,8 @@ public:
 	virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
 	virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 
-	virtual void close(error_code &ec) override { iv_sent_ = iv_received_ = false; dec_buf_.clear(); dec_ptr_ = 0; socket_->close(ec); }
-	virtual void async_close(null_callback &&complete_handler) override { iv_sent_ = iv_received_ = false; dec_buf_.clear(); dec_ptr_ = 0; socket_->async_close(std::move(complete_handler)); }
+	virtual void close(error_code &ec) override { reset(); socket_->close(ec); }
+	virtual void async_close(null_callback &&complete_handler) override { reset(); socket_->async_close(std::move(complete_handler)); }
 
 	const std::vector<char> &key() const { return key_; }
 	const encryptor &enc() const { return *enc_; }
@@ -40,12 +41,21 @@ public:
 private:
 	void close() { error_code ec; close(ec); }
 
+	void async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
+	void async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
+
+	void send_with_iv(const const_buffer &buffer, size_t &transferred, error_code &ec);
+	void async_send_with_iv(const const_buffer &buffer, transfer_callback &&complete_handler);
+	void write_with_iv(const_buffer_sequence &&buffer, error_code &ec);
+	void async_write_with_iv(const_buffer_sequence &&buffer, null_callback &&complete_handler);
+
+	size_t prepare_send(const const_buffer &buffer);
+	void prepare_send(const_buffer_sequence &buffer);
+	void continue_async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
+
 	void recv_data(error_code &ec);
 	void async_recv_data(null_callback &&complete_handler);
 	size_t read_data(char *dst, size_t dst_size);
-
-	void async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
-	void async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
 
 	std::vector<char> key_;
 	std::unique_ptr<encryptor> enc_;
@@ -70,8 +80,8 @@ public:
 		key_(key), enc_(std::move(enc)), enc_iv_size_(enc_->iv_size()), dec_(std::move(dec)), dec_iv_size_(dec_->iv_size()),
 		udp_recv_buf_(std::make_unique<char[]>(udp_buf_size))
 	{
-		assert(key_.size() == enc->key_size());
-		assert(key_.size() == dec->key_size());
+		assert(key_.size() >= enc_->key_size());
+		assert(key_.size() >= dec_->key_size());
 	}
 	virtual ~ss_crypto_udp_socket() override {}
 

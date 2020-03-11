@@ -4,19 +4,15 @@
 void ss_crypto_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
 {
 	if (!iv_sent_)
-	{
-		write(buffer.size() == 0 ? const_buffer_sequence() : const_buffer_sequence(buffer), err);
-		transferred = err ? 0 : buffer.size();
-		return;
-	}
+		return send_with_iv(buffer, transferred, err);
+
 	err = 0;
 	transferred = 0;
 
-	size_t transferring = transfer_size(buffer.size());
+	size_t transferring;
 	try
 	{
-		send_buf_.clear();
-		enc_->encrypt(send_buf_, buffer.data(), transferring);
+		transferring = prepare_send(buffer);
 	}
 	catch (std::exception &)
 	{
@@ -24,6 +20,7 @@ void ss_crypto_tcp_socket::send(const const_buffer &buffer, size_t &transferred,
 		err = ERR_OPERATION_FAILURE;
 		return;
 	}
+
 	socket_->write(const_buffer(send_buf_), err);
 	if (err)
 	{
@@ -35,27 +32,15 @@ void ss_crypto_tcp_socket::send(const const_buffer &buffer, size_t &transferred,
 
 void ss_crypto_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
 {
-	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 	if (!iv_sent_)
-	{
-		async_write(buffer.size() == 0 ? const_buffer_sequence() : const_buffer_sequence(buffer),
-			[this, callback, transferred = buffer.size()](error_code err)
-		{
-			if (err)
-			{
-				async_close([callback, err](error_code) { (*callback)(err, 0); });
-				return;
-			}
-			(*callback)(0, transferred);
-		});
-		return;
-	}
+		return async_send_with_iv(buffer, std::move(complete_handler));
 
-	size_t transferring = transfer_size(buffer.size());
+	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
+
+	size_t transferring;
 	try
 	{
-		send_buf_.clear();
-		enc_->encrypt(send_buf_, buffer.data(), transferring);
+		transferring = prepare_send(buffer);
 	}
 	catch (std::exception &)
 	{
@@ -175,41 +160,19 @@ void ss_crypto_tcp_socket::async_read(const std::shared_ptr<mutable_buffer_seque
 
 void ss_crypto_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
 {
-	err = 0;
+	if (buffer.count() == 1)
+		return prx_tcp_socket::write(buffer.front(), err);
 	if (!iv_sent_)
-	{
-		enc_->set_key(key_.data());
-		if (buffer.empty())
-		{
-			socket_->write(const_buffer(enc_->iv(), enc_iv_size_), err);
-			if (err)
-			{
-				close();
-				return;
-			}
-			iv_sent_ = true;
-			return;
-		}
-	}
-	else
-	{
-		if (buffer.count() == 1)
-			return prx_tcp_socket::write(buffer.front(), err);
-		if (buffer.empty())
-			return;
-	}
-
-	thread_local std::unique_ptr<char[]> buf = std::make_unique<char[]>(send_size_max);
+		return write_with_iv(std::move(buffer), err);
+	err = 0;
+	if (buffer.empty())
+		return;
 
 	while (!buffer.empty())
 	{
-		size_t iv_reserved = iv_sent_ ? 0 : enc_iv_size_;
-		size_t transferring = transfer_size(buffer.size_total() + iv_reserved) - iv_reserved;
-		size_t copied = buffer.gather(buf.get(), transferring);
 		try
 		{
-			send_buf_.clear();
-			enc_->encrypt(send_buf_, buf.get(), copied);
+			prepare_send(buffer);
 		}
 		catch (std::exception &)
 		{
@@ -217,74 +180,34 @@ void ss_crypto_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err
 			err = ERR_OPERATION_FAILURE;
 			return;
 		}
-		if (!iv_sent_)
+		socket_->write(const_buffer(send_buf_), err);
+		if (err)
 		{
-			const_buffer_sequence iv_seq(const_buffer(enc_->iv(), enc_iv_size_));
-			iv_seq.push_back(const_buffer(send_buf_));
-			socket_->write(std::move(iv_seq), err);
-			if (err)
-			{
-				close();
-				return;
-			}
-			iv_sent_ = true;
-		}
-		else
-		{
-			socket_->write(const_buffer(send_buf_), err);
-			if (err)
-			{
-				close();
-				return;
-			}
+			close();
+			return;
 		}
 	}
 }
 
 void ss_crypto_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler)
 {
+	if (buffer.count() == 1)
+		return prx_tcp_socket::async_write(buffer.front(), std::move(complete_handler));
 	if (!iv_sent_)
-	{
-		enc_->set_key(key_.data());
-		if (buffer.empty())
-		{
-			std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-			socket_->async_write(const_buffer(enc_->iv(), enc_iv_size_),
-				[this, callback](error_code err)
-			{
-				if (err)
-				{
-					async_close([callback, err](error_code) { (*callback)(err); });
-					return;
-				}
-				iv_sent_ = true;
-				(*callback)(0);
-			});
-			return;
-		}
-	}
-	else
-	{
-		if (buffer.count() == 1)
-			return prx_tcp_socket::async_write(buffer.front(), std::move(complete_handler));
-		if (buffer.empty())
-			return complete_handler(0);
-	}
+		return async_write_with_iv(std::move(buffer), std::move(complete_handler));
+	if (buffer.empty())
+		return complete_handler(0);
 
 	async_write(std::make_shared<const_buffer_sequence>(std::move(buffer)), std::make_shared<null_callback>(std::move(complete_handler)));
 }
 
 void ss_crypto_tcp_socket::async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback)
 {
-	thread_local std::unique_ptr<char[]> buf = std::make_unique<char[]>(send_size_max);
+	assert(iv_sent_);
 
-	size_t iv_reserved = iv_sent_ ? 0 : enc_iv_size_;
-	size_t transferring = transfer_size(buffer->size_total() + iv_reserved) - iv_reserved;
-	size_t copied = buffer->gather(buf.get(), transferring);
 	try
 	{
-		send_buf_.clear();
-		enc_->encrypt(send_buf_, buf.get(), copied);
+		prepare_send(*buffer);
 	}
 	catch (std::exception &)
 	{
@@ -292,55 +215,228 @@ void ss_crypto_tcp_socket::async_write(const std::shared_ptr<const_buffer_sequen
 		return;
 	}
 
-	if (!iv_sent_)
+	socket_->async_write(const_buffer(send_buf_),
+		[this, buffer, callback](error_code err)
 	{
-		const_buffer_sequence iv_seq(const_buffer(enc_->iv(), enc_iv_size_));
-		iv_seq.push_back(const_buffer(send_buf_));
-		socket_->async_write(std::move(iv_seq),
-			[this, buffer, callback](error_code err)
+		if (err)
+		{
+			async_close([callback, err](error_code) { (*callback)(err); });
+			return;
+		}
+		continue_async_write(buffer, callback);
+	});
+}
+
+void ss_crypto_tcp_socket::send_with_iv(const const_buffer &buffer, size_t &transferred, error_code &err)
+{
+	assert(!iv_sent_);
+	iv_sent_ = true;
+	err = 0;
+	transferred = 0;
+
+	enc_->set_key(key_.data());
+	if (buffer.size() == 0)
+	{
+		socket_->write(const_buffer(enc_->iv(), enc_iv_size_), err);
+		if (err)
+		{
+			close();
+			return;
+		}
+		return;
+	}
+
+	size_t transferring;
+	try
+	{
+		transferring = prepare_send(buffer);
+	}
+	catch (std::exception &)
+	{
+		close();
+		err = ERR_OPERATION_FAILURE;
+		return;
+	}
+
+	const_buffer_sequence iv_seq(const_buffer(enc_->iv(), enc_iv_size_));
+	iv_seq.push_back(const_buffer(send_buf_));
+	socket_->write(std::move(iv_seq), err);
+	if (err)
+	{
+		close();
+		return;
+	}
+
+	transferred = transferring;
+}
+
+void ss_crypto_tcp_socket::async_send_with_iv(const const_buffer &buffer, transfer_callback &&complete_handler)
+{
+	assert(!iv_sent_);
+	iv_sent_ = true;
+	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
+
+	enc_->set_key(key_.data());
+	if (buffer.size() == 0)
+	{
+		socket_->async_write(const_buffer(enc_->iv(), enc_iv_size_),
+			[this, callback](error_code err)
+		{
+			if (err)
+			{
+				async_close([callback, err](error_code) { (*callback)(err, 0); });
+				return;
+			}
+			(*callback)(0, 0);
+		});
+		return;
+	}
+
+	size_t transferring;
+	try
+	{
+		transferring = prepare_send(buffer);
+	}
+	catch (std::exception &)
+	{
+		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, 0); });
+		return;
+	}
+
+	const_buffer_sequence iv_seq(const_buffer(enc_->iv(), enc_iv_size_));
+	iv_seq.push_back(const_buffer(send_buf_));
+	socket_->async_write(std::move(iv_seq),
+		[this, transferring, callback](error_code err)
+	{
+		if (err)
+		{
+			async_close([callback, err](error_code) { (*callback)(err, 0); });
+			return;
+		}
+		(*callback)(0, transferring);
+	});
+}
+
+void ss_crypto_tcp_socket::write_with_iv(const_buffer_sequence &&buffer, error_code &err)
+{
+	assert(!iv_sent_);
+	iv_sent_ = true;
+	err = 0;
+
+	enc_->set_key(key_.data());
+	if (buffer.empty())
+	{
+		socket_->write(const_buffer(enc_->iv(), enc_iv_size_), err);
+		if (err)
+		{
+			close();
+			return;
+		}
+		return;
+	}
+
+	try
+	{
+		prepare_send(buffer);
+	}
+	catch (std::exception &)
+	{
+		close();
+		err = ERR_OPERATION_FAILURE;
+		return;
+	}
+
+	const_buffer_sequence iv_seq(const_buffer(enc_->iv(), enc_iv_size_));
+	iv_seq.push_back(const_buffer(send_buf_));
+	socket_->write(std::move(iv_seq), err);
+	if (err)
+	{
+		close();
+		return;
+	}
+
+	if (!buffer.empty())
+		return write(std::move(buffer), err);
+}
+
+void ss_crypto_tcp_socket::async_write_with_iv(const_buffer_sequence &&buffer_obj, null_callback &&complete_handler)
+{
+	assert(!iv_sent_);
+	iv_sent_ = true;
+	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+
+	enc_->set_key(key_.data());
+	if (buffer_obj.empty())
+	{
+		socket_->async_write(const_buffer(enc_->iv(), enc_iv_size_),
+			[this, callback](error_code err)
 		{
 			if (err)
 			{
 				async_close([callback, err](error_code) { (*callback)(err); });
 				return;
 			}
-			iv_sent_ = true;
-			if (buffer->count() == 1)
-			{
-				prx_tcp_socket::async_write(buffer->front(), std::move(*callback));
-				return;
-			}
-			if (buffer->empty())
-			{
-				(*callback)(0);
-				return;
-			}
-			async_write(buffer, callback);
+			(*callback)(0);
 		});
+		return;
 	}
-	else
+	std::shared_ptr<const_buffer_sequence> buffer = std::make_shared<const_buffer_sequence>(std::move(buffer_obj));
+
+	try
 	{
-		socket_->async_write(const_buffer(send_buf_),
-			[this, buffer, callback](error_code err)
-		{
-			if (err)
-			{
-				async_close([callback, err](error_code) { (*callback)(err); });
-				return;
-			}
-			if (buffer->count() == 1)
-			{
-				prx_tcp_socket::async_write(buffer->front(), std::move(*callback));
-				return;
-			}
-			if (buffer->empty())
-			{
-				(*callback)(0);
-				return;
-			}
-			async_write(buffer, callback);
-		});
+		prepare_send(*buffer);
 	}
+	catch (std::exception &)
+	{
+		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
+		return;
+	}
+
+	const_buffer_sequence iv_seq(const_buffer(enc_->iv(), enc_iv_size_));
+	iv_seq.push_back(const_buffer(send_buf_));
+	socket_->async_write(std::move(iv_seq),
+		[this, buffer, callback](error_code err)
+	{
+		if (err)
+		{
+			async_close([callback, err](error_code) { (*callback)(err); });
+			return;
+		}
+		continue_async_write(buffer, callback);
+	});
+}
+
+size_t ss_crypto_tcp_socket::prepare_send(const const_buffer &buffer)
+{
+	size_t transferring = transfer_size(buffer.size());
+	send_buf_.clear();
+	enc_->encrypt(send_buf_, buffer.data(), transferring);
+	return transferring;
+}
+
+void ss_crypto_tcp_socket::prepare_send(const_buffer_sequence &buffer)
+{
+	thread_local std::unique_ptr<char[]> buf = std::make_unique<char[]>(send_size_max);
+
+	size_t transferring = transfer_size(buffer.size_total());
+	size_t copied = buffer.gather(buf.get(), transferring);
+	send_buf_.clear();
+	enc_->encrypt(send_buf_, buf.get(), copied);
+}
+
+void ss_crypto_tcp_socket::continue_async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback)
+{
+	if (buffer->count() == 1)
+	{
+		prx_tcp_socket::async_write(buffer->front(), std::move(*callback));
+		return;
+	}
+	if (buffer->empty())
+	{
+		(*callback)(0);
+		return;
+	}
+	async_write(buffer, callback);
 }
 
 void ss_crypto_tcp_socket::recv_data(error_code &err)
