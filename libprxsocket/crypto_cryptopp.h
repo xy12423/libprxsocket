@@ -8,14 +8,15 @@
 #include <cryptopp/osrng.h>
 #endif
 
-template <typename Crypto, size_t KEY_LENGTH>
+template <typename Crypto, size_t KEY_LENGTH, size_t IV_LENGTH>
 class encryptor_cryptopp : public encryptor
 {
 	using encryptor_type = typename Crypto::Encryption;
 	static constexpr size_t KEY_SIZE = KEY_LENGTH / 8;
+	static constexpr size_t IV_SIZE = IV_LENGTH / 8;
 public:
 	virtual size_t key_size() const override { return KEY_SIZE; }
-	virtual size_t iv_size() const override { return KEY_SIZE; }
+	virtual size_t iv_size() const override { return IV_SIZE; }
 	virtual const char *iv() const override { return (const char *)iv_; }
 	virtual void set_key(const char *key) override
 	{
@@ -25,7 +26,7 @@ public:
 	}
 	virtual void set_key_iv(const char *key, const char *iv) override
 	{
-		memcpy(iv_, iv, KEY_SIZE);
+		memcpy(iv_, iv, sizeof(iv_));
 		e_.SetKeyWithIV((const CryptoPP::byte *)key, KEY_SIZE, iv_);
 	}
 
@@ -39,17 +40,18 @@ public:
 	}
 private:
 	encryptor_type e_;
-	CryptoPP::byte iv_[KEY_SIZE];
+	CryptoPP::byte iv_[IV_SIZE];
 };
 
-template <typename Crypto, size_t KEY_LENGTH>
+template <typename Crypto, size_t KEY_LENGTH, size_t IV_LENGTH>
 class decryptor_cryptopp : public decryptor
 {
 	using decryptor_type = typename Crypto::Decryption;
 	static constexpr size_t KEY_SIZE = KEY_LENGTH / 8;
+	static constexpr size_t IV_SIZE = IV_LENGTH / 8;
 public:
 	virtual size_t key_size() const override { return KEY_SIZE; }
-	virtual size_t iv_size() const override { return KEY_SIZE; }
+	virtual size_t iv_size() const override { return IV_SIZE; }
 	virtual const char *iv() const override { return (const char *)iv_; }
 	virtual void set_key(const char *key) override
 	{
@@ -59,7 +61,7 @@ public:
 	}
 	virtual void set_key_iv(const char *key, const char *iv) override
 	{
-		memcpy(iv_, iv, KEY_SIZE);
+		memcpy(iv_, iv, sizeof(iv_));
 		d_.SetKeyWithIV((const CryptoPP::byte *)key, KEY_SIZE, iv_);
 	}
 
@@ -73,7 +75,7 @@ public:
 	}
 private:
 	decryptor_type d_;
-	CryptoPP::byte iv_[KEY_SIZE];
+	CryptoPP::byte iv_[IV_SIZE];
 };
 
 #endif

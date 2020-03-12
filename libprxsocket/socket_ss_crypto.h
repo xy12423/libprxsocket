@@ -11,7 +11,7 @@ class ss_crypto_tcp_socket final : public transparent_tcp_socket
 	static constexpr size_t recv_buf_size = 0x1000;
 
 	static constexpr size_t transfer_size(size_t buffer_size) { return buffer_size > send_size_max ? send_size_pref : buffer_size; }
-	void reset() { iv_sent_ = iv_received_ = false; dec_buf_.clear(); dec_ptr_ = 0; }
+	void reset() { iv_init_ = iv_sent_ = iv_received_ = false; dec_buf_.clear(); dec_ptr_ = 0; }
 public:
 	ss_crypto_tcp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const std::vector<char> &key, std::unique_ptr<encryptor> &&enc, std::unique_ptr<decryptor> &&dec)
 		:transparent_tcp_socket(std::move(base_socket)),
@@ -38,6 +38,7 @@ public:
 	const std::vector<char> &key() const { return key_; }
 	const encryptor &enc() const { return *enc_; }
 	const decryptor &dec() const { return *dec_; }
+	void init_enc() { if (!iv_init_) { enc_->set_key(key_.data()); iv_init_ = true; } }
 private:
 	void close() { error_code ec; close(ec); }
 
@@ -57,14 +58,14 @@ private:
 	void async_recv_data(null_callback &&complete_handler);
 	size_t read_data(char *dst, size_t dst_size);
 
-	std::vector<char> key_;
+	const std::vector<char> key_;
 	std::unique_ptr<encryptor> enc_;
 	size_t enc_iv_size_;
 	std::unique_ptr<decryptor> dec_;
 	size_t dec_iv_size_;
 
 	std::vector<char> send_buf_;
-	bool iv_sent_ = false;
+	bool iv_init_ = false, iv_sent_ = false;
 	std::unique_ptr<char[]> recv_buf_;
 	bool iv_received_ = false;
 	std::vector<char> dec_buf_;

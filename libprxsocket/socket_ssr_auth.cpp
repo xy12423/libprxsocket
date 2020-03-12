@@ -75,11 +75,17 @@ static void rnd_data(std::vector<char> &dst, size_t src_size)
 	}
 }
 
+static CryptoPP::Weak::MD5 &md5_hasher()
+{
+	thread_local CryptoPP::Weak::MD5 md5;
+	return md5;
+}
+
 template <size_t N>
 static void str_to_key(char (&dst)[N], const char *src, size_t src_size)
 {
 	static_assert(N > 0 && N % 16 == 0, "str_to_key doesn't support dst with any size");
-	thread_local CryptoPP::MD5 md5;
+	CryptoPP::Weak::MD5 &md5 = md5_hasher();
 
 	size_t i = 0;
 	while (i < N)
@@ -298,9 +304,11 @@ void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data_auth(const std::function
 	complete_hmac      4 bytes
 	*/
 
-	hmac_key.resize(socket_->enc().iv_size() + socket_->key().size());
-	memcpy(hmac_key.data(), socket_->enc().iv(), socket_->enc().iv_size());
-	memcpy(hmac_key.data() + socket_->enc().iv_size(), socket_->key().data(), socket_->key().size());
+	socket_->init_enc();
+	size_t key_size = socket_->key().size(), iv_size = socket_->enc().iv_size();
+	hmac_key.resize(iv_size + key_size);
+	memcpy(hmac_key.data(), socket_->enc().iv(), iv_size);
+	memcpy(hmac_key.data() + iv_size, socket_->key().data(), key_size);
 	hmac.SetKey((const CryptoPP::byte *)hmac_key.data(), hmac_key.size());
 
 	bool uid_key_set = false;
@@ -380,6 +388,7 @@ void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data_auth(const std::function
 	random_bytes(send_buf_head_.data() + 31, rnd_size);
 
 	//complete_hmac
+	hmac.SetKey((const CryptoPP::byte *)key_.data(), key_.size());
 	hmac.Update((const CryptoPP::byte *)send_buf_head_.data(), send_buf_head_.size());
 	src_iter(hmac);
 	hmac.Final(hmac_digest);

@@ -40,6 +40,7 @@
 #include <boost/endian/conversion.hpp>
 namespace asio = boost::asio;
 
+#define CRYPTOPP_ENABLE_NAMESPACE_WEAK 1
 #include <cryptopp/cryptlib.h>
 #include <cryptopp/aes.h>
 #include <cryptopp/base64.h>

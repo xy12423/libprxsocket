@@ -234,7 +234,7 @@ void ss_crypto_tcp_socket::send_with_iv(const const_buffer &buffer, size_t &tran
 	err = 0;
 	transferred = 0;
 
-	enc_->set_key(key_.data());
+	init_enc();
 	if (buffer.size() == 0)
 	{
 		socket_->write(const_buffer(enc_->iv(), enc_iv_size_), err);
@@ -276,7 +276,7 @@ void ss_crypto_tcp_socket::async_send_with_iv(const const_buffer &buffer, transf
 	iv_sent_ = true;
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 
-	enc_->set_key(key_.data());
+	init_enc();
 	if (buffer.size() == 0)
 	{
 		socket_->async_write(const_buffer(enc_->iv(), enc_iv_size_),
@@ -323,7 +323,7 @@ void ss_crypto_tcp_socket::write_with_iv(const_buffer_sequence &&buffer, error_c
 	iv_sent_ = true;
 	err = 0;
 
-	enc_->set_key(key_.data());
+	init_enc();
 	if (buffer.empty())
 	{
 		socket_->write(const_buffer(enc_->iv(), enc_iv_size_), err);
@@ -365,7 +365,7 @@ void ss_crypto_tcp_socket::async_write_with_iv(const_buffer_sequence &&buffer_ob
 	iv_sent_ = true;
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 
-	enc_->set_key(key_.data());
+	init_enc();
 	if (buffer_obj.empty())
 	{
 		socket_->async_write(const_buffer(enc_->iv(), enc_iv_size_),

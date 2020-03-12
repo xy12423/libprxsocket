@@ -59,18 +59,19 @@ public:
 	void consume(size_t size)
 	{
 		assert(size <= size_total_);
-		while (size > 0)
+		size_t left = size;
+		while (left > 0)
 		{
 			value_type &next = list_.front();
-			if (size >= next.size())
+			if (left >= next.size())
 			{
-				size -= next.size();
+				left -= next.size();
 				list_.pop_front();
 			}
 			else
 			{
-				next = value_type(next.data() + size, next.size() - size);
-				size = 0;
+				next = value_type(next.data() + left, next.size() - left);
+				left = 0;
 			}
 		}
 		size_total_ -= size;
