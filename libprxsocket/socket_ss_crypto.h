@@ -6,9 +6,9 @@
 
 class ss_crypto_tcp_socket final : public transparent_tcp_socket
 {
-	static constexpr size_t send_size_pref = 0x780;
-	static constexpr size_t send_size_max = 0x800;
-	static constexpr size_t recv_buf_size = 0x800;
+	static constexpr size_t send_size_pref = 0xF80;
+	static constexpr size_t send_size_max = 0x1000;
+	static constexpr size_t recv_buf_size = 0x1000;
 
 	static constexpr size_t transfer_size(size_t buffer_size) { return buffer_size > send_size_max ? send_size_pref : buffer_size; }
 	void reset() { iv_sent_ = iv_received_ = false; dec_buf_.clear(); dec_ptr_ = 0; }
