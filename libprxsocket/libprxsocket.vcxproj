@@ -178,6 +178,7 @@
     <ClCompile Include="socket_socks5.cpp" />
     <ClCompile Include="socket_ss.cpp" />
     <ClCompile Include="socket_obfs_websock.cpp" />
+    <ClCompile Include="socket_ssr_auth.cpp" />
     <ClCompile Include="socket_ss_crypto.cpp" />
     <ClCompile Include="socks5_base.cpp" />
     <ClCompile Include="stdafx.cpp">
@@ -200,6 +201,7 @@
     <ClInclude Include="socket_socks5.h" />
     <ClInclude Include="socket_ss.h" />
     <ClInclude Include="socket_obfs_websock.h" />
+    <ClInclude Include="socket_ssr_auth.h" />
     <ClInclude Include="socket_ss_crypto.h" />
     <ClInclude Include="socket_transparent.h" />
     <ClInclude Include="socks5_base.h" />

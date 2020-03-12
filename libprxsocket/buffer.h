@@ -49,6 +49,7 @@ public:
 	const_iterator begin() const { return list_.begin(); }
 	const_iterator end() const { return list_.end(); }
 
+	void clear() { list_.clear(); size_total_ = 0; }
 	void push_front(const value_type &item) { assert(item.size() > 0); list_.push_front(item); size_total_ += item.size(); }
 	void push_front(value_type &&item) { assert(item.size() > 0); size_t size = item.size(); list_.push_front(std::move(item)); size_total_ += size; }
 	void push_back(const value_type &item) { assert(item.size() > 0); list_.push_back(item); size_total_ += item.size(); }

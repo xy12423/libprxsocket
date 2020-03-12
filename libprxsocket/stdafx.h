@@ -42,8 +42,11 @@ namespace asio = boost::asio;
 
 #include <cryptopp/cryptlib.h>
 #include <cryptopp/aes.h>
+#include <cryptopp/base64.h>
+#include <cryptopp/hmac.h>
 #include <cryptopp/osrng.h>
 #include <cryptopp/oids.h>
+#include <cryptopp/md5.h>
 #include <cryptopp/modes.h>
 
 #ifdef _MSC_VER

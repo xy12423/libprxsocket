@@ -51,6 +51,9 @@
     <ClCompile Include="socket_ss_crypto.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="socket_ssr_auth.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="address.h">
@@ -99,6 +102,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="socket_transparent.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="socket_ssr_auth.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
