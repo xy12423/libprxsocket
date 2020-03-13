@@ -26,7 +26,7 @@ class ssr_auth_aes128_sha1_tcp_socket final : public transparent_tcp_socket_temp
 	static constexpr size_t pack_size = 8100;
 	static constexpr size_t recv_buf_size = 0x2000;
 
-	void reset() { pack_id_ = 1; auth_sent_ = false; recv_ptr_ = recv_size_ = 0; }
+	void reset() { send_id_ = recv_id_ = 1; auth_sent_ = false; recv_ptr_ = recv_size_ = 0; }
 public:
 	ssr_auth_aes128_sha1_tcp_socket(std::unique_ptr<ss_crypto_tcp_socket> &&base_socket, ssr_auth_aes128_sha1_shared_server_data &arg)
 		:transparent_tcp_socket_template<ss_crypto_tcp_socket>(std::move(base_socket)),
@@ -57,11 +57,17 @@ private:
 	void prepare_send_data(const std::function<void(CryptoPP::HMAC<CryptoPP::SHA1> &hasher)> &src_iter, size_t src_size);
 	size_t prepare_send(const const_buffer &buffer);
 	const_buffer_sequence prepare_send(const_buffer_sequence &buffer);
-	void decode();
+
+	void recv_data(error_code &ec);
+	void async_recv_data(null_callback &&complete_handler);
+	void async_recv_data_body(size_t total_size, const std::shared_ptr<null_callback> &callback);
+	error_code decode_recv_data(size_t total_size);
+	bool read_empty();
+	size_t read_data(char *dst, size_t dst_size);
 
 	ssr_auth_aes128_sha1_shared_server_data &server_data_;
-	std::vector<char> key_;
-	uint32_t pack_id_ = 1;
+	std::vector<char> send_key_, recv_key_;
+	uint32_t send_id_ = 1, recv_id_ = 1;
 
 	std::vector<char> send_buf_head_, send_buf_tail_;
 	bool auth_sent_ = false;
