@@ -10,7 +10,7 @@ else
 	CXXFLAGS += -g3 -O0 -D_DEBUG
 endif
 
-objects = address.o endpoint.o socket_base.o http_header.o socket_http.o socket_raw.o socks5_base.o socket_socks5.o socket_ss.o socket_ss_crypto.o socket_obfs_websock.o
+objects = address.o endpoint.o socket_base.o http_header.o socket_http.o socket_raw.o socks5_base.o socket_socks5.o socket_ss.o socket_ss_crypto.o socket_ssr_auth.o socket_obfs_websock.o
 baseheaders = stdafx.h address.h endpoint.h buffer.h socket_base.h
 
 all : libprxsocket.a
@@ -36,8 +36,10 @@ socket_socks5.o : $(baseheaders) socks5_base.h socket_socks5.h socket_socks5.cpp
 	$(CXX) socket_socks5.cpp $(CXXFLAGS) -o socket_socks5.o
 socket_ss.o : $(baseheaders) socket_ss.h socket_ss.cpp
 	$(CXX) socket_ss.cpp $(CXXFLAGS) -o socket_ss.o
-socket_ss_crypto.o : $(baseheaders) crypto_base.h socket_ss_crypto.h socket_ss_crypto.cpp
+socket_ss_crypto.o : $(baseheaders) socket_transparent.h crypto_base.h socket_ss_crypto.h socket_ss_crypto.cpp
 	$(CXX) socket_ss_crypto.cpp $(CXXFLAGS) -o socket_ss_crypto.o
+socket_ssr_auth.o : $(baseheaders) socket_transparent.h crypto_base.h socket_ss_crypto.h socket_ssr_auth.h socket_ssr_auth.cpp
+	$(CXX) socket_ssr_auth.cpp $(CXXFLAGS) -o socket_ssr_auth.o
 socket_obfs_websock.o : $(baseheaders) socket_obfs_websock.h http_header.h socket_obfs_websock.cpp
 	$(CXX) socket_obfs_websock.cpp $(CXXFLAGS) -o socket_obfs_websock.o
 
