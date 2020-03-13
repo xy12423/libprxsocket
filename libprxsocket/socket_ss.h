@@ -13,7 +13,7 @@ public:
 	virtual ~ss_tcp_socket() override {}
 
 	virtual bool is_open() override { return socket_->is_open(); }
-	virtual bool is_connected() override { return socket_->is_connected(); }
+	virtual bool is_connected() override { return socket_->is_connected() && remote_ep_sent_; }
 
 	virtual void local_endpoint(endpoint &ep, error_code &ec) override { ec = ERR_UNSUPPORTED; }
 	virtual void remote_endpoint(endpoint &ep, error_code &ec) override { ec = 0; if (!is_connected()) { ec = ERR_OPERATION_FAILURE; return; } ep = remote_ep_; }
