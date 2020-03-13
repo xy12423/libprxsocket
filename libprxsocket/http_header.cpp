@@ -97,7 +97,7 @@ bool http_header::parse_http_status(const std::string &line)
 {
 	constexpr char str[] = "HTTP/1.1";
 	constexpr size_t str_size = sizeof(str) - 1;
-	for (int i = 0; i < str_size; i++)
+	for (size_t i = 0; i < str_size; i++)
 		if (line[i] != str[i])
 			return false;
 

@@ -126,7 +126,7 @@ namespace prxsocket
 		virtual void async_open(null_callback &&complete_handler) override;
 
 		virtual void bind(const endpoint &endpoint, error_code &ec) override;
-		virtual void async_bind(const endpoint &endpoint, null_callback &&complete_handler);
+		virtual void async_bind(const endpoint &endpoint, null_callback &&complete_handler) override;
 
 		virtual void listen(error_code &ec) override;
 		virtual void async_listen(null_callback &&complete_handler) override;

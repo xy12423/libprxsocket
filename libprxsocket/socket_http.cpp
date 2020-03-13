@@ -149,7 +149,6 @@ void http_tcp_socket::recv_http_resp(const std::shared_ptr<null_callback> &callb
 
 void http_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
 {
-	err = 0;
 	socket->send(buffer, transferred, err);
 	if (err)
 		close();
@@ -248,7 +247,6 @@ void http_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback
 
 void http_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
 {
-	err = 0;
 	socket->write(std::move(buffer), err);
 	if (err)
 		close();

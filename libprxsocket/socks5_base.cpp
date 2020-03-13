@@ -207,7 +207,7 @@ void socks5_base::async_select_send(const std::shared_ptr<null_callback> &callba
 	(*method_selected)[0] = socks_version;
 	(*method_selected)[1] = auth_method;
 	async_write(const_buffer(method_selected->data(), method_selected->size()),
-		[this, method_selected, callback](error_code err)
+		[method_selected, callback](error_code err)
 	{
 		if (err)
 			(*callback)(err);
@@ -251,7 +251,7 @@ void socks5_base::async_open_and_auth(const endpoint &server_ep, null_callback &
 				(*callback)(err);
 				return;
 			}
-			async_auth([this, callback](error_code err)
+			async_auth([callback](error_code err)
 			{
 				(*callback)(err);
 			});
@@ -426,7 +426,7 @@ void socks5_base::async_recv_s5_body(const std::shared_ptr<std::array<char, 263>
 			throw(socks5_error(ERR_UNSUPPORTED));
 	}
 	async_read(mutable_buffer(resp_data->data() + 5, bytes_last),
-		[this, bytes_last, resp_data, callback](error_code err)
+		[this, resp_data, callback](error_code err)
 	{
 		try
 		{
@@ -435,7 +435,7 @@ void socks5_base::async_recv_s5_body(const std::shared_ptr<std::array<char, 263>
 
 			std::array<char, 263> &resp_head = *resp_data;
 			endpoint bnd;
-			bnd.from_socks5(resp_data->data() + 3);
+			bnd.from_socks5(resp_head.data() + 3);
 			(*callback)(0, resp_head[1], bnd);
 		}
 		catch (socks5_error &ex)

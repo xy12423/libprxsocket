@@ -62,7 +62,15 @@ static void base64_rev(std::string &dst, const char *data, size_t size)
 		0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13,14,//64-79
 		15,16,17,18,19,20,21,22,23,24,25,0, 0, 0, 0, 0, //80-95
 		0, 26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,//96-111
-		41,42,43,44,45,46,47,48,49,50,51,0, 0, 0, 0, 0  //112-127
+		41,42,43,44,45,46,47,48,49,50,51,0, 0, 0, 0, 0, //112-127
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //128-255
 	};
 	static constexpr char base64_pad = '=';
 
@@ -75,9 +83,9 @@ static void base64_rev(std::string &dst, const char *data, size_t size)
 	const char *data_end = data + size;
 	for (; data < data_end; data += 4)
 	{
-		dst.push_back((base64_rev_map[data[0]] << 2) | (base64_rev_map[data[1]] >> 4));
-		dst.push_back((base64_rev_map[data[1]] << 4) | (base64_rev_map[data[2]] >> 2));
-		dst.push_back((base64_rev_map[data[2]] << 6) | base64_rev_map[data[3]]);
+		dst.push_back((base64_rev_map[(uint8_t)data[0]] << 2) | (base64_rev_map[(uint8_t)data[1]] >> 4));
+		dst.push_back((base64_rev_map[(uint8_t)data[1]] << 4) | (base64_rev_map[(uint8_t)data[2]] >> 2));
+		dst.push_back((base64_rev_map[(uint8_t)data[2]] << 6) | base64_rev_map[(uint8_t)data[3]]);
 	}
 	if (data[-1] == base64_pad)
 	{

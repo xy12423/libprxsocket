@@ -16,7 +16,7 @@ std::string address_v4::to_string() const
 
 bool address_v6::is_any() const
 {
-	for (int i = 0; i < sizeof(data_); ++i)
+	for (size_t i = 0; i < sizeof(data_); ++i)
 		if (data_.u8[i] != 0)
 			return false;
 	return true;
@@ -133,8 +133,9 @@ std::string address::to_string() const
 			return str_.to_string();
 		case V6:
 			return v6_.to_string();
+		default:
+			return std::string();
 	}
-	return std::string();
 }
 
 bool address::operator==(const address &b) const

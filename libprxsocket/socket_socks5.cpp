@@ -561,7 +561,7 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buff
 			{
 				if (!udp_socket->is_open())
 				{
-					async_close([this, err, callback](error_code) { (*callback)(err, 0); });
+					async_close([err, callback](error_code) { (*callback)(err, 0); });
 				}
 				else
 				{
@@ -581,7 +581,7 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buff
 		{
 			if (err)
 			{
-				async_close([this, err, callback](error_code) { (*callback)(err, 0); });
+				async_close([err, callback](error_code) { (*callback)(err, 0); });
 				return;
 			}
 			uint16_t size = (uint8_t)udp_recv_buf[0] | ((uint8_t)udp_recv_buf[1] << 8u);
@@ -595,7 +595,7 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buff
 			{
 				if (err)
 				{
-					async_close([this, err, callback](error_code) { (*callback)(err, 0); });
+					async_close([err, callback](error_code) { (*callback)(err, 0); });
 					return;
 				}
 				udp_recv_buf[0] = udp_recv_buf[1] = 0;
@@ -794,7 +794,7 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&
 			{
 				if (!udp_socket->is_open())
 				{
-					async_close([this, err, callback](error_code) { (*callback)(err, 0); });
+					async_close([err, callback](error_code) { (*callback)(err, 0); });
 				}
 				else
 				{
@@ -814,7 +814,7 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&
 		{
 			if (err)
 			{
-				async_close([this, err, callback](error_code) { (*callback)(err, 0); });
+				async_close([err, callback](error_code) { (*callback)(err, 0); });
 				return;
 			}
 			uint16_t size = (uint8_t)udp_recv_buf[0] | ((uint8_t)udp_recv_buf[1] << 8u);
@@ -828,7 +828,7 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&
 			{
 				if (err)
 				{
-					async_close([this, err, callback](error_code) { (*callback)(err, 0); });
+					async_close([err, callback](error_code) { (*callback)(err, 0); });
 					return;
 				}
 				udp_recv_buf[0] = udp_recv_buf[1] = 0;

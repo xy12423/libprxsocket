@@ -191,7 +191,7 @@ void ss_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buffer, 
 		{
 			if (!udp_socket_->is_open())
 			{
-				async_close([this, err, callback](error_code) { (*callback)(err, 0); });
+				async_close([err, callback](error_code) { (*callback)(err, 0); });
 			}
 			else
 			{
@@ -327,7 +327,7 @@ void ss_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&buff
 		{
 			if (!udp_socket_->is_open())
 			{
-				async_close([this, err, callback](error_code) { (*callback)(err, 0); });
+				async_close([err, callback](error_code) { (*callback)(err, 0); });
 			}
 			else
 			{

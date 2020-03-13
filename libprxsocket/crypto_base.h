@@ -11,6 +11,8 @@ namespace prxsocket
 	class encryptor
 	{
 	public:
+		virtual ~encryptor() = default;
+
 		virtual size_t key_size() const = 0;
 		virtual size_t iv_size() const = 0;
 		virtual const char *iv() const = 0;
@@ -25,6 +27,8 @@ namespace prxsocket
 	class decryptor
 	{
 	public:
+		virtual ~decryptor() = default;
+
 		virtual size_t key_size() const = 0;
 		virtual size_t iv_size() const = 0;
 		virtual const char *iv() const = 0;

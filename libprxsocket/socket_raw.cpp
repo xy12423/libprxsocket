@@ -782,7 +782,7 @@ void raw_udp_socket::async_to_udp_ep(const endpoint &ep, std::function<void(erro
 		{
 			auto callback = std::make_shared<std::function<void(error_code, const asio::ip::udp::endpoint&)>>(std::move(complete_handler));
 			resolver.async_resolve(asio::ip::udp::resolver::query(addr.str().data(), std::to_string(ep.port())),
-				[this, callback](const boost::system::error_code &e, asio::ip::udp::resolver::iterator itr)
+				[callback](const boost::system::error_code &e, asio::ip::udp::resolver::iterator itr)
 			{
 				if (e)
 					(*callback)(ERR_UNRESOLVED_HOST, asio::ip::udp::endpoint());
@@ -908,7 +908,7 @@ void raw_listener::async_accept(accept_callback &&complete_handler)
 {
 	auto socket = std::make_shared<asio::ip::tcp::socket>(iosrv);
 	auto callback = std::make_shared<accept_callback>(std::move(complete_handler));
-	acceptor.async_accept(*socket, [this, socket, callback](const boost::system::error_code &e)
+	acceptor.async_accept(*socket, [socket, callback](const boost::system::error_code &e)
 	{
 		if (e)
 			(*callback)(ERR_OPERATION_FAILURE, nullptr);

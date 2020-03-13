@@ -18,8 +18,6 @@ namespace prxsocket
 		class socks5_base
 		{
 			static constexpr char socks_version = 5;
-			std::string available_methods;
-
 		public:
 			enum { CONNECT = 1, BIND = 2, UDP_ASSOCIATE = 3 };
 
@@ -79,6 +77,7 @@ namespace prxsocket
 
 			std::unique_ptr<prx_tcp_socket> socket;
 
+			std::string available_methods;
 			uint8_t auth_method = 0xFF;
 		};
 

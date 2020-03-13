@@ -45,7 +45,7 @@ namespace prxsocket
 		prx_tcp_socket() = default;
 		prx_tcp_socket(const prx_tcp_socket &) = delete;
 		prx_tcp_socket(prx_tcp_socket &&) = default;
-		virtual ~prx_tcp_socket() {}
+		virtual ~prx_tcp_socket() = default;
 
 		virtual bool is_open() = 0;
 		virtual bool is_connected() = 0;
