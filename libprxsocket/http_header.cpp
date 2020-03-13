@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "http_header.h"
 
+using namespace prxsocket::http_helper;
+
 constexpr char http_header::SPECIAL_NAME_IDENTIFIER;
 constexpr const char *http_header::NAME_START_LINE_TYPE, *http_header::START_LINE_TYPE_REQUEST, *http_header::START_LINE_TYPE_STATUS;
 constexpr const char *http_header::NAME_REQUEST_METHOD, *http_header::NAME_REQUEST_TARGET;

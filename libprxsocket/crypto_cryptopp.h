@@ -9,7 +9,7 @@
 #endif
 
 template <typename Crypto, size_t KEY_LENGTH, size_t IV_LENGTH>
-class encryptor_cryptopp : public encryptor
+class encryptor_cryptopp : public prxsocket::encryptor
 {
 	using encryptor_type = typename Crypto::Encryption;
 	static constexpr size_t KEY_SIZE = KEY_LENGTH / 8;
@@ -44,7 +44,7 @@ private:
 };
 
 template <typename Crypto, size_t KEY_LENGTH, size_t IV_LENGTH>
-class decryptor_cryptopp : public decryptor
+class decryptor_cryptopp : public prxsocket::decryptor
 {
 	using decryptor_type = typename Crypto::Decryption;
 	static constexpr size_t KEY_SIZE = KEY_LENGTH / 8;

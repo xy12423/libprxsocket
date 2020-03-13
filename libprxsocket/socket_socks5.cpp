@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "socket_socks5.h"
 
+using namespace prxsocket;
+
 static endpoint udp_local_ep_zero(address(static_cast<uint32_t>(0)), 0);
 
 void socks5_tcp_socket::open(error_code &err)

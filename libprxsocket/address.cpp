@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "address.h"
 
+using namespace prxsocket;
+
 std::string address_v4::to_string() const
 {
 	std::string ret(std::to_string(data_.u8[0]));

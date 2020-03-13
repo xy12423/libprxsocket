@@ -1,6 +1,9 @@
 #include "stdafx.h"
 #include "socket_http.h"
 
+using namespace prxsocket;
+using namespace prxsocket::http_helper;
+
 void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 {
 	socket->connect(server_ep, err);

@@ -1,6 +1,9 @@
 #include "stdafx.h"
 #include "socket_ss.h"
 
+using namespace prxsocket;
+using namespace prxsocket::ss;
+
 void ss_tcp_socket::connect(const endpoint &ep, error_code &err)
 {
 	socket_->connect(server_ep_, err);

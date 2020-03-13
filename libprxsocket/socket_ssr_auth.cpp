@@ -1,6 +1,9 @@
 #include "stdafx.h"
 #include "socket_ssr_auth.h"
 
+using namespace prxsocket;
+using namespace prxsocket::ssr;
+
 static void random_bytes(void *dst, size_t dst_size)
 {
 	thread_local CryptoPP::AutoSeededRandomPool prng;
@@ -22,14 +25,14 @@ static T random_int()
 	return val;
 }
 
-static double random()
+static double random_double()
 {
 	return random_int<uint32_t>() / 4294967296.0;
 }
 
-static double trapizoid_random_float(double d)
+static double trapizoid_random_double(double d)
 {
-	double s = random();
+	double s = random_double();
 	if (d == 0)
 		return s;
 	double a = 1 - d;
@@ -38,7 +41,7 @@ static double trapizoid_random_float(double d)
 
 static size_t trapezoid_random_int(size_t max, double d)
 {
-	return (size_t)(max * trapizoid_random_float(d));
+	return (size_t)(max * trapizoid_random_double(d));
 }
 
 static size_t rnd_data_size(size_t src_size)

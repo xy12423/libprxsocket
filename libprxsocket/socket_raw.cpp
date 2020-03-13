@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "socket_raw.h"
 
+using namespace prxsocket;
+
 thread_local boost::system::error_code raw_tcp_socket::ec;
 thread_local boost::system::error_code raw_udp_socket::ec;
 thread_local boost::system::error_code raw_listener::ec;

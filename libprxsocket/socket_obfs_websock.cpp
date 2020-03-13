@@ -1,9 +1,11 @@
 #include "stdafx.h"
 #include "socket_obfs_websock.h"
 
+using namespace prxsocket;
+using namespace prxsocket::http_helper;
 using namespace CryptoPP;
 
-thread_local CryptoPP::AutoSeededRandomPool obfs_websock_tcp_socket::prng;
+thread_local AutoSeededRandomPool obfs_websock_tcp_socket::prng;
 
 static void base64(std::string &dst, const char *data, size_t size)
 {
@@ -137,7 +139,7 @@ void obfs_websock_tcp_socket::encode(std::string &dst, const char *src, size_t s
 			dst.push_back((uint8_t)(buf_size >> shift));
 	}
 
-	CryptoPP::byte mask[4];
+	byte mask[4];
 	int maskp = 0;
 	prng.GenerateBlock(mask, 4);
 	dst.append((const char*)mask, 4);
@@ -155,7 +157,7 @@ void obfs_websock_tcp_socket::decode(std::string &dst, const char *src, size_t s
 	buf.reserve(size - 4);
 	const char *src_end = src + size;
 
-	CryptoPP::byte mask[4];
+	byte mask[4];
 	int maskp = 0;
 	for (int i = 0; i < 4; ++i, ++src)
 		mask[i] = *src;

@@ -1,6 +1,9 @@
 #include "stdafx.h"
 #include "socket_ss_crypto.h"
 
+using namespace prxsocket;
+using namespace prxsocket::ss;
+
 void ss_crypto_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
 {
 	if (!iv_sent_)

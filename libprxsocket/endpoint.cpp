@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "endpoint.h"
 
+using namespace prxsocket;
+
 size_t endpoint::from_socks5(const char *data)
 {
 	size_t size = addr_.from_socks5(data);

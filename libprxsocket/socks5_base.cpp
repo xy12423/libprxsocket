@@ -1,6 +1,9 @@
 #include "stdafx.h"
 #include "socks5_base.h"
 
+using namespace prxsocket;
+using namespace prxsocket::socks5_helper;
+
 static endpoint empty_endpoint;
 
 error_code socks5_base::auth()

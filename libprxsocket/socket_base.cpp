@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "socket_base.h"
 
+using namespace prxsocket;
+
 void prx_tcp_socket::read(const mutable_buffer &buffer, error_code &ec)
 {
 	char *data = buffer.data();
