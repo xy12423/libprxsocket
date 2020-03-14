@@ -145,9 +145,11 @@ bool http_header::parse(const char *src, size_t src_size, size_t &size_read)
 					continue;
 				}
 				else
-					return true;
+					throw std::invalid_argument("Invalid first line of HTTP header");
 			}
 
+			if (buf.front() == SPECIAL_NAME_IDENTIFIER)
+				throw std::invalid_argument("Invalid character in HTTP header");
 			size_t pos = buf.find(':');
 			if (pos == std::string::npos)
 				return false;
