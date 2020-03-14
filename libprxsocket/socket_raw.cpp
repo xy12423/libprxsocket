@@ -418,6 +418,68 @@ void raw_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback 
 	});
 }
 
+void prxsocket::raw_tcp_socket::read(const mutable_buffer &buffer, error_code &err)
+{
+	err = 0;
+	asio::read(socket, asio::buffer(buffer.data(), buffer.size()), ec);
+	if (ec)
+	{
+		socket.close(ec);
+		connected = false;
+		err = ERR_OPERATION_FAILURE;
+	}
+}
+
+void prxsocket::raw_tcp_socket::async_read(const mutable_buffer &buffer, null_callback &&complete_handler)
+{
+	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+	asio::async_read(socket, asio::buffer(buffer.data(), buffer.size()),
+		[this, callback](const boost::system::error_code &e, std::size_t)
+	{
+		if (e)
+		{
+			socket.close(ec);
+			connected = false;
+			(*callback)(ERR_OPERATION_FAILURE);
+		}
+		else
+		{
+			(*callback)(0);
+		}
+	});
+}
+
+void prxsocket::raw_tcp_socket::write(const const_buffer &buffer, error_code &err)
+{
+	err = 0;
+	asio::write(socket, asio::buffer(buffer.data(), buffer.size()), ec);
+	if (ec)
+	{
+		socket.close(ec);
+		connected = false;
+		err = ERR_OPERATION_FAILURE;
+	}
+}
+
+void prxsocket::raw_tcp_socket::async_write(const const_buffer &buffer, null_callback &&complete_handler)
+{
+	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+	asio::async_write(socket, asio::buffer(buffer.data(), buffer.size()),
+		[this, callback](const boost::system::error_code &e, std::size_t)
+	{
+		if (e)
+		{
+			socket.close(ec);
+			connected = false;
+			(*callback)(ERR_OPERATION_FAILURE);
+		}
+		else
+		{
+			(*callback)(0);
+		}
+	});
+}
+
 void raw_tcp_socket::read(mutable_buffer_sequence &&buffers, error_code &err)
 {
 	err = 0;
