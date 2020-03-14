@@ -232,7 +232,10 @@ void http_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback
 		size_t transferred = buffer.scatter(recv_buf.get() + recv_buf_ptr, recv_buf_ptr_end - recv_buf_ptr);
 		recv_buf_ptr += transferred;
 		if (buffer.empty())
+		{
+			complete_handler(0);
 			return;
+		}
 	}
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 	socket->async_read(std::move(buffer),
