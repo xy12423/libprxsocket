@@ -15,8 +15,8 @@ size_t endpoint::from_socks5(const char *data)
 void endpoint::to_socks5(std::string &ret) const
 {
 	addr_.to_socks5(ret);
-	ret.push_back(port_ >> 8);
-	ret.push_back(port_ & 0xFF);
+	auto port_be = boost::endian::native_to_big(port_);
+	ret.append((const char *)&port_be, sizeof(port_be));
 }
 
 std::string endpoint::to_string() const

@@ -443,11 +443,11 @@ void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data_auth(const std::function
 	memcpy(encrypting_buf + 4, &id_pair.first, 4);
 	memcpy(encrypting_buf + 8, &id_pair.second, 4);
 	//total_size
-	encrypting_buf[12] = (uint8_t)(total_size & 0xFF);
-	encrypting_buf[13] = (uint8_t)(total_size >> 8);
+	uint16_t total_size_le = boost::endian::native_to_little((uint16_t)total_size);
+	memcpy(encrypting_buf + 12, &total_size_le, 2);
 	//rnd_size
-	encrypting_buf[14] = (uint8_t)(rnd_size & 0xFF);
-	encrypting_buf[15] = (uint8_t)(rnd_size >> 8);
+	uint16_t rnd_size_le = boost::endian::native_to_little((uint16_t)rnd_size);
+	memcpy(encrypting_buf + 14, &rnd_size_le, 2);
 	//encrypted
 	enc_key_str.clear();
 	CryptoPP::StringSource ss(
