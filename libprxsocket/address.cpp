@@ -90,6 +90,8 @@ size_t address::from_socks5(const char *data)
 			size = 1 + address_v6::addr_size;
 			break;
 		}
+		default:
+			assert(false);
 	}
 	return size;
 }
@@ -120,6 +122,8 @@ void address::to_socks5(std::string &ret) const
 			ret.append(v6_.data(), v6_.addr_size);
 			break;
 		}
+		default:
+			assert(false);
 	}
 }
 
