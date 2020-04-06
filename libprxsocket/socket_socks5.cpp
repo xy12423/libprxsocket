@@ -404,7 +404,7 @@ void socks5_udp_socket::async_open(const endpoint &ep, null_callback &&complete_
 			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 			return;
 		}
-		async_send_s5(UDP_ASSOCIATE, ep,
+		async_send_s5(udp_socket ? UDP_ASSOCIATE : UDP_ASSOCIATE_OVER_TCP, ep,
 			[this, callback](error_code err)
 		{
 			if (err)

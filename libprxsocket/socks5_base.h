@@ -19,7 +19,7 @@ namespace prxsocket
 		{
 			static constexpr char socks_version = 5;
 		public:
-			enum { CONNECT = 1, BIND = 2, UDP_ASSOCIATE = 3 };
+			enum { CONNECT = 1, BIND = 2, UDP_ASSOCIATE = 3, UDP_ASSOCIATE_OVER_TCP = 4 };
 
 			socks5_base(std::unique_ptr<prx_tcp_socket> &&arg)
 				:socket(std::move(arg)), available_methods("\x00", 1)
