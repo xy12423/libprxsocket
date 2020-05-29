@@ -343,7 +343,7 @@ void socks5_udp_socket::open(const endpoint &ep, error_code &err)
 		return;
 	}
 
-	err = send_s5(UDP_ASSOCIATE, ep);
+	err = send_s5(udp_socket ? UDP_ASSOCIATE : UDP_ASSOCIATE_OVER_TCP, ep);
 	if (err)
 		return;
 
