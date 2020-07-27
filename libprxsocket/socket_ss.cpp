@@ -191,7 +191,7 @@ void ss_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_t
 		transferred = std::min(buffer.size(), payload_size);
 		memcpy(buffer.data(), payload, transferred);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		transferred = 0;
 		err = WARN_OPERATION_FAILURE;
@@ -234,7 +234,7 @@ void ss_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buffer, 
 			memcpy(buffer.data(), payload, transferred);
 			(*callback)(err, transferred);
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			(*callback)(WARN_OPERATION_FAILURE, 0);
 			return;
@@ -252,7 +252,7 @@ void ss_udp_socket::send_to(const endpoint &ep, const_buffer_sequence &&buffers,
 		ep.to_socks5(header);
 		buffers.push_front(const_buffer(header));
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		err = WARN_OPERATION_FAILURE;
 		return;
@@ -274,7 +274,7 @@ void ss_udp_socket::async_send_to(const endpoint &ep, const_buffer_sequence &&bu
 		ep.to_socks5(*header);
 		buffers.push_front(const_buffer(*header));
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		complete_handler(WARN_OPERATION_FAILURE);
 		return;
@@ -326,7 +326,7 @@ void ss_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buffers, s
 
 		transferred = buffers.scatter(payload, payload_size);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		transferred = 0;
 		err = WARN_OPERATION_FAILURE;
@@ -371,7 +371,7 @@ void ss_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&buff
 
 			(*callback)(err, transferred);
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			(*callback)(WARN_OPERATION_FAILURE, 0);
 			return;

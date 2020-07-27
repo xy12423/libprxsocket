@@ -152,7 +152,7 @@ void ssr_auth_aes128_sha1_tcp_socket::send(const const_buffer &buffer, size_t &t
 	{
 		transferring = prepare_send(buffer);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		err = ERR_OPERATION_FAILURE;
@@ -181,7 +181,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_send(const const_buffer &buffer, tra
 	{
 		transferring = prepare_send(buffer);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, 0); });
 		return;
@@ -317,7 +317,7 @@ void ssr_auth_aes128_sha1_tcp_socket::write(const_buffer_sequence &&buffer, erro
 		{
 			send_seq = prepare_send(buffer);
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			close();
 			err = ERR_OPERATION_FAILURE;
@@ -349,7 +349,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_write(const std::shared_ptr<const_bu
 	{
 		send_seq = prepare_send(*buffer);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 		return;
@@ -641,7 +641,7 @@ void ssr_auth_aes128_sha1_tcp_socket::recv_data(error_code &err)
 	{
 		err = decode_recv_data(total_size);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		err = ERR_OPERATION_FAILURE;
 	}
@@ -705,7 +705,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_recv_data_body(size_t total_size, co
 		{
 			err = decode_recv_data(total_size);
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			err = ERR_OPERATION_FAILURE;
 		}

@@ -247,7 +247,7 @@ void obfs_websock_tcp_socket::connect(const endpoint &ep, error_code &err)
 		if (header.at("Sec-WebSocket-Accept") != sec_accept)
 			throw(std::runtime_error("Invalid Sec-WebSocket-Accept"));
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		err = ERR_OPERATION_FAILURE;
@@ -284,7 +284,7 @@ void obfs_websock_tcp_socket::send_websocket_req(const std::shared_ptr<null_call
 		base64(*http_req, iv.data(), sym_block_size);
 		http_req->append("\r\nSec-WebSocket-Protocol: str\r\nSec-WebSocket-Version: 13\r\n\r\n");
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 		return;
@@ -336,7 +336,7 @@ void obfs_websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_cal
 			state = STATE_OK;
 			(*callback)(0);
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 		}
@@ -353,7 +353,7 @@ void obfs_websock_tcp_socket::send(const const_buffer &buffer, size_t &transferr
 	{
 		encode(send_buf_, buffer.data(), transferring);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		err = ERR_OPERATION_FAILURE;
@@ -377,7 +377,7 @@ void obfs_websock_tcp_socket::async_send(const const_buffer &buffer, transfer_ca
 	{
 		encode(send_buf_, buffer.data(), transferring);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, 0); });
 		return;
@@ -511,7 +511,7 @@ void obfs_websock_tcp_socket::write(const_buffer_sequence &&buffer, error_code &
 		{
 			encode(send_buf_, buf.get(), copied);
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			close();
 			err = ERR_OPERATION_FAILURE;
@@ -546,7 +546,7 @@ void obfs_websock_tcp_socket::async_write(const std::shared_ptr<const_buffer_seq
 	{
 		encode(send_buf_, buf.get(), copied);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 		return;
@@ -647,7 +647,7 @@ error_code obfs_websock_tcp_socket::recv_data()
 		assert(dec_buf_.empty());
 		decode(dec_buf_, recv_buf_.get(), size);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		return ERR_OPERATION_FAILURE;
@@ -746,7 +746,7 @@ void obfs_websock_tcp_socket::async_recv_data_body(const std::shared_ptr<null_ca
 			assert(dec_buf_.empty());
 			decode(dec_buf_, recv_buf_.get(), size);
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 			return;
@@ -822,7 +822,7 @@ void obfs_websock_listener::accept(std::unique_ptr<prx_tcp_socket> &soc, error_c
 		if (ec)
 			throw(std::runtime_error("obfs_websock_listener::accept(): write() error"));
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		error_code err;
 		socket->close(err);
@@ -896,7 +896,7 @@ void obfs_websock_listener::recv_websocket_req(const std::shared_ptr<accept_call
 			base64_rev(iv, iv_b64.data(), iv_b64.size());
 			gen_websocket_accept(sec_accept, iv_b64);
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			error_code ec;
 			socket_accept->close(ec);
@@ -923,7 +923,7 @@ void obfs_websock_listener::send_websocket_resp(const std::shared_ptr<accept_cal
 		http_resp->append(sec_accept);
 		http_resp->append(resp_2, resp_2_size);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		error_code ec;
 		socket_accept->close(ec);

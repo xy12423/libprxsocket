@@ -114,7 +114,7 @@ void raw_tcp_socket::local_endpoint(endpoint &ep, error_code &err)
 		asio::ip::tcp::endpoint raw_ep = socket.local_endpoint();
 		raw_ep_to_ep(raw_ep, ep);
 	}
-	catch (std::exception &) { err = ERR_OPERATION_FAILURE; }
+	catch (const std::exception &) { err = ERR_OPERATION_FAILURE; }
 }
 
 void raw_tcp_socket::remote_endpoint(endpoint &ep, error_code &err)
@@ -125,7 +125,7 @@ void raw_tcp_socket::remote_endpoint(endpoint &ep, error_code &err)
 		asio::ip::tcp::endpoint raw_ep = socket.remote_endpoint();
 		raw_ep_to_ep(raw_ep, ep);
 	}
-	catch (std::exception &) { err = ERR_OPERATION_FAILURE; }
+	catch (const std::exception &) { err = ERR_OPERATION_FAILURE; }
 }
 
 void raw_tcp_socket::open(error_code &err)
@@ -214,7 +214,7 @@ void raw_tcp_socket::check_protocol(const asio::ip::tcp::endpoint::protocol_type
 			set_keep_alive();
 		}
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		socket.close(ec);
 		socket.open(protocol, ec);
@@ -587,7 +587,7 @@ void raw_udp_socket::local_endpoint(endpoint &ep, error_code &err)
 		asio::ip::udp::endpoint raw_ep = socket.local_endpoint();
 		raw_ep_to_ep(raw_ep, ep);
 	}
-	catch (std::exception &) { err = ERR_OPERATION_FAILURE; }
+	catch (const std::exception &) { err = ERR_OPERATION_FAILURE; }
 }
 
 void raw_udp_socket::open(error_code &err)
@@ -885,7 +885,7 @@ void raw_listener::local_endpoint(endpoint &ep, error_code &err)
 		asio::ip::tcp::endpoint raw_ep = acceptor.local_endpoint();
 		raw_ep_to_ep(raw_ep, ep);
 	}
-	catch (std::exception &) { err = ERR_OPERATION_FAILURE; }
+	catch (const std::exception &) { err = ERR_OPERATION_FAILURE; }
 }
 
 void raw_listener::open(error_code &err)

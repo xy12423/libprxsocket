@@ -36,7 +36,7 @@ void ss_crypto_tcp_socket::send(const const_buffer &buffer, size_t &transferred,
 	{
 		transferring = prepare_send(buffer);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		err = ERR_OPERATION_FAILURE;
@@ -64,7 +64,7 @@ void ss_crypto_tcp_socket::async_send(const const_buffer &buffer, transfer_callb
 	{
 		transferring = prepare_send(buffer);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, 0); });
 		return;
@@ -196,7 +196,7 @@ void ss_crypto_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err
 		{
 			prepare_send(buffer);
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			close();
 			err = ERR_OPERATION_FAILURE;
@@ -231,7 +231,7 @@ void ss_crypto_tcp_socket::async_write(const std::shared_ptr<const_buffer_sequen
 	{
 		prepare_send(*buffer);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 		return;
@@ -273,7 +273,7 @@ void ss_crypto_tcp_socket::send_with_iv(const const_buffer &buffer, size_t &tran
 	{
 		transferring = prepare_send(buffer);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		err = ERR_OPERATION_FAILURE;
@@ -319,7 +319,7 @@ void ss_crypto_tcp_socket::async_send_with_iv(const const_buffer &buffer, transf
 	{
 		transferring = prepare_send(buffer);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, 0); });
 		return;
@@ -361,7 +361,7 @@ void ss_crypto_tcp_socket::write_with_iv(const_buffer_sequence &&buffer, error_c
 	{
 		prepare_send(buffer);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		err = ERR_OPERATION_FAILURE;
@@ -408,7 +408,7 @@ void ss_crypto_tcp_socket::async_write_with_iv(const_buffer_sequence &&buffer_ob
 	{
 		prepare_send(*buffer);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 		return;
@@ -489,7 +489,7 @@ void ss_crypto_tcp_socket::recv_data(error_code &err)
 		assert(dec_buf_.empty());
 		dec_->decrypt(dec_buf_, recv_buf_.get(), transferred);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		err = ERR_OPERATION_FAILURE;
@@ -532,7 +532,7 @@ void ss_crypto_tcp_socket::async_recv_data(null_callback &&complete_handler)
 			assert(dec_buf_.empty());
 			dec_->decrypt(dec_buf_, recv_buf_.get(), transferred);
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 			return;
@@ -566,7 +566,7 @@ void ss_crypto_udp_socket::send_to(const endpoint &ep, const const_buffer &buffe
 	{
 		encode(udp_send_buf_, buffer.data(), buffer.size());
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		err = ERR_OPERATION_FAILURE;
@@ -585,7 +585,7 @@ void ss_crypto_udp_socket::async_send_to(const endpoint &ep, const const_buffer 
 	{
 		encode(udp_send_buf_, buffer.data(), buffer.size());
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 		return;
@@ -623,7 +623,7 @@ void ss_crypto_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer,
 		transferred = std::min(buffer.size(), dec_buf.size());
 		memcpy(buffer.data(), dec_buf.data(), transferred);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		err = ERR_OPERATION_FAILURE;
@@ -659,7 +659,7 @@ void ss_crypto_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &b
 			transferred = std::min(buffer.size(), dec_buf.size());
 			memcpy(buffer.data(), dec_buf.data(), transferred);
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, 0); });
 			return;
@@ -680,7 +680,7 @@ void ss_crypto_udp_socket::send_to(const endpoint &ep, const_buffer_sequence &&b
 		buffers.gather(enc_buf.data(), enc_buf.size());
 		encode(udp_send_buf_, enc_buf.data(), enc_buf.size());
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		err = ERR_OPERATION_FAILURE;
@@ -702,7 +702,7 @@ void ss_crypto_udp_socket::async_send_to(const endpoint &ep, const_buffer_sequen
 		buffers.gather(enc_buf.data(), enc_buf.size());
 		encode(udp_send_buf_, enc_buf.data(), enc_buf.size());
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 		return;
@@ -739,7 +739,7 @@ void ss_crypto_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buf
 		std::vector<char> &dec_buf = decode(udp_recv_buf_.get(), udp_recv_size);
 		transferred = buffers.scatter(dec_buf.data(), dec_buf.size());
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		err = ERR_OPERATION_FAILURE;
@@ -775,7 +775,7 @@ void ss_crypto_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence
 			std::vector<char> &dec_buf = decode(udp_recv_buf_.get(), udp_recv_size);
 			transferred = buffer->scatter(dec_buf.data(), dec_buf.size());
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, 0); });
 			return;

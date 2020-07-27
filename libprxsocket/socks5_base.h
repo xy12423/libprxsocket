@@ -105,7 +105,7 @@ namespace prxsocket
 		public:
 			socks5_error(error_code _err) :std::runtime_error("SOCKS5 error"), err(_err) {}
 
-			error_code get_err() { return err; }
+			error_code get_err() const { return err; }
 		private:
 			error_code err;
 		};

@@ -47,12 +47,12 @@ error_code socks5_base::auth()
 			throw(socks5_error(ERR_BAD_ARG_REMOTE));
 		auth_method = (unsigned char)method_chosen[1];
 	}
-	catch (socks5_error &ex)
+	catch (const socks5_error &ex)
 	{
 		close();
 		return ex.get_err();
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		return ERR_OPERATION_FAILURE;
@@ -80,19 +80,19 @@ void socks5_base::async_auth(null_callback &&complete_handler)
 					throw(socks5_error(err));
 				async_auth_recv(callback);
 			}
-			catch (socks5_error &ex)
+			catch (const socks5_error &ex)
 			{
 				close();
 				(*callback)(ex.get_err());
 			}
-			catch (std::exception &)
+			catch (const std::exception &)
 			{
 				close();
 				(*callback)(ERR_OPERATION_FAILURE);
 			}
 		});
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		(*callback)(ERR_OPERATION_FAILURE);
@@ -114,12 +114,12 @@ void socks5_base::async_auth_recv(const std::shared_ptr<null_callback> &callback
 			auth_method = (unsigned char)(*method_chosen)[1];
 			(*callback)(0);
 		}
-		catch (socks5_error &ex)
+		catch (const socks5_error &ex)
 		{
 			close();
 			(*callback)(ex.get_err());
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			close();
 			(*callback)(ERR_OPERATION_FAILURE);
@@ -151,12 +151,12 @@ error_code socks5_base::select(sockssel_callback &&selector)
 		if (err)
 			throw(socks5_error(err));
 	}
-	catch (socks5_error &ex)
+	catch (const socks5_error &ex)
 	{
 		close();
 		return ex.get_err();
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		return ERR_OPERATION_FAILURE;
@@ -182,12 +182,12 @@ void socks5_base::async_select(sockssel_callback &&_selector, null_callback &&co
 				throw(socks5_error(ERR_BAD_ARG_REMOTE));
 			async_select_recv_body(selector, method_avail, callback);
 		}
-		catch (socks5_error &ex)
+		catch (const socks5_error &ex)
 		{
 			close();
 			(*callback)(ex.get_err());
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			close();
 			(*callback)(ERR_OPERATION_FAILURE);
@@ -207,12 +207,12 @@ void socks5_base::async_select_recv_body(const std::shared_ptr<sockssel_callback
 			auth_method = (*selector)((uint8_t)(*method_avail)[1], (uint8_t*)(method_avail->data() + 2));
 			async_select_send(callback);
 		}
-		catch (socks5_error &ex)
+		catch (const socks5_error &ex)
 		{
 			close();
 			(*callback)(ex.get_err());
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			close();
 			(*callback)(ERR_OPERATION_FAILURE);
@@ -292,12 +292,12 @@ error_code socks5_base::send_s5(uint8_t type, const endpoint &ep)
 		if (err)
 			throw(socks5_error(err));
 	}
-	catch (socks5_error &ex)
+	catch (const socks5_error &ex)
 	{
 		close();
 		return ex.get_err();
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		return 1;
@@ -325,19 +325,19 @@ void socks5_base::async_send_s5(uint8_t type, const endpoint &ep, null_callback 
 					throw(socks5_error(err));
 				(*callback)(err);
 			}
-			catch (socks5_error &ex)
+			catch (const socks5_error &ex)
 			{
 				close();
 				(*callback)(ex.get_err());
 			}
-			catch (std::exception &)
+			catch (const std::exception &)
 			{
 				close();
 				(*callback)(ERR_OPERATION_FAILURE);
 			}
 		});
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		(*callback)(ERR_OPERATION_FAILURE);
@@ -383,12 +383,12 @@ error_code socks5_base::recv_s5(uint8_t &resp, endpoint &result)
 			throw(socks5_error(ERR_UNSUPPORTED));
 		}
 	}
-	catch (socks5_error &ex)
+	catch (const socks5_error &ex)
 	{
 		close();
 		return ex.get_err();
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		return 1;
@@ -413,12 +413,12 @@ void socks5_base::async_recv_s5(socksreq_callback &&complete_handler)
 				throw(socks5_error(ERR_BAD_ARG_REMOTE));
 			async_recv_s5_body(resp_data, callback);
 		}
-		catch (socks5_error &ex)
+		catch (const socks5_error &ex)
 		{
 			close();
 			(*callback)(ex.get_err(), -1, empty_endpoint);
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			close();
 			(*callback)(ERR_OPERATION_FAILURE, -1, empty_endpoint);
@@ -457,12 +457,12 @@ void socks5_base::async_recv_s5_body(const std::shared_ptr<std::array<char, 263>
 			bnd.from_socks5(resp_head.data() + 3);
 			(*callback)(0, resp_head[1], bnd);
 		}
-		catch (socks5_error &ex)
+		catch (const socks5_error &ex)
 		{
 			close();
 			(*callback)(ex.get_err(), -1, empty_endpoint);
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			close();
 			(*callback)(ERR_OPERATION_FAILURE, -1, empty_endpoint);
@@ -487,7 +487,7 @@ error_code socks5_base::parse_udp(const char *udp_recv_buf, size_t udp_recv_size
 		buffer = udp_recv_buf + 3 + ep_size;
 		transferred = udp_recv_size - (3 + ep_size);
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		return WARN_OPERATION_FAILURE;
 	}

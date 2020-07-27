@@ -68,7 +68,7 @@ void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 		if (header.at(http_header::NAME_STATUS_CODE) != "200")
 			throw(std::runtime_error("HTTP request failed"));
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		close();
 		err = ERR_OPERATION_FAILURE;
@@ -110,7 +110,7 @@ void http_tcp_socket::send_http_req(const std::shared_ptr<null_callback> &callba
 		http_req->append(host);
 		http_req->append("\r\n\r\n");
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 		return;
@@ -159,7 +159,7 @@ void http_tcp_socket::recv_http_resp(const std::shared_ptr<null_callback> &callb
 			state = STATE_OK;
 			(*callback)(0);
 		}
-		catch (std::exception &)
+		catch (const std::exception &)
 		{
 			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 		}

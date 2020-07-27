@@ -642,7 +642,7 @@ void socks5_udp_socket::send_to(const endpoint &ep, const_buffer_sequence &&buff
 		ep.to_socks5(header);             //ATYP && DST
 		buffers.push_front(const_buffer(header));
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		err = WARN_OPERATION_FAILURE;
 		return;
@@ -686,7 +686,7 @@ void socks5_udp_socket::async_send_to(const endpoint &ep, const_buffer_sequence 
 		ep.to_socks5(*header);      //ATYP && DST
 		buffers.push_front(const_buffer(*header));
 	}
-	catch (std::exception &)
+	catch (const std::exception &)
 	{
 		complete_handler(WARN_OPERATION_FAILURE);
 		return;
