@@ -46,16 +46,16 @@ namespace prxsocket
 
 		class ssr_auth_aes128_sha1_tcp_socket final : public transparent_tcp_socket_template<ss::ss_crypto_tcp_socket>
 		{
-			static constexpr size_t auth_pack_size = 1200;
-			static constexpr size_t pack_size = 8100;
-			static constexpr size_t recv_buf_size = 0x2000;
+			static constexpr size_t AUTH_PACK_SIZE = 1200;
+			static constexpr size_t PACK_SIZE = 8100;
+			static constexpr size_t RECV_BUF_SIZE = 0x2000;
 
 			void reset() { send_id_ = recv_id_ = 1; auth_sent_ = false; recv_ptr_ = recv_size_ = 0; }
 		public:
 			ssr_auth_aes128_sha1_tcp_socket(std::unique_ptr<ss::ss_crypto_tcp_socket> &&base_socket, ssr_auth_aes128_sha1_shared_server_data &arg)
 				:transparent_tcp_socket_template<ss::ss_crypto_tcp_socket>(std::move(base_socket)),
 				server_data_(arg),
-				recv_buf_(std::make_unique<char[]>(recv_buf_size))
+				recv_buf_(std::make_unique<char[]>(RECV_BUF_SIZE))
 			{
 			}
 			virtual ~ssr_auth_aes128_sha1_tcp_socket() override {}

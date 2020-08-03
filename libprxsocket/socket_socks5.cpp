@@ -32,9 +32,9 @@ void socks5_tcp_socket::open(error_code &err)
 		err = WARN_ALREADY_IN_STATE;
 		return;
 	}
-	err = open_and_auth(server_ep);
+	err = open_and_auth(server_ep_);
 	if (!err)
-		state = STATE_OPEN;
+		state_ = STATE_OPEN;
 }
 
 void socks5_tcp_socket::async_open(null_callback &&complete_handler)
@@ -45,11 +45,11 @@ void socks5_tcp_socket::async_open(null_callback &&complete_handler)
 		return;
 	}
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	async_open_and_auth(server_ep,
+	async_open_and_auth(server_ep_,
 		[this, callback](error_code err)
 	{
 		if (!err)
-			state = STATE_OPEN;
+			state_ = STATE_OPEN;
 		(*callback)(err);
 	});
 }
@@ -70,7 +70,7 @@ void socks5_tcp_socket::connect(const endpoint &ep, error_code &err)
 
 	error_code ec;
 
-	remote_ep = ep;
+	remote_ep_ = ep;
 	err = send_s5(CONNECT, ep);
 	if (err)
 	{
@@ -78,7 +78,7 @@ void socks5_tcp_socket::connect(const endpoint &ep, error_code &err)
 		return;
 	}
 	uint8_t rep;
-	err = recv_s5(rep, local_ep);
+	err = recv_s5(rep, local_ep_);
 	if (err)
 	{
 		close(ec);
@@ -91,7 +91,7 @@ void socks5_tcp_socket::connect(const endpoint &ep, error_code &err)
 		return;
 	}
 
-	state = STATE_CONNECTED;
+	state_ = STATE_CONNECTED;
 }
 
 void socks5_tcp_socket::async_connect(const endpoint &ep, null_callback &&complete_handler)
@@ -108,7 +108,7 @@ void socks5_tcp_socket::async_connect(const endpoint &ep, null_callback &&comple
 	}
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 
-	remote_ep = ep;
+	remote_ep_ = ep;
 	async_send_s5(CONNECT, ep,
 		[this, callback](error_code err)
 	{
@@ -129,8 +129,8 @@ void socks5_tcp_socket::async_connect(const endpoint &ep, null_callback &&comple
 				async_close([callback, rep](error_code) { (*callback)(rep); });
 				return;
 			}
-			state = STATE_CONNECTED;
-			local_ep = ep;
+			state_ = STATE_CONNECTED;
+			local_ep_ = ep;
 			(*callback)(0);
 		});
 	});
@@ -287,7 +287,7 @@ void socks5_udp_socket::local_endpoint(endpoint &ep, error_code &err)
 		err = ERR_UNSUPPORTED;
 		return;
 	}
-	ep = udp_local_ep;
+	ep = udp_local_ep_;
 }
 
 void socks5_udp_socket::open(error_code &err)
@@ -341,10 +341,10 @@ void socks5_udp_socket::async_bind(const endpoint &ep, null_callback &&complete_
 void socks5_udp_socket::open(const endpoint &ep, error_code &err)
 {
 	err = 0;
-	if (udp_socket && !udp_socket->is_open())
+	if (udp_socket_ && !udp_socket_->is_open())
 	{
-		udp_socket->open(err);
-		if (!udp_socket->is_open())
+		udp_socket_->open(err);
+		if (!udp_socket_->is_open())
 		{
 			if (!err)
 				err = ERR_OPERATION_FAILURE;
@@ -352,7 +352,7 @@ void socks5_udp_socket::open(const endpoint &ep, error_code &err)
 		}
 	}
 
-	err = open_and_auth(server_ep);
+	err = open_and_auth(server_ep_);
 	if (err)
 		return;
 	if (!ep.addr().is_any() && get_auth_method() != 0x80)
@@ -362,12 +362,12 @@ void socks5_udp_socket::open(const endpoint &ep, error_code &err)
 		return;
 	}
 
-	err = send_s5(udp_socket ? UDP_ASSOCIATE : UDP_ASSOCIATE_OVER_TCP, ep);
+	err = send_s5(udp_socket_ ? UDP_ASSOCIATE : UDP_ASSOCIATE_OVER_TCP, ep);
 	if (err)
 		return;
 
 	uint8_t rep;
-	err = recv_s5(rep, udp_server_ep);
+	err = recv_s5(rep, udp_server_ep_);
 	if (err)
 		return;
 	if (rep != 0)
@@ -378,7 +378,7 @@ void socks5_udp_socket::open(const endpoint &ep, error_code &err)
 
 	if (get_auth_method() == 0x80)
 	{
-		err = recv_s5(rep, udp_local_ep);
+		err = recv_s5(rep, udp_local_ep_);
 		if (err)
 			return;
 		if (rep != 0)
@@ -388,19 +388,19 @@ void socks5_udp_socket::open(const endpoint &ep, error_code &err)
 		}
 	}
 
-	state = STATE_ASSOCIATED;
-	if (udp_socket)
+	state_ = STATE_ASSOCIATED;
+	if (udp_socket_)
 		udp_alive();
 }
 
 void socks5_udp_socket::async_open(const endpoint &ep, null_callback &&complete_handler)
 {
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	if (udp_socket && !udp_socket->is_open())
+	if (udp_socket_ && !udp_socket_->is_open())
 	{
-		udp_socket->async_open([this, ep, callback](error_code err)
+		udp_socket_->async_open([this, ep, callback](error_code err)
 		{
-			if (!udp_socket->is_open())
+			if (!udp_socket_->is_open())
 			{
 				(*callback)(err ? err : ERR_OPERATION_FAILURE);
 				return;
@@ -410,7 +410,7 @@ void socks5_udp_socket::async_open(const endpoint &ep, null_callback &&complete_
 		return;
 	}
 
-	async_open_and_auth(server_ep,
+	async_open_and_auth(server_ep_,
 		[this, ep, callback](error_code err)
 	{
 		if (err)
@@ -423,7 +423,7 @@ void socks5_udp_socket::async_open(const endpoint &ep, null_callback &&complete_
 			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 			return;
 		}
-		async_send_s5(udp_socket ? UDP_ASSOCIATE : UDP_ASSOCIATE_OVER_TCP, ep,
+		async_send_s5(udp_socket_ ? UDP_ASSOCIATE : UDP_ASSOCIATE_OVER_TCP, ep,
 			[this, callback](error_code err)
 		{
 			if (err)
@@ -443,7 +443,7 @@ void socks5_udp_socket::async_open(const endpoint &ep, null_callback &&complete_
 					(*callback)(rep);
 					return;
 				}
-				udp_server_ep = ep;
+				udp_server_ep_ = ep;
 
 				if (get_auth_method() == 0x80)
 				{
@@ -459,18 +459,18 @@ void socks5_udp_socket::async_open(const endpoint &ep, null_callback &&complete_
 							(*callback)(rep);
 							return;
 						}
-						udp_local_ep = ep;
+						udp_local_ep_ = ep;
 
-						state = STATE_ASSOCIATED;
-						if (udp_socket)
+						state_ = STATE_ASSOCIATED;
+						if (udp_socket_)
 							udp_alive();
 						(*callback)(0);
 					});
 				}
 				else
 				{
-					state = STATE_ASSOCIATED;
-					if (udp_socket)
+					state_ = STATE_ASSOCIATED;
+					if (udp_socket_)
 						udp_alive();
 					(*callback)(0);
 				}
@@ -481,7 +481,7 @@ void socks5_udp_socket::async_open(const endpoint &ep, null_callback &&complete_
 
 void socks5_udp_socket::udp_alive()
 {
-	async_recv(mutable_buffer(&udp_alive_buf, 1),
+	async_recv(mutable_buffer(&udp_alive_buf_, 1),
 		[this](error_code err, size_t)
 	{
 		if (err)
@@ -512,33 +512,33 @@ void socks5_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, si
 	}
 
 	size_t udp_recv_size;
-	if (udp_socket)
+	if (udp_socket_)
 	{
-		udp_socket->recv_from(udp_recv_ep, mutable_buffer(udp_recv_buf.get(), udp_buf_size), udp_recv_size, err);
+		udp_socket_->recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), UDP_BUF_SIZE), udp_recv_size, err);
 		if (err)
 		{
-			if (!udp_socket->is_open())
+			if (!udp_socket_->is_open())
 				close();
 			return;
 		}
 	}
 	else
 	{
-		read(mutable_buffer(udp_recv_buf.get(), 2), err);
+		read(mutable_buffer(udp_recv_buf_.get(), 2), err);
 		if (err)
 		{
 			close();
 			return;
 		}
-		uint16_t size = (uint8_t)udp_recv_buf[0] | ((uint8_t)udp_recv_buf[1] << 8u);
-		if (size > udp_buf_size)
+		uint16_t size = (uint8_t)udp_recv_buf_[0] | ((uint8_t)udp_recv_buf_[1] << 8u);
+		if (size > UDP_BUF_SIZE)
 		{
 			//Skip
 			size -= 2;
 			while (size > 0)
 			{
-				size_t size_read = std::min((size_t)size, udp_buf_size);
-				read(mutable_buffer(udp_recv_buf.get(), size_read), err);
+				size_t size_read = std::min((size_t)size, UDP_BUF_SIZE);
+				read(mutable_buffer(udp_recv_buf_.get(), size_read), err);
 				if (err)
 				{
 					close();
@@ -549,13 +549,13 @@ void socks5_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, si
 			err = WARN_OPERATION_FAILURE;
 			return;
 		}
-		read(mutable_buffer(udp_recv_buf.get() + 2, size - 2), err);
+		read(mutable_buffer(udp_recv_buf_.get() + 2, size - 2), err);
 		if (err)
 		{
 			close();
 			return;
 		}
-		udp_recv_buf[0] = udp_recv_buf[1] = 0;
+		udp_recv_buf_[0] = udp_recv_buf_[1] = 0;
 		udp_recv_size = size;
 	}
 	
@@ -571,14 +571,14 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buff
 	}
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 
-	if (udp_socket)
+	if (udp_socket_)
 	{
-		udp_socket->async_recv_from(udp_recv_ep, mutable_buffer(udp_recv_buf.get(), udp_buf_size),
+		udp_socket_->async_recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), UDP_BUF_SIZE),
 			[this, &ep, buffer, callback](error_code err, size_t udp_recv_size)
 		{
 			if (err)
 			{
-				if (!udp_socket->is_open())
+				if (!udp_socket_->is_open())
 				{
 					async_close([err, callback](error_code) { (*callback)(err, 0); });
 				}
@@ -595,7 +595,7 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buff
 	}
 	else
 	{
-		async_read(mutable_buffer(udp_recv_buf.get(), 2),
+		async_read(mutable_buffer(udp_recv_buf_.get(), 2),
 			[this, &ep, buffer, callback](error_code err)
 		{
 			if (err)
@@ -603,13 +603,13 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buff
 				async_close([err, callback](error_code) { (*callback)(err, 0); });
 				return;
 			}
-			uint16_t size = (uint8_t)udp_recv_buf[0] | ((uint8_t)udp_recv_buf[1] << 8u);
-			if (size > udp_buf_size)
+			uint16_t size = (uint8_t)udp_recv_buf_[0] | ((uint8_t)udp_recv_buf_[1] << 8u);
+			if (size > UDP_BUF_SIZE)
 			{
 				async_skip(size - 2, callback);
 				return;
 			}
-			async_read(mutable_buffer(udp_recv_buf.get() + 2, size - 2),
+			async_read(mutable_buffer(udp_recv_buf_.get() + 2, size - 2),
 				[this, size, &ep, buffer, callback](error_code err)
 			{
 				if (err)
@@ -617,7 +617,7 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buff
 					async_close([err, callback](error_code) { (*callback)(err, 0); });
 					return;
 				}
-				udp_recv_buf[0] = udp_recv_buf[1] = 0;
+				udp_recv_buf_[0] = udp_recv_buf_[1] = 0;
 				size_t transferred;
 				err = parse_udp(size, ep, buffer, transferred);
 				(*callback)(err, transferred);
@@ -648,10 +648,10 @@ void socks5_udp_socket::send_to(const endpoint &ep, const_buffer_sequence &&buff
 		return;
 	}
 
-	if (udp_socket)
+	if (udp_socket_)
 	{
-		udp_socket->send_to(udp_server_ep, std::move(buffers), err);
-		if (err && !udp_socket->is_open())
+		udp_socket_->send_to(udp_server_ep_, std::move(buffers), err);
+		if (err && !udp_socket_->is_open())
 			close();
 	}
 	else
@@ -693,12 +693,12 @@ void socks5_udp_socket::async_send_to(const endpoint &ep, const_buffer_sequence 
 	}
 
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	if (udp_socket)
+	if (udp_socket_)
 	{
-		udp_socket->async_send_to(server_ep, std::move(buffers),
+		udp_socket_->async_send_to(server_ep_, std::move(buffers),
 			[this, header, callback](error_code err)
 		{
-			if (err && !udp_socket->is_open())
+			if (err && !udp_socket_->is_open())
 			{
 				async_close([err, callback](error_code) { (*callback)(err); });
 			}
@@ -744,33 +744,33 @@ void socks5_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buffer
 	}
 
 	size_t udp_recv_size;
-	if (udp_socket)
+	if (udp_socket_)
 	{
-		udp_socket->recv_from(udp_recv_ep, mutable_buffer(udp_recv_buf.get(), udp_buf_size), udp_recv_size, err);
+		udp_socket_->recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), UDP_BUF_SIZE), udp_recv_size, err);
 		if (err)
 		{
-			if (!udp_socket->is_open())
+			if (!udp_socket_->is_open())
 				close();
 			return;
 		}
 	}
 	else
 	{
-		read(mutable_buffer(udp_recv_buf.get(), 2), err);
+		read(mutable_buffer(udp_recv_buf_.get(), 2), err);
 		if (err)
 		{
 			close();
 			return;
 		}
-		uint16_t size = (uint8_t)udp_recv_buf[0] | ((uint8_t)udp_recv_buf[1] << 8u);
-		if (size > udp_buf_size)
+		uint16_t size = (uint8_t)udp_recv_buf_[0] | ((uint8_t)udp_recv_buf_[1] << 8u);
+		if (size > UDP_BUF_SIZE)
 		{
 			//Skip
 			size -= 2;
 			while (size > 0)
 			{
-				size_t size_read = std::min((size_t)size, udp_buf_size);
-				read(mutable_buffer(udp_recv_buf.get(), size_read), err);
+				size_t size_read = std::min((size_t)size, UDP_BUF_SIZE);
+				read(mutable_buffer(udp_recv_buf_.get(), size_read), err);
 				if (err)
 				{
 					close();
@@ -781,13 +781,13 @@ void socks5_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buffer
 			err = WARN_OPERATION_FAILURE;
 			return;
 		}
-		read(mutable_buffer(udp_recv_buf.get() + 2, size - 2), err);
+		read(mutable_buffer(udp_recv_buf_.get() + 2, size - 2), err);
 		if (err)
 		{
 			close();
 			return;
 		}
-		udp_recv_buf[0] = udp_recv_buf[1] = 0;
+		udp_recv_buf_[0] = udp_recv_buf_[1] = 0;
 		udp_recv_size = size;
 	}
 
@@ -804,14 +804,14 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&
 	std::shared_ptr<mutable_buffer_sequence> buffer = std::make_shared<mutable_buffer_sequence>(std::move(buffers));
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 
-	if (udp_socket)
+	if (udp_socket_)
 	{
-		udp_socket->async_recv_from(udp_recv_ep, mutable_buffer(udp_recv_buf.get(), udp_buf_size),
+		udp_socket_->async_recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), UDP_BUF_SIZE),
 			[this, &ep, buffer, callback](error_code err, size_t udp_recv_size)
 		{
 			if (err)
 			{
-				if (!udp_socket->is_open())
+				if (!udp_socket_->is_open())
 				{
 					async_close([err, callback](error_code) { (*callback)(err, 0); });
 				}
@@ -828,7 +828,7 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&
 	}
 	else
 	{
-		async_read(mutable_buffer(udp_recv_buf.get(), 2),
+		async_read(mutable_buffer(udp_recv_buf_.get(), 2),
 			[this, &ep, buffer, callback](error_code err)
 		{
 			if (err)
@@ -836,13 +836,13 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&
 				async_close([err, callback](error_code) { (*callback)(err, 0); });
 				return;
 			}
-			uint16_t size = (uint8_t)udp_recv_buf[0] | ((uint8_t)udp_recv_buf[1] << 8u);
-			if (size > udp_buf_size)
+			uint16_t size = (uint8_t)udp_recv_buf_[0] | ((uint8_t)udp_recv_buf_[1] << 8u);
+			if (size > UDP_BUF_SIZE)
 			{
 				async_skip(size - 2, callback);
 				return;
 			}
-			async_read(mutable_buffer(udp_recv_buf.get() + 2, size - 2),
+			async_read(mutable_buffer(udp_recv_buf_.get() + 2, size - 2),
 				[this, size, &ep, buffer, callback](error_code err)
 			{
 				if (err)
@@ -850,7 +850,7 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&
 					async_close([err, callback](error_code) { (*callback)(err, 0); });
 					return;
 				}
-				udp_recv_buf[0] = udp_recv_buf[1] = 0;
+				udp_recv_buf_[0] = udp_recv_buf_[1] = 0;
 				size_t transferred;
 				err = parse_udp(size, ep, std::move(*buffer), transferred);
 				(*callback)(err, transferred);
@@ -861,22 +861,22 @@ void socks5_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&
 
 void socks5_udp_socket::close(error_code &ec)
 {
-	state = STATE_INIT;
-	if (udp_socket)
+	state_ = STATE_INIT;
+	if (udp_socket_)
 	{
 		error_code err;
-		udp_socket->close(err);
+		udp_socket_->close(err);
 	}
 	return socks5_base::close(ec);
 }
 
 void socks5_udp_socket::async_close(null_callback &&complete_handler)
 {
-	state = STATE_INIT;
-	if (udp_socket)
+	state_ = STATE_INIT;
+	if (udp_socket_)
 	{
 		std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-		udp_socket->async_close([this, callback](error_code){ socks5_base::async_close(std::move(*callback)); });
+		udp_socket_->async_close([this, callback](error_code){ socks5_base::async_close(std::move(*callback)); });
 		return;
 	}
 	socks5_base::async_close(std::move(complete_handler));
@@ -889,9 +889,9 @@ void socks5_udp_socket::async_skip(size_t size, const std::shared_ptr<transfer_c
 		(*callback)(WARN_OPERATION_FAILURE, 0);
 		return;
 	}
-	size_t size_read = std::min(size, udp_buf_size);
+	size_t size_read = std::min(size, UDP_BUF_SIZE);
 	size_t size_last = size - size_read;
-	async_read(mutable_buffer(udp_recv_buf.get(), size_read),
+	async_read(mutable_buffer(udp_recv_buf_.get(), size_read),
 		[this, callback, size_last](error_code err)
 	{
 		if (err)
@@ -906,7 +906,7 @@ void socks5_udp_socket::async_skip(size_t size, const std::shared_ptr<transfer_c
 error_code socks5_udp_socket::parse_udp(size_t udp_recv_size, endpoint &ep, const mutable_buffer &buffer, size_t &transferred)
 {
 	const char *buf;
-	error_code err = socks5_base::parse_udp(udp_recv_buf.get(), udp_recv_size, ep, buf, transferred);
+	error_code err = socks5_base::parse_udp(udp_recv_buf_.get(), udp_recv_size, ep, buf, transferred);
 	if (err)
 		return err;
 	transferred = std::min(buffer.size(), transferred);
@@ -920,7 +920,7 @@ error_code socks5_udp_socket::parse_udp(size_t udp_recv_size, endpoint &ep, muta
 
 	const char *buf;
 	size_t buf_size;
-	error_code err = socks5_base::parse_udp(udp_recv_buf.get(), udp_recv_size, ep, buf, buf_size);
+	error_code err = socks5_base::parse_udp(udp_recv_buf_.get(), udp_recv_size, ep, buf, buf_size);
 	if (err)
 		return err;
 
@@ -930,22 +930,22 @@ error_code socks5_udp_socket::parse_udp(size_t udp_recv_size, endpoint &ep, muta
 
 void socks5_listener::open(error_code &err)
 {
-	if (!cur_socket)
-		cur_socket = std::make_unique<socks5_tcp_socket>(server_ep, gen_socket(), methods);
-	cur_socket->open(err);
+	if (!cur_socket_)
+		cur_socket_ = std::make_unique<socks5_tcp_socket>(server_ep_, gen_socket_(), methods_);
+	cur_socket_->open(err);
 	if (!err)
-		listening = false;
+		listening_ = false;
 }
 
 void socks5_listener::async_open(null_callback &&complete_handler)
 {
-	if (!cur_socket)
-		cur_socket = std::make_unique<socks5_tcp_socket>(server_ep, gen_socket(), methods);
+	if (!cur_socket_)
+		cur_socket_ = std::make_unique<socks5_tcp_socket>(server_ep_, gen_socket_(), methods_);
 	auto callback = std::make_shared<null_callback>(std::move(complete_handler));
-	cur_socket->async_open([this, callback](error_code err)
+	cur_socket_->async_open([this, callback](error_code err)
 	{
 		if (!err)
-			listening = false;
+			listening_ = false;
 		(*callback)(err);
 	});
 }
@@ -953,22 +953,22 @@ void socks5_listener::async_open(null_callback &&complete_handler)
 void socks5_listener::bind(const endpoint &ep, error_code &err)
 {
 	err = 0;
-	if (!is_open() || cur_socket->get_auth_method() != 0x80)
+	if (!is_open() || cur_socket_->get_auth_method() != 0x80)
 	{
 		err = ERR_UNSUPPORTED;
 		return;
 	}
-	local_ep = ep;
+	local_ep_ = ep;
 }
 
 void socks5_listener::async_bind(const endpoint &ep, null_callback &&complete_handler)
 {
-	if (!is_open() || cur_socket->get_auth_method() != 0x80)
+	if (!is_open() || cur_socket_->get_auth_method() != 0x80)
 	{
 		complete_handler(ERR_UNSUPPORTED);
 		return;
 	}
-	local_ep = ep;
+	local_ep_ = ep;
 	complete_handler(0);
 }
 
@@ -980,20 +980,20 @@ void socks5_listener::listen(error_code &err)
 		err = ERR_OPERATION_FAILURE;
 		return;
 	}
-	if (listening)
+	if (listening_)
 	{
 		err = WARN_ALREADY_IN_STATE;
 		return;
 	}
 
-	err = cur_socket->send_s5(cur_socket->BIND, local_ep);
+	err = cur_socket_->send_s5(cur_socket_->BIND, local_ep_);
 	if (err)
 	{
 		close();
 		return;
 	}
 	uint8_t rep;
-	err = cur_socket->recv_s5(rep, cur_socket->local_ep);
+	err = cur_socket_->recv_s5(rep, cur_socket_->local_ep_);
 	if (err)
 	{
 		close();
@@ -1006,24 +1006,24 @@ void socks5_listener::listen(error_code &err)
 		return;
 	}
 
-	listening = true;
+	listening_ = true;
 }
 
 void socks5_listener::async_listen(null_callback &&complete_handler)
 {
-	if (!cur_socket || !cur_socket->is_open())
+	if (!cur_socket_ || !cur_socket_->is_open())
 	{
 		complete_handler(ERR_OPERATION_FAILURE);
 		return;
 	}
-	if (listening)
+	if (listening_)
 	{
 		complete_handler(0);
 		return;
 	}
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 
-	cur_socket->async_send_s5(cur_socket->BIND, local_ep,
+	cur_socket_->async_send_s5(cur_socket_->BIND, local_ep_,
 		[this, callback](error_code err)
 	{
 		if (err)
@@ -1031,7 +1031,7 @@ void socks5_listener::async_listen(null_callback &&complete_handler)
 			async_close([callback, err](error_code) { (*callback)(err); });
 			return;
 		}
-		cur_socket->async_recv_s5([this, callback](error_code err, uint8_t rep, const endpoint &ep)
+		cur_socket_->async_recv_s5([this, callback](error_code err, uint8_t rep, const endpoint &ep)
 		{
 			if (err)
 			{
@@ -1043,9 +1043,9 @@ void socks5_listener::async_listen(null_callback &&complete_handler)
 				async_close([callback, rep](error_code) { (*callback)(rep); });
 				return;
 			}
-			cur_socket->local_ep = ep;
+			cur_socket_->local_ep_ = ep;
 
-			listening = true;
+			listening_ = true;
 			(*callback)(0);
 		});
 	});
@@ -1056,12 +1056,12 @@ void socks5_listener::accept(std::unique_ptr<prx_tcp_socket> &socket, error_code
 	socket = nullptr;
 	err = ERR_OPERATION_FAILURE;
 
-	if (!listening)
+	if (!listening_)
 		return;
-	listening = false;
+	listening_ = false;
 
 	uint8_t rep;
-	err = cur_socket->recv_s5(rep, cur_socket->remote_ep);
+	err = cur_socket_->recv_s5(rep, cur_socket_->remote_ep_);
 	if (err)
 	{
 		close();
@@ -1073,10 +1073,10 @@ void socks5_listener::accept(std::unique_ptr<prx_tcp_socket> &socket, error_code
 		close();
 		return;
 	}
-	cur_socket->state = cur_socket->STATE_CONNECTED;
+	cur_socket_->state_ = cur_socket_->STATE_CONNECTED;
 
 	std::unique_ptr<socks5_tcp_socket> ret;
-	ret.swap(cur_socket);
+	ret.swap(cur_socket_);
 
 	error_code ec;
 	open(ec);
@@ -1090,15 +1090,15 @@ void socks5_listener::accept(std::unique_ptr<prx_tcp_socket> &socket, error_code
 void socks5_listener::async_accept(accept_callback &&complete_handler)
 {
 	//TODO: support queue
-	if (!listening)
+	if (!listening_)
 	{
 		complete_handler(ERR_OPERATION_FAILURE, nullptr);
 		return;
 	}
-	listening = false;
+	listening_ = false;
 	std::shared_ptr<accept_callback> callback = std::make_shared<accept_callback>(std::move(complete_handler));
 
-	cur_socket->async_recv_s5([this, callback](error_code err, uint8_t rep, const endpoint &ep)
+	cur_socket_->async_recv_s5([this, callback](error_code err, uint8_t rep, const endpoint &ep)
 	{
 		if (err)
 		{
@@ -1110,11 +1110,11 @@ void socks5_listener::async_accept(accept_callback &&complete_handler)
 			async_close([callback, rep](error_code) { (*callback)(rep, nullptr); });
 			return;
 		}
-		cur_socket->remote_ep = ep;
-		cur_socket->state = cur_socket->STATE_CONNECTED;
+		cur_socket_->remote_ep_ = ep;
+		cur_socket_->state_ = cur_socket_->STATE_CONNECTED;
 
 		std::shared_ptr<std::unique_ptr<socks5_tcp_socket>> ret = std::make_shared<std::unique_ptr<socks5_tcp_socket>>();
-		ret->swap(cur_socket);
+		ret->swap(cur_socket_);
 		async_open([this, ret, callback](error_code err)
 		{
 			if (!is_open())
@@ -1133,15 +1133,15 @@ void socks5_listener::async_accept(accept_callback &&complete_handler)
 void socks5_listener::close(error_code &err)
 {
 	err = 0;
-	if (cur_socket)
-		cur_socket->close(err);
+	if (cur_socket_)
+		cur_socket_->close(err);
 }
 
 void socks5_listener::async_close(null_callback &&complete_handler)
 {
-	if (cur_socket)
+	if (cur_socket_)
 	{
-		cur_socket->async_close(std::move(complete_handler));
+		cur_socket_->async_close(std::move(complete_handler));
 		return;
 	}
 	complete_handler(0);

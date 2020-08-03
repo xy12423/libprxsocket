@@ -72,10 +72,10 @@ namespace prxsocket
 
 		class ss_udp_socket final : public prx_udp_socket
 		{
-			static constexpr size_t udp_buf_size = 0x10000;
+			static constexpr size_t UDP_BUF_SIZE = 0x10000;
 		public:
 			ss_udp_socket(const endpoint &_udp_server_ep, std::unique_ptr<prx_udp_socket> &&base_udp_socket)
-				:udp_socket_(std::move(base_udp_socket)), udp_server_ep_(_udp_server_ep), udp_recv_buf_(std::make_unique<char[]>(udp_buf_size))
+				:udp_socket_(std::move(base_udp_socket)), udp_server_ep_(_udp_server_ep), udp_recv_buf_(std::make_unique<char[]>(UDP_BUF_SIZE))
 			{
 			}
 			virtual ~ss_udp_socket() override {}

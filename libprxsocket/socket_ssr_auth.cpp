@@ -546,12 +546,12 @@ size_t ssr_auth_aes128_sha1_tcp_socket::prepare_send(const const_buffer &buffer)
 	auto update_func = [&](CryptoPP::HMAC<CryptoPP::SHA1> &hasher) { hasher.Update((CryptoPP::byte *)buffer.data(), buffer.size()); };
 	if (!auth_sent_)
 	{
-		transferring = std::min(auth_pack_size, buffer.size());
+		transferring = std::min(AUTH_PACK_SIZE, buffer.size());
 		prepare_send_data_auth(update_func, transferring);
 	}
 	else
 	{
-		transferring = std::min(pack_size, buffer.size());
+		transferring = std::min(PACK_SIZE, buffer.size());
 		prepare_send_data(update_func, transferring);
 	}
 	return transferring;
@@ -568,9 +568,9 @@ const_buffer_sequence ssr_auth_aes128_sha1_tcp_socket::prepare_send(const_buffer
 
 	size_t prepare_pack_size;
 	if (!auth_sent_)
-		prepare_pack_size = auth_pack_size;
+		prepare_pack_size = AUTH_PACK_SIZE;
 	else
-		prepare_pack_size = pack_size;
+		prepare_pack_size = PACK_SIZE;
 
 	if (buffer.size_total() <= prepare_pack_size)
 	{
@@ -624,7 +624,7 @@ void ssr_auth_aes128_sha1_tcp_socket::recv_data(error_code &err)
 		return;
 	}
 	size_t total_size = ((uint8_t)recv_buf_[0] | ((uint8_t)recv_buf_[1] << 8));
-	if (total_size < 4 || total_size > recv_buf_size)
+	if (total_size < 4 || total_size > RECV_BUF_SIZE)
 	{
 		err = ERR_BAD_ARG_REMOTE;
 		close();
@@ -687,7 +687,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_recv_data(null_callback &&complete_h
 
 void ssr_auth_aes128_sha1_tcp_socket::async_recv_data_body(size_t total_size, const std::shared_ptr<null_callback>& callback)
 {
-	if (total_size < 4 || total_size > recv_buf_size)
+	if (total_size < 4 || total_size > RECV_BUF_SIZE)
 	{
 		async_close([callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
 		return;

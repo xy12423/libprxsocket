@@ -25,7 +25,7 @@ using namespace prxsocket::http_helper;
 
 void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 {
-	socket->connect(server_ep, err);
+	socket_->connect(server_ep_, err);
 	if (err)
 		return;
 
@@ -41,7 +41,7 @@ void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 		http_req.append(host);
 		http_req.append("\r\n\r\n");
 
-		socket->write(const_buffer(http_req), err);
+		socket_->write(const_buffer(http_req), err);
 		if (err)
 		{
 			close();
@@ -51,18 +51,18 @@ void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 		http_header header;
 		size_t size_read, size_parsed;
 		bool finished;
-		recv_buf_ptr = recv_buf_ptr_end = 0;
-		while (finished = header.parse(recv_buf.get() + recv_buf_ptr, recv_buf_ptr_end - recv_buf_ptr, size_parsed), recv_buf_ptr += size_parsed, !finished)
+		recv_buf_ptr_ = recv_buf_ptr_end_ = 0;
+		while (finished = header.parse(recv_buf_.get() + recv_buf_ptr_, recv_buf_ptr_end_ - recv_buf_ptr_, size_parsed), recv_buf_ptr_ += size_parsed, !finished)
 		{
-			if (recv_buf_ptr_end >= recv_buf_size)
+			if (recv_buf_ptr_end_ >= RECV_BUF_SIZE)
 				throw(std::runtime_error("HTTP response too long"));
-			socket->recv(mutable_buffer(recv_buf.get() + recv_buf_ptr_end, recv_buf_size - recv_buf_ptr_end), size_read, err);
+			socket_->recv(mutable_buffer(recv_buf_.get() + recv_buf_ptr_end_, RECV_BUF_SIZE - recv_buf_ptr_end_), size_read, err);
 			if (err)
 			{
 				close();
 				return;
 			}
-			recv_buf_ptr_end += size_read;
+			recv_buf_ptr_end_ += size_read;
 		}
 
 		if (header.at(http_header::NAME_STATUS_CODE) != "200")
@@ -75,15 +75,15 @@ void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 		return;
 	}
 
-	remote_ep = ep;
-	state = STATE_OK;
+	remote_ep_ = ep;
+	state_ = STATE_OK;
 }
 
 void http_tcp_socket::async_connect(const endpoint &ep, null_callback &&complete_handler)
 {
-	remote_ep = ep;
+	remote_ep_ = ep;
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	socket->async_connect(server_ep,
+	socket_->async_connect(server_ep_,
 		[this, callback](error_code err)
 	{
 		if (err)
@@ -100,9 +100,9 @@ void http_tcp_socket::send_http_req(const std::shared_ptr<null_callback> &callba
 	std::shared_ptr<std::string> http_req = std::make_shared<std::string>();
 	try
 	{
-		std::string host = remote_ep.addr().to_string();
+		std::string host = remote_ep_.addr().to_string();
 		host.push_back(':');
-		host.append(std::to_string(remote_ep.port()));
+		host.append(std::to_string(remote_ep_.port()));
 
 		http_req->append("CONNECT ");
 		http_req->append(host);
@@ -116,7 +116,7 @@ void http_tcp_socket::send_http_req(const std::shared_ptr<null_callback> &callba
 		return;
 	}
 
-	socket->async_write(const_buffer(*http_req),
+	socket_->async_write(const_buffer(*http_req),
 		[this, http_req, callback](error_code err)
 	{
 		if (err)
@@ -124,14 +124,14 @@ void http_tcp_socket::send_http_req(const std::shared_ptr<null_callback> &callba
 			async_close([callback, err](error_code) { (*callback)(err); });
 			return;
 		}
-		recv_buf_ptr = recv_buf_ptr_end = 0;
+		recv_buf_ptr_ = recv_buf_ptr_end_ = 0;
 		recv_http_resp(callback, std::make_shared<http_header>());
 	});
 }
 
 void http_tcp_socket::recv_http_resp(const std::shared_ptr<null_callback> &callback, const std::shared_ptr<http_header> &header)
 {
-	socket->async_recv(mutable_buffer(recv_buf.get() + recv_buf_ptr_end, recv_buf_size - recv_buf_ptr_end),
+	socket_->async_recv(mutable_buffer(recv_buf_.get() + recv_buf_ptr_end_, RECV_BUF_SIZE - recv_buf_ptr_end_),
 		[this, callback, header](error_code err, size_t transferred)
 	{
 		if (err)
@@ -142,13 +142,13 @@ void http_tcp_socket::recv_http_resp(const std::shared_ptr<null_callback> &callb
 
 		try
 		{
-			recv_buf_ptr_end += transferred;
+			recv_buf_ptr_end_ += transferred;
 			size_t size_parsed;
-			bool finished = header->parse(recv_buf.get() + recv_buf_ptr, recv_buf_ptr_end - recv_buf_ptr, size_parsed);
-			recv_buf_ptr += size_parsed;
+			bool finished = header->parse(recv_buf_.get() + recv_buf_ptr_, recv_buf_ptr_end_ - recv_buf_ptr_, size_parsed);
+			recv_buf_ptr_ += size_parsed;
 			if (!finished)
 			{
-				if (recv_buf_ptr_end >= recv_buf_size)
+				if (recv_buf_ptr_end_ >= RECV_BUF_SIZE)
 					throw(std::runtime_error("HTTP response too long"));
 				recv_http_resp(callback, header);
 				return;
@@ -156,7 +156,7 @@ void http_tcp_socket::recv_http_resp(const std::shared_ptr<null_callback> &callb
 
 			if (header->at(http_header::NAME_STATUS_CODE) != "200")
 				throw(std::runtime_error("HTTP request failed"));
-			state = STATE_OK;
+			state_ = STATE_OK;
 			(*callback)(0);
 		}
 		catch (const std::exception &)
@@ -168,7 +168,7 @@ void http_tcp_socket::recv_http_resp(const std::shared_ptr<null_callback> &callb
 
 void http_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
 {
-	socket->send(buffer, transferred, err);
+	socket_->send(buffer, transferred, err);
 	if (err)
 		close();
 }
@@ -176,7 +176,7 @@ void http_tcp_socket::send(const const_buffer &buffer, size_t &transferred, erro
 void http_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
-	socket->async_send(buffer,
+	socket_->async_send(buffer,
 		[this, callback](error_code err, size_t transferred)
 	{
 		if (err)
@@ -189,30 +189,30 @@ void http_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &
 void http_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
-	if (recv_buf_ptr < recv_buf_ptr_end)
+	if (recv_buf_ptr_ < recv_buf_ptr_end_)
 	{
-		transferred = std::min(buffer.size(), recv_buf_ptr_end - recv_buf_ptr);
-		memcpy(buffer.data(), recv_buf.get() + recv_buf_ptr, transferred);
-		recv_buf_ptr += transferred;
+		transferred = std::min(buffer.size(), recv_buf_ptr_end_ - recv_buf_ptr_);
+		memcpy(buffer.data(), recv_buf_.get() + recv_buf_ptr_, transferred);
+		recv_buf_ptr_ += transferred;
 		return;
 	}
-	socket->recv(buffer, transferred, err);
+	socket_->recv(buffer, transferred, err);
 	if (err)
 		close();
 }
 
 void http_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
 {
-	if (recv_buf_ptr < recv_buf_ptr_end)
+	if (recv_buf_ptr_ < recv_buf_ptr_end_)
 	{
-		size_t transferred = std::min(buffer.size(), recv_buf_ptr_end - recv_buf_ptr);
-		memcpy(buffer.data(), recv_buf.get() + recv_buf_ptr, transferred);
-		recv_buf_ptr += transferred;
+		size_t transferred = std::min(buffer.size(), recv_buf_ptr_end_ - recv_buf_ptr_);
+		memcpy(buffer.data(), recv_buf_.get() + recv_buf_ptr_, transferred);
+		recv_buf_ptr_ += transferred;
 		complete_handler(0, transferred);
 		return;
 	}
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
-	socket->async_recv(buffer,
+	socket_->async_recv(buffer,
 		[this, callback](error_code err, size_t transferred)
 	{
 		if (err)
@@ -227,14 +227,14 @@ void http_tcp_socket::read(mutable_buffer_sequence &&buffer, error_code &err)
 	err = 0;
 	if (buffer.empty())
 		return;
-	if (recv_buf_ptr < recv_buf_ptr_end)
+	if (recv_buf_ptr_ < recv_buf_ptr_end_)
 	{
-		size_t transferred = buffer.scatter(recv_buf.get() + recv_buf_ptr, recv_buf_ptr_end - recv_buf_ptr);
-		recv_buf_ptr += transferred;
+		size_t transferred = buffer.scatter(recv_buf_.get() + recv_buf_ptr_, recv_buf_ptr_end_ - recv_buf_ptr_);
+		recv_buf_ptr_ += transferred;
 		if (buffer.empty())
 			return;
 	}
-	socket->read(std::move(buffer), err);
+	socket_->read(std::move(buffer), err);
 	if (err)
 		close();
 }
@@ -246,10 +246,10 @@ void http_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback
 		complete_handler(0);
 		return;
 	}
-	if (recv_buf_ptr < recv_buf_ptr_end)
+	if (recv_buf_ptr_ < recv_buf_ptr_end_)
 	{
-		size_t transferred = buffer.scatter(recv_buf.get() + recv_buf_ptr, recv_buf_ptr_end - recv_buf_ptr);
-		recv_buf_ptr += transferred;
+		size_t transferred = buffer.scatter(recv_buf_.get() + recv_buf_ptr_, recv_buf_ptr_end_ - recv_buf_ptr_);
+		recv_buf_ptr_ += transferred;
 		if (buffer.empty())
 		{
 			complete_handler(0);
@@ -257,7 +257,7 @@ void http_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback
 		}
 	}
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	socket->async_read(std::move(buffer),
+	socket_->async_read(std::move(buffer),
 		[this, callback](error_code err)
 	{
 		if (err)
@@ -269,7 +269,7 @@ void http_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback
 
 void http_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
 {
-	socket->write(std::move(buffer), err);
+	socket_->write(std::move(buffer), err);
 	if (err)
 		close();
 }
@@ -277,7 +277,7 @@ void http_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
 void http_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler)
 {
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	socket->async_write(std::move(buffer),
+	socket_->async_write(std::move(buffer),
 		[this, callback](error_code err)
 	{
 		if (err)

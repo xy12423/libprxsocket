@@ -27,25 +27,25 @@ static endpoint empty_endpoint;
 
 error_code socks5_base::auth()
 {
-	auth_method = 0xFF;
+	auth_method_ = 0xFF;
 	try
 	{
 		std::string auth_data;
 		char method_chosen[2];
 		error_code err;
-		auth_data.reserve(2 + available_methods.size());
-		auth_data.push_back(socks_version);
-		auth_data.push_back((uint8_t)available_methods.size());
-		auth_data.append(available_methods);
+		auth_data.reserve(2 + available_methods_.size());
+		auth_data.push_back(SOCKS_VERSION);
+		auth_data.push_back((uint8_t)available_methods_.size());
+		auth_data.append(available_methods_);
 		write(const_buffer(auth_data), err);
 		if (err)
 			throw(socks5_error(err));
 		read(mutable_buffer(method_chosen, sizeof(method_chosen)), err);
 		if (err)
 			throw(socks5_error(err));
-		if (method_chosen[0] != socks_version || method_chosen[1] == '\xFF')
+		if (method_chosen[0] != SOCKS_VERSION || method_chosen[1] == '\xFF')
 			throw(socks5_error(ERR_BAD_ARG_REMOTE));
-		auth_method = (unsigned char)method_chosen[1];
+		auth_method_ = (unsigned char)method_chosen[1];
 	}
 	catch (const socks5_error &ex)
 	{
@@ -62,15 +62,15 @@ error_code socks5_base::auth()
 
 void socks5_base::async_auth(null_callback &&complete_handler)
 {
-	auth_method = 0xFF;
+	auth_method_ = 0xFF;
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 	try
 	{
 		std::shared_ptr<std::string> auth_data = std::make_shared<std::string>();
-		auth_data->reserve(2 + available_methods.size());
-		auth_data->push_back(socks_version);
-		auth_data->push_back((uint8_t)available_methods.size());
-		auth_data->append(available_methods);
+		auth_data->reserve(2 + available_methods_.size());
+		auth_data->push_back(SOCKS_VERSION);
+		auth_data->push_back((uint8_t)available_methods_.size());
+		auth_data->append(available_methods_);
 		async_write(const_buffer(*auth_data),
 			[this, auth_data, callback](error_code err)
 		{
@@ -109,9 +109,9 @@ void socks5_base::async_auth_recv(const std::shared_ptr<null_callback> &callback
 		{
 			if (err)
 				throw(socks5_error(err));
-			if ((*method_chosen)[0] != socks_version || (*method_chosen)[1] == '\xFF')
+			if ((*method_chosen)[0] != SOCKS_VERSION || (*method_chosen)[1] == '\xFF')
 				throw(socks5_error(ERR_BAD_ARG_REMOTE));
-			auth_method = (unsigned char)(*method_chosen)[1];
+			auth_method_ = (unsigned char)(*method_chosen)[1];
 			(*callback)(0);
 		}
 		catch (const socks5_error &ex)
@@ -129,7 +129,7 @@ void socks5_base::async_auth_recv(const std::shared_ptr<null_callback> &callback
 
 error_code socks5_base::select(sockssel_callback &&selector)
 {
-	auth_method = 0xFF;
+	auth_method_ = 0xFF;
 	try
 	{
 		char method_avail[257];
@@ -137,16 +137,16 @@ error_code socks5_base::select(sockssel_callback &&selector)
 		read(mutable_buffer(method_avail, 2), err);
 		if (err)
 			throw(socks5_error(err));
-		if (method_avail[0] != socks_version)
+		if (method_avail[0] != SOCKS_VERSION)
 			throw(socks5_error(ERR_BAD_ARG_REMOTE));
 		read(mutable_buffer(method_avail + 2, (uint8_t)method_avail[1]), err);
 		if (err)
 			throw(socks5_error(err));
-		auth_method = selector((uint8_t)method_avail[1], (uint8_t*)(method_avail + 2));
+		auth_method_ = selector((uint8_t)method_avail[1], (uint8_t*)(method_avail + 2));
 
 		char method_selected[2];
-		method_selected[0] = socks_version;
-		method_selected[1] = auth_method;
+		method_selected[0] = SOCKS_VERSION;
+		method_selected[1] = auth_method_;
 		write(const_buffer(method_selected, sizeof(method_selected)), err);
 		if (err)
 			throw(socks5_error(err));
@@ -166,7 +166,7 @@ error_code socks5_base::select(sockssel_callback &&selector)
 
 void socks5_base::async_select(sockssel_callback &&_selector, null_callback &&complete_handler)
 {
-	auth_method = 0xFF;
+	auth_method_ = 0xFF;
 	std::shared_ptr<sockssel_callback> selector = std::make_shared<sockssel_callback>(std::move(_selector));
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 
@@ -178,7 +178,7 @@ void socks5_base::async_select(sockssel_callback &&_selector, null_callback &&co
 		{
 			if (err)
 				throw(socks5_error(err));
-			if ((*method_avail)[0] != socks_version)
+			if ((*method_avail)[0] != SOCKS_VERSION)
 				throw(socks5_error(ERR_BAD_ARG_REMOTE));
 			async_select_recv_body(selector, method_avail, callback);
 		}
@@ -204,7 +204,7 @@ void socks5_base::async_select_recv_body(const std::shared_ptr<sockssel_callback
 		{
 			if (err)
 				throw(socks5_error(err));
-			auth_method = (*selector)((uint8_t)(*method_avail)[1], (uint8_t*)(method_avail->data() + 2));
+			auth_method_ = (*selector)((uint8_t)(*method_avail)[1], (uint8_t*)(method_avail->data() + 2));
 			async_select_send(callback);
 		}
 		catch (const socks5_error &ex)
@@ -223,8 +223,8 @@ void socks5_base::async_select_recv_body(const std::shared_ptr<sockssel_callback
 void socks5_base::async_select_send(const std::shared_ptr<null_callback> &callback)
 {
 	std::shared_ptr<std::array<char, 2>> method_selected = std::make_shared<std::array<char, 2>>();
-	(*method_selected)[0] = socks_version;
-	(*method_selected)[1] = auth_method;
+	(*method_selected)[0] = SOCKS_VERSION;
+	(*method_selected)[1] = auth_method_;
 	async_write(const_buffer(method_selected->data(), method_selected->size()),
 		[method_selected, callback](error_code err)
 	{
@@ -240,7 +240,7 @@ error_code socks5_base::open_and_auth(const endpoint &server_ep)
 	error_code err;
 
 	open(err);
-	if (!socket->is_open())
+	if (!socket_->is_open())
 		return err ? err : ERR_OPERATION_FAILURE;
 
 	connect(server_ep, err);
@@ -258,7 +258,7 @@ void socks5_base::async_open_and_auth(const endpoint &server_ep, null_callback &
 {
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 	async_open([this, server_ep, callback](error_code err) {
-		if (!socket->is_open())
+		if (!socket_->is_open())
 		{
 			(*callback)(err ? err : ERR_OPERATION_FAILURE);
 			return;
@@ -283,7 +283,7 @@ error_code socks5_base::send_s5(uint8_t type, const endpoint &ep)
 	try
 	{
 		std::string req;
-		req.push_back(socks_version);  //VER
+		req.push_back(SOCKS_VERSION);  //VER
 		req.push_back(type);           //CMD / REP
 		req.push_back(0);              //RSV
 		ep.to_socks5(req);             //ATYP && DST.ADDR
@@ -311,7 +311,7 @@ void socks5_base::async_send_s5(uint8_t type, const endpoint &ep, null_callback 
 	try
 	{
 		std::shared_ptr<std::string> req_data = std::make_shared<std::string>();
-		req_data->push_back(socks_version);  //VER
+		req_data->push_back(SOCKS_VERSION);  //VER
 		req_data->push_back(type);           //CMD / REP
 		req_data->push_back(0);              //RSV
 		ep.to_socks5(*req_data);             //ATYP && DST
@@ -353,7 +353,7 @@ error_code socks5_base::recv_s5(uint8_t &resp, endpoint &result)
 		read(mutable_buffer(resp_head, 5), err);
 		if (err)
 			throw(socks5_error(err));
-		if (resp_head[0] != socks_version || resp_head[2] != 0) //VER && RSV
+		if (resp_head[0] != SOCKS_VERSION || resp_head[2] != 0) //VER && RSV
 			throw(socks5_error(ERR_OPERATION_FAILURE));
 		resp = resp_head[1];    //CMD / REP
 		switch (resp_head[3])   //ATYP
@@ -409,7 +409,7 @@ void socks5_base::async_recv_s5(socksreq_callback &&complete_handler)
 			if (err)
 				throw(socks5_error(err));
 			std::array<char, 263> &resp_head = *resp_data;
-			if (resp_head[0] != socks_version || resp_head[2] != 0) //VER && RSV
+			if (resp_head[0] != SOCKS_VERSION || resp_head[2] != 0) //VER && RSV
 				throw(socks5_error(ERR_BAD_ARG_REMOTE));
 			async_recv_s5_body(resp_data, callback);
 		}

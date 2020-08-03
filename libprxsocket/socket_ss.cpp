@@ -166,7 +166,7 @@ void ss_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_t
 	transferred = 0;
 
 	size_t udp_recv_size;
-	udp_socket_->recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), udp_buf_size), udp_recv_size, err);
+	udp_socket_->recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), UDP_BUF_SIZE), udp_recv_size, err);
 	if (err)
 	{
 		if (!udp_socket_->is_open())
@@ -203,7 +203,7 @@ void ss_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buffer, 
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 
-	udp_socket_->async_recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), udp_buf_size),
+	udp_socket_->async_recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), UDP_BUF_SIZE),
 		[this, &ep, buffer, callback](error_code err, size_t udp_recv_size)
 	{
 		if (err)
@@ -301,7 +301,7 @@ void ss_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buffers, s
 	transferred = 0;
 
 	size_t udp_recv_size;
-	udp_socket_->recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), udp_buf_size), udp_recv_size, err);
+	udp_socket_->recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), UDP_BUF_SIZE), udp_recv_size, err);
 	if (err)
 	{
 		if (!udp_socket_->is_open())
@@ -339,7 +339,7 @@ void ss_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&buff
 	std::shared_ptr<mutable_buffer_sequence> buffer = std::make_shared<mutable_buffer_sequence>(std::move(buffers));
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 
-	udp_socket_->async_recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), udp_buf_size),
+	udp_socket_->async_recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), UDP_BUF_SIZE),
 		[this, &ep, buffer, callback](error_code err, size_t udp_recv_size)
 	{
 		if (err)

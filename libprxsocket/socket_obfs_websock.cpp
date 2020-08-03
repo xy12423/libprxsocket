@@ -139,7 +139,7 @@ void obfs_websock_tcp_socket::encode(std::string &dst, const char *src, size_t s
 {
 	thread_local std::vector<char> buf;
 	buf.clear();
-	StringSource ss((const byte *)src, size, true, new StreamTransformationFilter(e, new StringSinkTemplate<std::vector<char>>(buf)));
+	StringSource ss((const byte *)src, size, true, new StreamTransformationFilter(e_, new StringSinkTemplate<std::vector<char>>(buf)));
 
 	dst.clear();
 	if (buf.size() <= 125)
@@ -196,7 +196,7 @@ void obfs_websock_tcp_socket::decode(std::string &dst, const char *src, size_t s
 	}
 
 	dst.clear();
-	StringSource ss((const byte *)buf.data(), buf.size(), true, new StreamTransformationFilter(d, new StringSink(dst)));
+	StringSource ss((const byte *)buf.data(), buf.size(), true, new StreamTransformationFilter(d_, new StringSink(dst)));
 }
 
 void obfs_websock_tcp_socket::connect(const endpoint &ep, error_code &err)
@@ -208,11 +208,11 @@ void obfs_websock_tcp_socket::connect(const endpoint &ep, error_code &err)
 	try
 	{
 		std::string iv_b64, http_req;
-		prng.GenerateBlock(iv, sym_block_size);
-		e.SetKeyWithIV(key, sym_block_size, iv);
-		d.SetKeyWithIV(key, sym_block_size, iv);
-		iv_b64.reserve((sym_block_size / 3 + 1) * 4);
-		base64(iv_b64, iv.data(), sym_block_size);
+		prng.GenerateBlock(iv_, SYM_BLOCK_SIZE);
+		e_.SetKeyWithIV(key_, SYM_BLOCK_SIZE, iv_);
+		d_.SetKeyWithIV(key_, SYM_BLOCK_SIZE, iv_);
+		iv_b64.reserve((SYM_BLOCK_SIZE / 3 + 1) * 4);
+		base64(iv_b64, iv_.data(), SYM_BLOCK_SIZE);
 		http_req.append("GET /ep HTTP/1.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ");
 		http_req.append(iv_b64);
 		http_req.append("\r\nSec-WebSocket-Protocol: str\r\nSec-WebSocket-Version: 13\r\n\r\n");
@@ -229,9 +229,9 @@ void obfs_websock_tcp_socket::connect(const endpoint &ep, error_code &err)
 		bool finished;
 		while (finished = header.parse(recv_buf_.get() + recv_buf_ptr, recv_buf_ptr_end - recv_buf_ptr, size_parsed), recv_buf_ptr += size_parsed, !finished)
 		{
-			if (recv_buf_ptr_end >= recv_buf_size)
+			if (recv_buf_ptr_end >= RECV_BUF_SIZE)
 				throw(std::runtime_error("HTTP header too long"));
-			socket_->recv(mutable_buffer(recv_buf_.get() + recv_buf_ptr_end, recv_buf_size - recv_buf_ptr_end), size_read, err);
+			socket_->recv(mutable_buffer(recv_buf_.get() + recv_buf_ptr_end, RECV_BUF_SIZE - recv_buf_ptr_end), size_read, err);
 			if (err)
 			{
 				close();
@@ -277,11 +277,11 @@ void obfs_websock_tcp_socket::send_websocket_req(const std::shared_ptr<null_call
 	std::shared_ptr<std::string> http_req = std::make_shared<std::string>();
 	try
 	{
-		prng.GenerateBlock(iv, sym_block_size);
-		e.SetKeyWithIV(key, sym_block_size, iv);
-		d.SetKeyWithIV(key, sym_block_size, iv);
+		prng.GenerateBlock(iv_, SYM_BLOCK_SIZE);
+		e_.SetKeyWithIV(key_, SYM_BLOCK_SIZE, iv_);
+		d_.SetKeyWithIV(key_, SYM_BLOCK_SIZE, iv_);
 		http_req->append("GET /ep HTTP/1.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ");
-		base64(*http_req, iv.data(), sym_block_size);
+		base64(*http_req, iv_.data(), SYM_BLOCK_SIZE);
 		http_req->append("\r\nSec-WebSocket-Protocol: str\r\nSec-WebSocket-Version: 13\r\n\r\n");
 	}
 	catch (const std::exception &)
@@ -304,7 +304,7 @@ void obfs_websock_tcp_socket::send_websocket_req(const std::shared_ptr<null_call
 
 void obfs_websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_callback> &callback, const std::shared_ptr<http_header> &header, size_t old_ptr, size_t old_ptr_end)
 {
-	socket_->async_recv(mutable_buffer(recv_buf_.get() + old_ptr_end, recv_buf_size - old_ptr_end),
+	socket_->async_recv(mutable_buffer(recv_buf_.get() + old_ptr_end, RECV_BUF_SIZE - old_ptr_end),
 		[this, callback, header, old_ptr, old_ptr_end](error_code err, size_t transferred)
 	{
 		if (err)
@@ -321,7 +321,7 @@ void obfs_websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_cal
 			size_t new_ptr = old_ptr + size_parsed;
 			if (!finished)
 			{
-				if (new_ptr_end >= recv_buf_size)
+				if (new_ptr_end >= RECV_BUF_SIZE)
 					throw(std::runtime_error("HTTP response too long"));
 				recv_websocket_resp(callback, header, new_ptr, new_ptr_end);
 				return;
@@ -330,7 +330,7 @@ void obfs_websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_cal
 			if (header->at(http_header::NAME_STATUS_CODE) != "101" || header->at("Connection") != "Upgrade" || header->at("Upgrade") != "websocket")
 				throw(std::runtime_error("Bad HTTP header"));
 			std::string sec_accept;
-			gen_websocket_accept(sec_accept, iv.data(), sym_block_size);
+			gen_websocket_accept(sec_accept, iv_.data(), SYM_BLOCK_SIZE);
 			if (header->at("Sec-WebSocket-Accept") != sec_accept)
 				throw(std::runtime_error("Invalid Sec-WebSocket-Accept"));
 			state = STATE_OK;
@@ -501,7 +501,7 @@ void obfs_websock_tcp_socket::write(const_buffer_sequence &&buffer, error_code &
 	if (buffer.empty())
 		return;
 
-	thread_local std::unique_ptr<char[]> buf = std::make_unique<char[]>(send_size_max);
+	thread_local std::unique_ptr<char[]> buf = std::make_unique<char[]>(SEND_SIZE_MAX);
 	size_t transferring = transfer_size(buffer.size_total());
 
 	while (!buffer.empty())
@@ -538,7 +538,7 @@ void obfs_websock_tcp_socket::async_write(const_buffer_sequence &&buffer, null_c
 
 void obfs_websock_tcp_socket::async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback)
 {
-	thread_local std::unique_ptr<char[]> buf = std::make_unique<char[]>(send_size_max);
+	thread_local std::unique_ptr<char[]> buf = std::make_unique<char[]>(SEND_SIZE_MAX);
 	size_t transferring = transfer_size(buffer->size_total());
 
 	size_t copied = buffer->gather(buf.get(), transferring);
@@ -629,7 +629,7 @@ error_code obfs_websock_tcp_socket::recv_data()
 		size = ((uint8_t)recv_buf_[1] & 0x7Fu) + 4;
 	}
 
-	if (size > recv_buf_size)
+	if (size > RECV_BUF_SIZE)
 	{
 		close();
 		return ERR_OPERATION_FAILURE;
@@ -727,7 +727,7 @@ void obfs_websock_tcp_socket::async_recv_data_size_64(const std::shared_ptr<null
 
 void obfs_websock_tcp_socket::async_recv_data_body(const std::shared_ptr<null_callback> &callback, size_t size)
 {
-	if (size > recv_buf_size)
+	if (size > RECV_BUF_SIZE)
 	{
 		async_close([callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
 		return;
@@ -778,7 +778,7 @@ void obfs_websock_listener::accept(std::unique_ptr<prx_tcp_socket> &soc, error_c
 	ec = ERR_OPERATION_FAILURE;
 
 	std::unique_ptr<prx_tcp_socket> socket;
-	acceptor->accept(socket, ec);
+	acceptor_->accept(socket, ec);
 	if (ec)
 		return;
 
@@ -787,11 +787,11 @@ void obfs_websock_listener::accept(std::unique_ptr<prx_tcp_socket> &soc, error_c
 		http_header header;
 		size_t recv_buf_ptr = 0, recv_buf_ptr_end = 0, size_read, size_parsed;
 		bool finished;
-		while (finished = header.parse(recv_buf.get() + recv_buf_ptr, recv_buf_ptr_end - recv_buf_ptr, size_parsed), recv_buf_ptr += size_parsed, !finished)
+		while (finished = header.parse(recv_buf_.get() + recv_buf_ptr, recv_buf_ptr_end - recv_buf_ptr, size_parsed), recv_buf_ptr += size_parsed, !finished)
 		{
-			if (recv_buf_ptr_end >= recv_buf_size)
+			if (recv_buf_ptr_end >= RECV_BUF_SIZE)
 				throw(std::runtime_error("HTTP header too long"));
-			socket->recv(mutable_buffer(recv_buf.get() + recv_buf_ptr_end, recv_buf_size - recv_buf_ptr_end), size_read, ec);
+			socket->recv(mutable_buffer(recv_buf_.get() + recv_buf_ptr_end, RECV_BUF_SIZE - recv_buf_ptr_end), size_read, ec);
 			if (ec)
 				throw(std::runtime_error("obfs_websock_listener::accept(): recv() error"));
 			recv_buf_ptr_end += size_read;
@@ -802,20 +802,20 @@ void obfs_websock_listener::accept(std::unique_ptr<prx_tcp_socket> &soc, error_c
 		if (header.at(http_header::NAME_REQUEST_TARGET) != "/eq" || header.at("Sec-WebSocket-Protocol") != "str")
 			throw(std::runtime_error("Bad HTTP header"));
 
-		iv.clear();
-		sec_accept.clear();
+		iv_.clear();
+		sec_accept_.clear();
 		std::string &iv_b64 = header.at("Sec-WebSocket-Key");
-		base64_rev(iv, iv_b64.data(), iv_b64.size());
-		gen_websocket_accept(sec_accept, iv_b64);
+		base64_rev(iv_, iv_b64.data(), iv_b64.size());
+		gen_websocket_accept(sec_accept_, iv_b64);
 
 		static constexpr char resp_1[] = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ";
 		static constexpr size_t resp_1_size = sizeof(resp_1) - 1;
 		static constexpr char resp_2[] = "\r\n\r\n";
 		static constexpr size_t resp_2_size = sizeof(resp_2) - 1;
 		std::string http_resp;
-		http_resp.reserve(resp_1_size + sec_accept.size() + resp_2_size);
+		http_resp.reserve(resp_1_size + sec_accept_.size() + resp_2_size);
 		http_resp.append(resp_1, resp_1_size);
-		http_resp.append(sec_accept);
+		http_resp.append(sec_accept_);
 		http_resp.append(resp_2, resp_2_size);
 
 		socket->write(const_buffer(http_resp), ec);
@@ -831,33 +831,33 @@ void obfs_websock_listener::accept(std::unique_ptr<prx_tcp_socket> &soc, error_c
 		return;
 	}
 
-	soc = std::make_unique<obfs_websock_tcp_socket>(std::move(socket), key, iv);
+	soc = std::make_unique<obfs_websock_tcp_socket>(std::move(socket), key_, iv_);
 }
 
 void obfs_websock_listener::async_accept(accept_callback &&complete_handler)
 {
-	if (socket_accept)
+	if (socket_accept_)
 	{
 		complete_handler(WARN_ALREADY_IN_STATE, nullptr);
 		return;
 	}
 	//TODO: support queue
 	std::shared_ptr<accept_callback> callback = std::make_shared<accept_callback>(std::move(complete_handler));
-	acceptor->async_accept([this, callback](error_code err, std::unique_ptr<prx_tcp_socket> &&socket)
+	acceptor_->async_accept([this, callback](error_code err, std::unique_ptr<prx_tcp_socket> &&socket)
 	{
 		if (err)
 		{
 			(*callback)(err, nullptr);
 			return;
 		}
-		socket_accept = std::move(socket);
+		socket_accept_ = std::move(socket);
 		recv_websocket_req(callback, std::make_shared<http_header>());
 	});
 }
 
 void obfs_websock_listener::recv_websocket_req(const std::shared_ptr<accept_callback> &callback, const std::shared_ptr<http_header> &header, size_t old_ptr, size_t old_ptr_end)
 {
-	socket_accept->async_recv(mutable_buffer(recv_buf.get() + old_ptr_end, recv_buf_size - old_ptr_end),
+	socket_accept_->async_recv(mutable_buffer(recv_buf_.get() + old_ptr_end, RECV_BUF_SIZE - old_ptr_end),
 		[this, callback, header, old_ptr, old_ptr_end](error_code err, size_t transferred)
 	{
 		if (err)
@@ -865,8 +865,8 @@ void obfs_websock_listener::recv_websocket_req(const std::shared_ptr<accept_call
 			error_code ec;
 			//TODO: check if close continues to use resources
 			//TODO: check if async invalidates callback
-			socket_accept->close(ec);
-			socket_accept.reset();
+			socket_accept_->close(ec);
+			socket_accept_.reset();
 			(*callback)(err, nullptr);
 			return;
 		}
@@ -875,11 +875,11 @@ void obfs_websock_listener::recv_websocket_req(const std::shared_ptr<accept_call
 		{
 			size_t new_ptr_end = old_ptr_end + transferred;
 			size_t size_parsed;
-			bool finished = header->parse(recv_buf.get() + old_ptr, new_ptr_end - old_ptr, size_parsed);
+			bool finished = header->parse(recv_buf_.get() + old_ptr, new_ptr_end - old_ptr, size_parsed);
 			size_t new_ptr = old_ptr + size_parsed;
 			if (!finished)
 			{
-				if (new_ptr_end >= recv_buf_size)
+				if (new_ptr_end >= RECV_BUF_SIZE)
 					throw(std::runtime_error("HTTP header too long"));
 				recv_websocket_req(callback, header, new_ptr, new_ptr_end);
 				return;
@@ -890,17 +890,17 @@ void obfs_websock_listener::recv_websocket_req(const std::shared_ptr<accept_call
 			if (header->at(http_header::NAME_REQUEST_TARGET) != "/ep" || header->at("Sec-WebSocket-Protocol") != "str")
 				throw(std::runtime_error("Bad HTTP header"));
 
-			iv.clear();
-			sec_accept.clear();
+			iv_.clear();
+			sec_accept_.clear();
 			std::string &iv_b64 = header->at("Sec-WebSocket-Key");
-			base64_rev(iv, iv_b64.data(), iv_b64.size());
-			gen_websocket_accept(sec_accept, iv_b64);
+			base64_rev(iv_, iv_b64.data(), iv_b64.size());
+			gen_websocket_accept(sec_accept_, iv_b64);
 		}
 		catch (const std::exception &)
 		{
 			error_code ec;
-			socket_accept->close(ec);
-			socket_accept.reset();
+			socket_accept_->close(ec);
+			socket_accept_.reset();
 			(*callback)(ERR_OPERATION_FAILURE, nullptr);
 			return;
 		}
@@ -918,32 +918,32 @@ void obfs_websock_listener::send_websocket_resp(const std::shared_ptr<accept_cal
 		static constexpr size_t resp_1_size = sizeof(resp_1) - 1;
 		static constexpr char resp_2[] = "\r\n\r\n";
 		static constexpr size_t resp_2_size = sizeof(resp_2) - 1;
-		http_resp->reserve(resp_1_size + sec_accept.size() + resp_2_size);
+		http_resp->reserve(resp_1_size + sec_accept_.size() + resp_2_size);
 		http_resp->append(resp_1, resp_1_size);
-		http_resp->append(sec_accept);
+		http_resp->append(sec_accept_);
 		http_resp->append(resp_2, resp_2_size);
 	}
 	catch (const std::exception &)
 	{
 		error_code ec;
-		socket_accept->close(ec);
-		socket_accept.reset();
+		socket_accept_->close(ec);
+		socket_accept_.reset();
 		(*callback)(ERR_OPERATION_FAILURE, nullptr);
 		return;
 	}
 
-	socket_accept->async_write(const_buffer(*http_resp),
+	socket_accept_->async_write(const_buffer(*http_resp),
 		[this, http_resp, callback](error_code err)
 	{
 		if (err)
 		{
 			error_code ec;
-			socket_accept->close(ec);
-			socket_accept.reset();
+			socket_accept_->close(ec);
+			socket_accept_.reset();
 			(*callback)(err, nullptr);
 			return;
 		}
 
-		(*callback)(0, std::make_unique<obfs_websock_tcp_socket>(std::move(socket_accept), key, iv));
+		(*callback)(0, std::make_unique<obfs_websock_tcp_socket>(std::move(socket_accept_), key_, iv_));
 	});
 }

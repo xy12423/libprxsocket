@@ -83,7 +83,7 @@ static const std::vector<asio::const_buffer> &to_raw_buffers(const const_buffer_
 void raw_tcp_socket::set_keep_alive()
 {
 	asio::ip::tcp::socket::keep_alive option(true);
-	socket.set_option(option, ec);
+	socket_.set_option(option, ec);
 	if (ec)
 		return;
 
@@ -94,8 +94,8 @@ void raw_tcp_socket::set_keep_alive()
 #if defined _WIN32 || defined WIN32 || defined OS_WIN64 || defined _WIN64 || defined WIN64 || defined WINNT
 	// use windows-specific time
 	int32_t timeout = timeout_milli;
-	setsockopt(socket.native_handle(), SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
-	setsockopt(socket.native_handle(), SOL_SOCKET, SO_SNDTIMEO, (const char*)&timeout, sizeof(timeout));
+	setsockopt(socket_.native_handle(), SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
+	setsockopt(socket_.native_handle(), SOL_SOCKET, SO_SNDTIMEO, (const char*)&timeout, sizeof(timeout));
 #else
 	// assume everything else is posix
 	struct timeval tv;
@@ -111,7 +111,7 @@ void raw_tcp_socket::local_endpoint(endpoint &ep, error_code &err)
 	err = 0;
 	try
 	{
-		asio::ip::tcp::endpoint raw_ep = socket.local_endpoint();
+		asio::ip::tcp::endpoint raw_ep = socket_.local_endpoint();
 		raw_ep_to_ep(raw_ep, ep);
 	}
 	catch (const std::exception &) { err = ERR_OPERATION_FAILURE; }
@@ -122,7 +122,7 @@ void raw_tcp_socket::remote_endpoint(endpoint &ep, error_code &err)
 	err = 0;
 	try
 	{
-		asio::ip::tcp::endpoint raw_ep = socket.remote_endpoint();
+		asio::ip::tcp::endpoint raw_ep = socket_.remote_endpoint();
 		raw_ep_to_ep(raw_ep, ep);
 	}
 	catch (const std::exception &) { err = ERR_OPERATION_FAILURE; }
@@ -131,15 +131,15 @@ void raw_tcp_socket::remote_endpoint(endpoint &ep, error_code &err)
 void raw_tcp_socket::open(error_code &err)
 {
 	err = 0;
-	socket.open(asio::ip::tcp::v4(), ec);
+	socket_.open(asio::ip::tcp::v4(), ec);
 	if (ec)
 	{
 		err = (is_open() && !is_connected() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
 		return;
 	}
 	set_keep_alive();
-	binded = false;
-	connected = false;
+	binded_ = false;
+	connected_ = false;
 }
 
 void raw_tcp_socket::async_open(null_callback &&complete_handler)
@@ -163,16 +163,16 @@ void raw_tcp_socket::bind(const endpoint &ep, error_code &err)
 	{
 		case address::V4:
 		{
-			socket.close(ec);
-			socket.open(asio::ip::tcp::v4(), ec);
+			socket_.close(ec);
+			socket_.open(asio::ip::tcp::v4(), ec);
 			set_keep_alive();
 			native_addr = asio::ip::address_v4(addr.v4().to_ulong());
 			break;
 		}
 		case address::V6:
 		{
-			socket.close(ec);
-			socket.open(asio::ip::tcp::v6(), ec);
+			socket_.close(ec);
+			socket_.open(asio::ip::tcp::v6(), ec);
 			set_keep_alive();
 			std::array<uint8_t, address_v6::addr_size> addr_byte;
 			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
@@ -185,8 +185,8 @@ void raw_tcp_socket::bind(const endpoint &ep, error_code &err)
 			return;
 		}
 	}
-	socket.bind(asio::ip::tcp::endpoint(native_addr, ep.port()), ec);
-	binded = !ec;
+	socket_.bind(asio::ip::tcp::endpoint(native_addr, ep.port()), ec);
+	binded_ = !ec;
 	if (ec)
 		err = ERR_OPERATION_FAILURE;
 }
@@ -202,22 +202,22 @@ void raw_tcp_socket::check_protocol(const asio::ip::tcp::endpoint::protocol_type
 {
 	try
 	{
-		if (!socket.is_open())
+		if (!socket_.is_open())
 		{
-			socket.open(protocol, ec);
+			socket_.open(protocol, ec);
 			set_keep_alive();
 		}
-		else if (socket.local_endpoint().protocol() != protocol)
+		else if (socket_.local_endpoint().protocol() != protocol)
 		{
-			socket.close(ec);
-			socket.open(protocol, ec);
+			socket_.close(ec);
+			socket_.open(protocol, ec);
 			set_keep_alive();
 		}
 	}
 	catch (const std::exception &)
 	{
-		socket.close(ec);
-		socket.open(protocol, ec);
+		socket_.close(ec);
+		socket_.open(protocol, ec);
 		set_keep_alive();
 	}
 }
@@ -236,14 +236,14 @@ void raw_tcp_socket::connect(const endpoint &ep, error_code &err)
 	{
 		case address::V4:
 		{
-			if (!binded)
+			if (!binded_)
 				check_protocol(asio::ip::tcp::v4());
 			native_addr = asio::ip::address_v4(addr.v4().to_ulong());
 			break;
 		}
 		case address::V6:
 		{
-			if (!binded)
+			if (!binded_)
 				check_protocol(asio::ip::tcp::v6());
 			std::array<uint8_t, address_v6::addr_size> addr_byte;
 			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
@@ -261,27 +261,27 @@ void raw_tcp_socket::connect(const endpoint &ep, error_code &err)
 			return;
 		}
 	}
-	socket.connect(asio::ip::tcp::endpoint(native_addr, ep.port()), ec);
+	socket_.connect(asio::ip::tcp::endpoint(native_addr, ep.port()), ec);
 	if (ec)
 	{
 		err = ERR_CONNECTION_REFUSED;
 		return;
 	}
-	connected = true;
+	connected_ = true;
 }
 
 void raw_tcp_socket::connect_addr_str(const std::string &addr, port_type port, error_code &err)
 {
-	auto itr = resolver.resolve(asio::ip::tcp::resolver::query(addr, std::to_string(port)), ec);
+	auto itr = resolver_.resolve(asio::ip::tcp::resolver::query(addr, std::to_string(port)), ec);
 	if (ec)
 	{
 		err = ERR_UNRESOLVED_HOST;
 		return;
 	}
-	asio::connect(socket, itr,
+	asio::connect(socket_, itr,
 		[this](const boost::system::error_code &, asio::ip::tcp::resolver::iterator itr)->asio::ip::tcp::resolver::iterator
 	{
-		if (!binded)
+		if (!binded_)
 			check_protocol(itr->endpoint().protocol());
 		return itr;
 	}, ec);
@@ -290,7 +290,7 @@ void raw_tcp_socket::connect_addr_str(const std::string &addr, port_type port, e
 		err = ERR_CONNECTION_REFUSED;
 		return;
 	}
-	connected = true;
+	connected_ = true;
 }
 
 void raw_tcp_socket::async_connect(const endpoint &ep, null_callback &&complete_handler)
@@ -306,14 +306,14 @@ void raw_tcp_socket::async_connect(const endpoint &ep, null_callback &&complete_
 	{
 		case address::V4:
 		{
-			if (!binded)
+			if (!binded_)
 				check_protocol(asio::ip::tcp::v4());
 			native_addr = asio::ip::address_v4(addr.v4().to_ulong());
 			break;
 		}
 		case address::V6:
 		{
-			if (!binded)
+			if (!binded_)
 				check_protocol(asio::ip::tcp::v6());
 			std::array<uint8_t, address_v6::addr_size> addr_byte;
 			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
@@ -332,7 +332,7 @@ void raw_tcp_socket::async_connect(const endpoint &ep, null_callback &&complete_
 		}
 	}
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	socket.async_connect(asio::ip::tcp::endpoint(native_addr, ep.port()),
+	socket_.async_connect(asio::ip::tcp::endpoint(native_addr, ep.port()),
 		[this, callback](const boost::system::error_code &e)
 	{
 		if (e)
@@ -340,14 +340,14 @@ void raw_tcp_socket::async_connect(const endpoint &ep, null_callback &&complete_
 			(*callback)(ERR_CONNECTION_REFUSED);
 			return;
 		}
-		connected = true;
+		connected_ = true;
 		(*callback)(0);
 	});
 }
 
 void raw_tcp_socket::async_connect_addr_str(const std::string &addr, port_type port, const std::shared_ptr<null_callback> &callback)
 {
-	resolver.async_resolve(asio::ip::tcp::resolver::query(addr, std::to_string(port)),
+	resolver_.async_resolve(asio::ip::tcp::resolver::query(addr, std::to_string(port)),
 		[this, callback](const boost::system::error_code &e, asio::ip::tcp::resolver::iterator itr)
 	{
 		if (e)
@@ -355,10 +355,10 @@ void raw_tcp_socket::async_connect_addr_str(const std::string &addr, port_type p
 			(*callback)(ERR_UNRESOLVED_HOST);
 			return;
 		}
-		asio::async_connect(socket, itr, asio::ip::tcp::resolver::iterator(),
+		asio::async_connect(socket_, itr, asio::ip::tcp::resolver::iterator(),
 			[this](const boost::system::error_code&, asio::ip::tcp::resolver::iterator itr)->asio::ip::tcp::resolver::iterator
 		{
-			if (!binded)
+			if (!binded_)
 				check_protocol(itr->endpoint().protocol());
 			return itr;
 		},
@@ -369,7 +369,7 @@ void raw_tcp_socket::async_connect_addr_str(const std::string &addr, port_type p
 				(*callback)(ERR_CONNECTION_REFUSED);
 				return;
 			}
-			connected = true;
+			connected_ = true;
 			(*callback)(0);
 		});
 	});
@@ -378,11 +378,11 @@ void raw_tcp_socket::async_connect_addr_str(const std::string &addr, port_type p
 void raw_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
-	transferred = socket.send(asio::buffer(buffer.data(), buffer.size()), 0, ec);
+	transferred = socket_.send(asio::buffer(buffer.data(), buffer.size()), 0, ec);
 	if (ec)
 	{
-		socket.close(ec);
-		connected = false;
+		socket_.close(ec);
+		connected_ = false;
 		err = ERR_OPERATION_FAILURE;
 	}
 }
@@ -390,13 +390,13 @@ void raw_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error
 void raw_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
-	socket.async_send(asio::buffer(buffer.data(), buffer.size()),
+	socket_.async_send(asio::buffer(buffer.data(), buffer.size()),
 		[this, callback](const boost::system::error_code &e, std::size_t transferred)
 	{
 		if (e)
 		{
-			socket.close(ec);
-			connected = false;
+			socket_.close(ec);
+			connected_ = false;
 			(*callback)(ERR_OPERATION_FAILURE, transferred);
 		}
 		else
@@ -409,11 +409,11 @@ void raw_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&
 void raw_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
-	transferred = socket.receive(asio::buffer(buffer.data(), buffer.size()), 0, ec);
+	transferred = socket_.receive(asio::buffer(buffer.data(), buffer.size()), 0, ec);
 	if (ec)
 	{
-		socket.close(ec);
-		connected = false;
+		socket_.close(ec);
+		connected_ = false;
 		err = ERR_OPERATION_FAILURE;
 	}
 }
@@ -421,13 +421,13 @@ void raw_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, err
 void raw_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
-	socket.async_receive(asio::buffer(buffer.data(), buffer.size()),
+	socket_.async_receive(asio::buffer(buffer.data(), buffer.size()),
 		[this, callback](const boost::system::error_code &e, std::size_t transferred)
 	{
 		if (e)
 		{
-			socket.close(ec);
-			connected = false;
+			socket_.close(ec);
+			connected_ = false;
 			(*callback)(ERR_OPERATION_FAILURE, transferred);
 		}
 		else
@@ -440,11 +440,11 @@ void raw_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback 
 void prxsocket::raw_tcp_socket::read(const mutable_buffer &buffer, error_code &err)
 {
 	err = 0;
-	asio::read(socket, asio::buffer(buffer.data(), buffer.size()), ec);
+	asio::read(socket_, asio::buffer(buffer.data(), buffer.size()), ec);
 	if (ec)
 	{
-		socket.close(ec);
-		connected = false;
+		socket_.close(ec);
+		connected_ = false;
 		err = ERR_OPERATION_FAILURE;
 	}
 }
@@ -452,13 +452,13 @@ void prxsocket::raw_tcp_socket::read(const mutable_buffer &buffer, error_code &e
 void prxsocket::raw_tcp_socket::async_read(const mutable_buffer &buffer, null_callback &&complete_handler)
 {
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	asio::async_read(socket, asio::buffer(buffer.data(), buffer.size()),
+	asio::async_read(socket_, asio::buffer(buffer.data(), buffer.size()),
 		[this, callback](const boost::system::error_code &e, std::size_t)
 	{
 		if (e)
 		{
-			socket.close(ec);
-			connected = false;
+			socket_.close(ec);
+			connected_ = false;
 			(*callback)(ERR_OPERATION_FAILURE);
 		}
 		else
@@ -471,11 +471,11 @@ void prxsocket::raw_tcp_socket::async_read(const mutable_buffer &buffer, null_ca
 void prxsocket::raw_tcp_socket::write(const const_buffer &buffer, error_code &err)
 {
 	err = 0;
-	asio::write(socket, asio::buffer(buffer.data(), buffer.size()), ec);
+	asio::write(socket_, asio::buffer(buffer.data(), buffer.size()), ec);
 	if (ec)
 	{
-		socket.close(ec);
-		connected = false;
+		socket_.close(ec);
+		connected_ = false;
 		err = ERR_OPERATION_FAILURE;
 	}
 }
@@ -483,13 +483,13 @@ void prxsocket::raw_tcp_socket::write(const const_buffer &buffer, error_code &er
 void prxsocket::raw_tcp_socket::async_write(const const_buffer &buffer, null_callback &&complete_handler)
 {
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	asio::async_write(socket, asio::buffer(buffer.data(), buffer.size()),
+	asio::async_write(socket_, asio::buffer(buffer.data(), buffer.size()),
 		[this, callback](const boost::system::error_code &e, std::size_t)
 	{
 		if (e)
 		{
-			socket.close(ec);
-			connected = false;
+			socket_.close(ec);
+			connected_ = false;
 			(*callback)(ERR_OPERATION_FAILURE);
 		}
 		else
@@ -502,11 +502,11 @@ void prxsocket::raw_tcp_socket::async_write(const const_buffer &buffer, null_cal
 void raw_tcp_socket::read(mutable_buffer_sequence &&buffers, error_code &err)
 {
 	err = 0;
-	asio::read(socket, to_raw_buffers(buffers), ec);
+	asio::read(socket_, to_raw_buffers(buffers), ec);
 	if (ec)
 	{
-		socket.close(ec);
-		connected = false;
+		socket_.close(ec);
+		connected_ = false;
 		err = ERR_OPERATION_FAILURE;
 	}
 }
@@ -514,13 +514,13 @@ void raw_tcp_socket::read(mutable_buffer_sequence &&buffers, error_code &err)
 void raw_tcp_socket::async_read(mutable_buffer_sequence &&buffers, null_callback &&complete_handler)
 {
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	asio::async_read(socket, to_raw_buffers(buffers),
+	asio::async_read(socket_, to_raw_buffers(buffers),
 		[this, callback](const boost::system::error_code &e, std::size_t)
 	{
 		if (e)
 		{
-			socket.close(ec);
-			connected = false;
+			socket_.close(ec);
+			connected_ = false;
 			(*callback)(ERR_OPERATION_FAILURE);
 		}
 		else
@@ -533,11 +533,11 @@ void raw_tcp_socket::async_read(mutable_buffer_sequence &&buffers, null_callback
 void raw_tcp_socket::write(const_buffer_sequence &&buffers, error_code &err)
 {
 	err = 0;
-	asio::write(socket, to_raw_buffers(buffers), ec);
+	asio::write(socket_, to_raw_buffers(buffers), ec);
 	if (ec)
 	{
-		socket.close(ec);
-		connected = false;
+		socket_.close(ec);
+		connected_ = false;
 		err = ERR_OPERATION_FAILURE;
 	}
 }
@@ -545,13 +545,13 @@ void raw_tcp_socket::write(const_buffer_sequence &&buffers, error_code &err)
 void raw_tcp_socket::async_write(const_buffer_sequence &&buffers, null_callback &&complete_handler)
 {
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	asio::async_write(socket, to_raw_buffers(buffers),
+	asio::async_write(socket_, to_raw_buffers(buffers),
 		[this, callback](const boost::system::error_code &e, std::size_t)
 	{
 		if (e)
 		{
-			socket.close(ec);
-			connected = false;
+			socket_.close(ec);
+			connected_ = false;
 			(*callback)(ERR_OPERATION_FAILURE);
 		}
 		else
@@ -563,19 +563,19 @@ void raw_tcp_socket::async_write(const_buffer_sequence &&buffers, null_callback 
 
 void raw_tcp_socket::close(error_code &err)
 {
-	socket.shutdown(socket.shutdown_both, ec);
-	socket.close(ec);
-	binded = false;
-	connected = false;
+	socket_.shutdown(socket_.shutdown_both, ec);
+	socket_.close(ec);
+	binded_ = false;
+	connected_ = false;
 	err = 0;
 }
 
 void raw_tcp_socket::async_close(null_callback &&complete_handler)
 {
-	socket.shutdown(socket.shutdown_both, ec);
-	socket.close(ec);
-	binded = false;
-	connected = false;
+	socket_.shutdown(socket_.shutdown_both, ec);
+	socket_.close(ec);
+	binded_ = false;
+	connected_ = false;
 	complete_handler(0);
 }
 
@@ -584,7 +584,7 @@ void raw_udp_socket::local_endpoint(endpoint &ep, error_code &err)
 	err = 0;
 	try
 	{
-		asio::ip::udp::endpoint raw_ep = socket.local_endpoint();
+		asio::ip::udp::endpoint raw_ep = socket_.local_endpoint();
 		raw_ep_to_ep(raw_ep, ep);
 	}
 	catch (const std::exception &) { err = ERR_OPERATION_FAILURE; }
@@ -598,16 +598,16 @@ void raw_udp_socket::open(error_code &err)
 		err = WARN_ALREADY_IN_STATE;
 		return;
 	}
-	socket.open(asio::ip::udp::v4(), ec);
+	socket_.open(asio::ip::udp::v4(), ec);
 	if (ec)
 	{
 		err = ERR_OPERATION_FAILURE;
 		return;
 	}
-	socket.bind(asio::ip::udp::endpoint(asio::ip::udp::v4(), 0), ec);
+	socket_.bind(asio::ip::udp::endpoint(asio::ip::udp::v4(), 0), ec);
 	if (ec)
 	{
-		socket.close(ec);
+		socket_.close(ec);
 		err = ERR_OPERATION_FAILURE;
 		return;
 	}
@@ -634,13 +634,13 @@ void raw_udp_socket::bind(const endpoint &ep, error_code &err)
 	{
 		case address::V4:
 		{
-			socket.open(asio::ip::udp::v4(), ec);
+			socket_.open(asio::ip::udp::v4(), ec);
 			native_addr = asio::ip::address_v4(addr.v4().to_ulong());
 			break;
 		}
 		case address::V6:
 		{
-			socket.open(asio::ip::udp::v4(), ec);
+			socket_.open(asio::ip::udp::v4(), ec);
 			std::array<uint8_t, address_v6::addr_size> addr_byte;
 			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
 			native_addr = asio::ip::address_v6(addr_byte);
@@ -652,10 +652,10 @@ void raw_udp_socket::bind(const endpoint &ep, error_code &err)
 			return;
 		}
 	}
-	socket.bind(asio::ip::udp::endpoint(native_addr, ep.port()), ec);
+	socket_.bind(asio::ip::udp::endpoint(native_addr, ep.port()), ec);
 	if (ec)
 	{
-		socket.close(ec);
+		socket_.close(ec);
 		err = ERR_OPERATION_FAILURE;
 		return;
 	}
@@ -678,9 +678,9 @@ void raw_udp_socket::send_to(const endpoint &ep, const const_buffer &buffer, err
 		err = e;
 		return;
 	}
-	socket.send_to(asio::buffer(buffer.data(), buffer.size()), native_ep, 0, ec);
+	socket_.send_to(asio::buffer(buffer.data(), buffer.size()), native_ep, 0, ec);
 	if (ec)
-		err = (socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
+		err = (socket_.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
 }
 
 void raw_udp_socket::async_send_to(const endpoint &ep, const const_buffer &buffer, null_callback &&complete_handler)
@@ -693,11 +693,11 @@ void raw_udp_socket::async_send_to(const endpoint &ep, const const_buffer &buffe
 			(*callback)(err);
 			return;
 		}
-		socket.async_send_to(asio::buffer(buffer.data(), buffer.size()), native_ep,
+		socket_.async_send_to(asio::buffer(buffer.data(), buffer.size()), native_ep,
 			[this, callback](const boost::system::error_code &e, size_t)
 		{
 			if (e)
-				(*callback)(socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
+				(*callback)(socket_.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
 			else
 				(*callback)(0);
 		});
@@ -708,10 +708,10 @@ void raw_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_
 {
 	err = 0;
 	asio::ip::udp::endpoint native_ep;
-	transferred = socket.receive_from(asio::buffer(buffer.data(), buffer.size()), native_ep, 0, ec);
+	transferred = socket_.receive_from(asio::buffer(buffer.data(), buffer.size()), native_ep, 0, ec);
 	if (ec)
 	{
-		err = (socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
+		err = (socket_.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
 		return;
 	}
 	raw_ep_to_ep(native_ep, ep);
@@ -720,15 +720,15 @@ void raw_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_
 void raw_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
-	socket.async_receive_from(asio::buffer(buffer.data(), buffer.size()), recv_ep,
+	socket_.async_receive_from(asio::buffer(buffer.data(), buffer.size()), recv_ep_,
 		[this, &ep, callback](const boost::system::error_code &e, size_t recved)
 	{
 		if (e)
 		{
-			(*callback)((socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE), recved);
+			(*callback)((socket_.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE), recved);
 			return;
 		}
-		raw_ep_to_ep(recv_ep, ep);
+		raw_ep_to_ep(recv_ep_, ep);
 		(*callback)(0, recved);
 	});
 }
@@ -743,9 +743,9 @@ void raw_udp_socket::send_to(const endpoint &ep, const_buffer_sequence &&buffers
 		err = e;
 		return;
 	}
-	socket.send_to(to_raw_buffers(buffers), native_ep, 0, ec);
+	socket_.send_to(to_raw_buffers(buffers), native_ep, 0, ec);
 	if (ec)
-		err = (socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
+		err = (socket_.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
 }
 
 void raw_udp_socket::async_send_to(const endpoint &ep, const_buffer_sequence &&buffers, null_callback &&complete_handler)
@@ -758,11 +758,11 @@ void raw_udp_socket::async_send_to(const endpoint &ep, const_buffer_sequence &&b
 			(*callback)(err);
 			return;
 		}
-		socket.async_send_to(to_raw_buffers(buffers), native_ep,
+		socket_.async_send_to(to_raw_buffers(buffers), native_ep,
 			[this, callback](const boost::system::error_code &e, size_t)
 		{
 			if (e)
-				(*callback)(socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
+				(*callback)(socket_.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
 			else
 				(*callback)(0);
 		});
@@ -773,10 +773,10 @@ void raw_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buffers, 
 {
 	err = 0;
 	asio::ip::udp::endpoint native_ep;
-	transferred = socket.receive_from(to_raw_buffers(buffers), native_ep, 0, ec);
+	transferred = socket_.receive_from(to_raw_buffers(buffers), native_ep, 0, ec);
 	if (ec)
 	{
-		err = (socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
+		err = (socket_.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
 		return;
 	}
 	raw_ep_to_ep(native_ep, ep);
@@ -785,15 +785,15 @@ void raw_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buffers, 
 void raw_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&buffers, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
-	socket.async_receive_from(to_raw_buffers(buffers), recv_ep,
+	socket_.async_receive_from(to_raw_buffers(buffers), recv_ep_,
 		[this, &ep, callback](const boost::system::error_code &e, size_t recved)
 	{
 		if (e)
 		{
-			(*callback)((socket.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE), recved);
+			(*callback)((socket_.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE), recved);
 			return;
 		}
-		raw_ep_to_ep(recv_ep, ep);
+		raw_ep_to_ep(recv_ep_, ep);
 		(*callback)(0, recved);
 	});
 }
@@ -801,14 +801,14 @@ void raw_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&buf
 void raw_udp_socket::close(error_code &err)
 {
 	err = 0;
-	socket.shutdown(socket.shutdown_both, ec);
-	socket.close(ec);
+	socket_.shutdown(socket_.shutdown_both, ec);
+	socket_.close(ec);
 }
 
 void raw_udp_socket::async_close(null_callback &&complete_handler)
 {
-	socket.shutdown(socket.shutdown_both, ec);
-	socket.close(ec);
+	socket_.shutdown(socket_.shutdown_both, ec);
+	socket_.close(ec);
 	complete_handler(0);
 }
 
@@ -831,7 +831,7 @@ error_code raw_udp_socket::to_udp_ep(const endpoint &ep, asio::ip::udp::endpoint
 		}
 		case address::STR:
 		{
-			result = *resolver.resolve(asio::ip::udp::resolver::query(addr.str().data(), std::to_string(ep.port())), ec);
+			result = *resolver_.resolve(asio::ip::udp::resolver::query(addr.str().data(), std::to_string(ep.port())), ec);
 			if (ec)
 				return ERR_UNRESOLVED_HOST;
 			break;
@@ -862,7 +862,7 @@ void raw_udp_socket::async_to_udp_ep(const endpoint &ep, std::function<void(erro
 		case address::STR:
 		{
 			auto callback = std::make_shared<std::function<void(error_code, const asio::ip::udp::endpoint&)>>(std::move(complete_handler));
-			resolver.async_resolve(asio::ip::udp::resolver::query(addr.str().data(), std::to_string(ep.port())),
+			resolver_.async_resolve(asio::ip::udp::resolver::query(addr.str().data(), std::to_string(ep.port())),
 				[callback](const boost::system::error_code &e, asio::ip::udp::resolver::iterator itr)
 			{
 				if (e)
@@ -882,7 +882,7 @@ void raw_listener::local_endpoint(endpoint &ep, error_code &err)
 	err = 0;
 	try
 	{
-		asio::ip::tcp::endpoint raw_ep = acceptor.local_endpoint();
+		asio::ip::tcp::endpoint raw_ep = acceptor_.local_endpoint();
 		raw_ep_to_ep(raw_ep, ep);
 	}
 	catch (const std::exception &) { err = ERR_OPERATION_FAILURE; }
@@ -891,23 +891,23 @@ void raw_listener::local_endpoint(endpoint &ep, error_code &err)
 void raw_listener::open(error_code &err)
 {
 	err = 0;
-	acceptor.open(asio::ip::tcp::v4(), ec);
+	acceptor_.open(asio::ip::tcp::v4(), ec);
 	if (ec)
 		err = ERR_OPERATION_FAILURE;
 	else
-		listening = false;
+		listening_ = false;
 }
 
 void raw_listener::async_open(null_callback &&complete_handler)
 {
-	acceptor.open(asio::ip::tcp::v4(), ec);
+	acceptor_.open(asio::ip::tcp::v4(), ec);
 	if (ec)
 	{
 		complete_handler(ERR_OPERATION_FAILURE);
 	}
 	else
 	{
-		listening = false;
+		listening_ = false;
 		complete_handler(0);
 	}
 }
@@ -925,13 +925,13 @@ void raw_listener::bind(const endpoint &ep, error_code &err)
 	switch (addr.type())
 	{
 		case address::V4:
-			acceptor.close(ec);
-			acceptor.open(asio::ip::tcp::v4(), ec);
+			acceptor_.close(ec);
+			acceptor_.open(asio::ip::tcp::v4(), ec);
 			native_addr = asio::ip::address_v4(addr.v4().to_ulong());
 			break;
 		case address::V6:
-			acceptor.close(ec);
-			acceptor.open(asio::ip::tcp::v6(), ec);
+			acceptor_.close(ec);
+			acceptor_.open(asio::ip::tcp::v6(), ec);
 			std::array<uint8_t, address_v6::addr_size> addr_byte;
 			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::addr_size);
 			native_addr = asio::ip::address_v6(addr_byte);
@@ -940,7 +940,7 @@ void raw_listener::bind(const endpoint &ep, error_code &err)
 			err = ERR_UNSUPPORTED;
 			return;
 	}
-	acceptor.bind(asio::ip::tcp::endpoint(native_addr, ep.port()), ec);
+	acceptor_.bind(asio::ip::tcp::endpoint(native_addr, ep.port()), ec);
 	if (ec)
 		err = ERR_OPERATION_FAILURE;
 }
@@ -955,11 +955,11 @@ void raw_listener::async_bind(const endpoint &ep, null_callback &&complete_handl
 void raw_listener::listen(error_code &err)
 {
 	err = 0;
-	acceptor.listen(asio::socket_base::max_connections, ec);
+	acceptor_.listen(asio::socket_base::max_connections, ec);
 	if (ec)
 		err = ERR_OPERATION_FAILURE;
 	else
-		listening = true;
+		listening_ = true;
 }
 
 void raw_listener::async_listen(null_callback &&complete_handler)
@@ -971,8 +971,8 @@ void raw_listener::async_listen(null_callback &&complete_handler)
 
 void raw_listener::accept(std::unique_ptr<prx_tcp_socket> &new_socket, error_code &err)
 {
-	asio::ip::tcp::socket socket(iosrv);
-	acceptor.accept(socket, ec);
+	asio::ip::tcp::socket socket(iosrv_);
+	acceptor_.accept(socket, ec);
 	if (ec)
 	{
 		err = ERR_OPERATION_FAILURE;
@@ -987,9 +987,9 @@ void raw_listener::accept(std::unique_ptr<prx_tcp_socket> &new_socket, error_cod
 
 void raw_listener::async_accept(accept_callback &&complete_handler)
 {
-	auto socket = std::make_shared<asio::ip::tcp::socket>(iosrv);
+	auto socket = std::make_shared<asio::ip::tcp::socket>(iosrv_);
 	auto callback = std::make_shared<accept_callback>(std::move(complete_handler));
-	acceptor.async_accept(*socket, [socket, callback](const boost::system::error_code &e)
+	acceptor_.async_accept(*socket, [socket, callback](const boost::system::error_code &e)
 	{
 		if (e)
 			(*callback)(ERR_OPERATION_FAILURE, nullptr);
@@ -1000,12 +1000,12 @@ void raw_listener::async_accept(accept_callback &&complete_handler)
 
 void raw_listener::close(error_code &err)
 {
-	acceptor.close(ec); 
+	acceptor_.close(ec); 
 	err = (ec ? ERR_OPERATION_FAILURE : 0);
 }
 
 void raw_listener::async_close(null_callback &&complete_handler)
 {
-	acceptor.close(ec);
+	acceptor_.close(ec);
 	complete_handler(ec ? ERR_OPERATION_FAILURE : 0);
 }

@@ -24,7 +24,7 @@ using namespace prxsocket;
 using namespace prxsocket::ssr;
 
 prxsocket::ssr::ssr_http_simple_tcp_socket::ssr_http_simple_tcp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const std::string &arg)
-	:transparent_tcp_socket(std::move(base_socket)), recv_buf_(std::make_unique<char[]>(recv_buf_size))
+	:transparent_tcp_socket(std::move(base_socket)), recv_buf_(std::make_unique<char[]>(RECV_BUF_SIZE))
 {
 	size_t delim_pos = arg.find('#');
 	if (delim_pos != std::string::npos)
@@ -335,14 +335,14 @@ void ssr_http_simple_tcp_socket::wait_header(error_code &err)
 	size_t matched = 0;
 	while (matched < delim_end_size)
 	{
-		if (recv_buf_ptr_end_ >= recv_buf_size)
+		if (recv_buf_ptr_end_ >= RECV_BUF_SIZE)
 		{
 			err = ERR_OPERATION_FAILURE;
 			close();
 			return;
 		}
 		size_t transferred;
-		socket_->recv(mutable_buffer(recv_buf_.get() + recv_buf_ptr_end_, recv_buf_size - recv_buf_ptr_end_), transferred, err);
+		socket_->recv(mutable_buffer(recv_buf_.get() + recv_buf_ptr_end_, RECV_BUF_SIZE - recv_buf_ptr_end_), transferred, err);
 		if (err)
 		{
 			close();
@@ -371,7 +371,7 @@ void ssr_http_simple_tcp_socket::async_wait_header(null_callback &&complete_hand
 void ssr_http_simple_tcp_socket::async_wait_header(const std::shared_ptr<null_callback> &callback, size_t matched_old)
 {
 	assert(!header_received_);
-	socket_->async_recv(mutable_buffer(recv_buf_.get() + recv_buf_ptr_end_, recv_buf_size - recv_buf_ptr_end_),
+	socket_->async_recv(mutable_buffer(recv_buf_.get() + recv_buf_ptr_end_, RECV_BUF_SIZE - recv_buf_ptr_end_),
 		[this, callback, matched_old](error_code err, size_t transferred)
 	{
 		if (err)
@@ -397,7 +397,7 @@ void ssr_http_simple_tcp_socket::async_wait_header(const std::shared_ptr<null_ca
 			(*callback)(0);
 			return;
 		}
-		if (recv_buf_ptr_end_ >= recv_buf_size)
+		if (recv_buf_ptr_end_ >= RECV_BUF_SIZE)
 		{
 			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 			return;

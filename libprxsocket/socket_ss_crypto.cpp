@@ -438,7 +438,7 @@ size_t ss_crypto_tcp_socket::prepare_send(const const_buffer &buffer)
 
 void ss_crypto_tcp_socket::prepare_send(const_buffer_sequence &buffer)
 {
-	thread_local std::unique_ptr<char[]> buf = std::make_unique<char[]>(send_size_max);
+	thread_local std::unique_ptr<char[]> buf = std::make_unique<char[]>(SEND_SIZE_MAX);
 
 	size_t transferring = transfer_size(buffer.size_total());
 	size_t copied = buffer.gather(buf.get(), transferring);
@@ -465,7 +465,7 @@ void ss_crypto_tcp_socket::recv_data(error_code &err)
 {
 	if (!iv_received_)
 	{
-		assert(dec_iv_size_ <= recv_buf_size);
+		assert(dec_iv_size_ <= RECV_BUF_SIZE);
 		socket_->read(mutable_buffer(recv_buf_.get(), dec_iv_size_), err);
 		if (err)
 		{
@@ -477,7 +477,7 @@ void ss_crypto_tcp_socket::recv_data(error_code &err)
 	}
 
 	size_t transferred;
-	socket_->recv(mutable_buffer(recv_buf_.get(), recv_buf_size), transferred, err);
+	socket_->recv(mutable_buffer(recv_buf_.get(), RECV_BUF_SIZE), transferred, err);
 	if (err)
 	{
 		close();
@@ -502,7 +502,7 @@ void ss_crypto_tcp_socket::async_recv_data(null_callback &&complete_handler)
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 	if (!iv_received_)
 	{
-		assert(dec_iv_size_ <= recv_buf_size);
+		assert(dec_iv_size_ <= RECV_BUF_SIZE);
 		socket_->async_read(mutable_buffer(recv_buf_.get(), dec_iv_size_),
 			[this, callback](error_code err)
 		{
@@ -518,7 +518,7 @@ void ss_crypto_tcp_socket::async_recv_data(null_callback &&complete_handler)
 		return;
 	}
 
-	socket_->async_recv(mutable_buffer(recv_buf_.get(), recv_buf_size),
+	socket_->async_recv(mutable_buffer(recv_buf_.get(), RECV_BUF_SIZE),
 		[this, callback](error_code err, size_t transferred)
 	{
 		if (err)
@@ -609,7 +609,7 @@ void ss_crypto_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer,
 	transferred = 0;
 
 	size_t udp_recv_size;
-	udp_socket_->recv_from(ep, mutable_buffer(udp_recv_buf_.get(), udp_buf_size), udp_recv_size, err);
+	udp_socket_->recv_from(ep, mutable_buffer(udp_recv_buf_.get(), UDP_BUF_SIZE), udp_recv_size, err);
 	if (err)
 	{
 		if (!udp_socket_->is_open())
@@ -636,7 +636,7 @@ void ss_crypto_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &b
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 
-	udp_socket_->async_recv_from(ep, mutable_buffer(udp_recv_buf_.get(), udp_buf_size),
+	udp_socket_->async_recv_from(ep, mutable_buffer(udp_recv_buf_.get(), UDP_BUF_SIZE),
 		[this, buffer, callback](error_code err, size_t udp_recv_size)
 	{
 		if (err)
@@ -726,7 +726,7 @@ void ss_crypto_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buf
 	transferred = 0;
 
 	size_t udp_recv_size;
-	udp_socket_->recv_from(ep, mutable_buffer(udp_recv_buf_.get(), udp_buf_size), udp_recv_size, err);
+	udp_socket_->recv_from(ep, mutable_buffer(udp_recv_buf_.get(), UDP_BUF_SIZE), udp_recv_size, err);
 	if (err)
 	{
 		if (!udp_socket_->is_open())
@@ -753,7 +753,7 @@ void ss_crypto_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence
 	std::shared_ptr<mutable_buffer_sequence> buffer = std::make_shared<mutable_buffer_sequence>(std::move(buffers));
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 
-	udp_socket_->async_recv_from(ep, mutable_buffer(udp_recv_buf_.get(), udp_buf_size),
+	udp_socket_->async_recv_from(ep, mutable_buffer(udp_recv_buf_.get(), UDP_BUF_SIZE),
 		[this, buffer, callback](error_code err, size_t udp_recv_size)
 	{
 		if (err)

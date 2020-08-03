@@ -30,17 +30,17 @@ namespace prxsocket
 
 		class ss_crypto_tcp_socket final : public transparent_tcp_socket
 		{
-			static constexpr size_t send_size_pref = 0xF80;
-			static constexpr size_t send_size_max = 0x1000;
-			static constexpr size_t recv_buf_size = 0x1000;
+			static constexpr size_t SEND_SIZE_PREF = 0xF80;
+			static constexpr size_t SEND_SIZE_MAX = 0x1000;
+			static constexpr size_t RECV_BUF_SIZE = 0x1000;
 
-			static constexpr size_t transfer_size(size_t buffer_size) { return buffer_size > send_size_max ? send_size_pref : buffer_size; }
+			static constexpr size_t transfer_size(size_t buffer_size) { return buffer_size > SEND_SIZE_MAX ? SEND_SIZE_PREF : buffer_size; }
 			void reset() { iv_init_ = iv_sent_ = iv_received_ = false; dec_buf_.clear(); dec_ptr_ = 0; }
 		public:
 			ss_crypto_tcp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const std::vector<char> &key, std::unique_ptr<encryptor> &&enc, std::unique_ptr<decryptor> &&dec)
 				:transparent_tcp_socket(std::move(base_socket)),
 				key_(key), enc_(std::move(enc)), enc_iv_size_(enc_->iv_size()), dec_(std::move(dec)), dec_iv_size_(dec_->iv_size()),
-				recv_buf_(std::make_unique<char[]>(recv_buf_size))
+				recv_buf_(std::make_unique<char[]>(RECV_BUF_SIZE))
 			{
 				assert(key_.size() >= enc_->key_size());
 				assert(key_.size() >= dec_->key_size());
@@ -98,12 +98,12 @@ namespace prxsocket
 
 		class ss_crypto_udp_socket final : public transparent_udp_socket
 		{
-			static constexpr size_t udp_buf_size = 0x10000;
+			static constexpr size_t UDP_BUF_SIZE = 0x10000;
 		public:
 			ss_crypto_udp_socket(std::unique_ptr<prx_udp_socket> &&base_udp_socket, const std::vector<char> &key, std::unique_ptr<encryptor> &&enc, std::unique_ptr<decryptor> &&dec)
 				:transparent_udp_socket(std::move(base_udp_socket)),
 				key_(key), enc_(std::move(enc)), enc_iv_size_(enc_->iv_size()), dec_(std::move(dec)), dec_iv_size_(dec_->iv_size()),
-				udp_recv_buf_(std::make_unique<char[]>(udp_buf_size))
+				udp_recv_buf_(std::make_unique<char[]>(UDP_BUF_SIZE))
 			{
 				assert(key_.size() >= enc_->key_size());
 				assert(key_.size() >= dec_->key_size());
