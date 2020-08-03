@@ -931,7 +931,7 @@ error_code socks5_udp_socket::parse_udp(size_t udp_recv_size, endpoint &ep, muta
 void socks5_listener::open(error_code &err)
 {
 	if (!cur_socket_)
-		cur_socket_ = std::make_unique<socks5_tcp_socket>(server_ep_, gen_socket_(), methods_);
+		cur_socket_ = std::make_unique<socks5_tcp_socket>(gen_socket_(), server_ep_, methods_);
 	cur_socket_->open(err);
 	if (!err)
 		listening_ = false;
@@ -940,7 +940,7 @@ void socks5_listener::open(error_code &err)
 void socks5_listener::async_open(null_callback &&complete_handler)
 {
 	if (!cur_socket_)
-		cur_socket_ = std::make_unique<socks5_tcp_socket>(server_ep_, gen_socket_(), methods_);
+		cur_socket_ = std::make_unique<socks5_tcp_socket>(gen_socket_(), server_ep_, methods_);
 	auto callback = std::make_shared<null_callback>(std::move(complete_handler));
 	cur_socket_->async_open([this, callback](error_code err)
 	{

@@ -30,7 +30,7 @@ namespace prxsocket
 		class ss_tcp_socket final : public prx_tcp_socket
 		{
 		public:
-			ss_tcp_socket(const endpoint &server_endpoint, std::unique_ptr<prx_tcp_socket> &&base_socket)
+			ss_tcp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const endpoint &server_endpoint)
 				:socket_(std::move(base_socket)), server_ep_(server_endpoint)
 			{
 			}
@@ -74,7 +74,7 @@ namespace prxsocket
 		{
 			static constexpr size_t UDP_BUF_SIZE = 0x10000;
 		public:
-			ss_udp_socket(const endpoint &_udp_server_ep, std::unique_ptr<prx_udp_socket> &&base_udp_socket)
+			ss_udp_socket(std::unique_ptr<prx_udp_socket> &&base_udp_socket, const endpoint &_udp_server_ep)
 				:udp_socket_(std::move(base_udp_socket)), udp_server_ep_(_udp_server_ep), udp_recv_buf_(std::make_unique<char[]>(UDP_BUF_SIZE))
 			{
 			}

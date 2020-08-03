@@ -31,11 +31,11 @@ namespace prxsocket
 
 		friend class socks5_listener;
 	public:
-		socks5_tcp_socket(const endpoint &server_endpoint, std::unique_ptr<prx_tcp_socket> &&base_socket)
+		socks5_tcp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const endpoint &server_endpoint)
 			:socks5_base(std::move(base_socket)), server_ep_(server_endpoint)
 		{
 		}
-		socks5_tcp_socket(const endpoint &server_endpoint, std::unique_ptr<prx_tcp_socket> &&base_socket, const std::string &methods)
+		socks5_tcp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const endpoint &server_endpoint, const std::string &methods)
 			:socks5_base(std::move(base_socket), methods), server_ep_(server_endpoint)
 		{
 		}
@@ -79,11 +79,11 @@ namespace prxsocket
 
 		static constexpr size_t UDP_BUF_SIZE = 0x10000;
 	public:
-		socks5_udp_socket(const endpoint &_server_ep, std::unique_ptr<prx_tcp_socket> &&base_socket, std::unique_ptr<prx_udp_socket> &&base_udp_socket)
+		socks5_udp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, std::unique_ptr<prx_udp_socket> &&base_udp_socket, const endpoint &_server_ep)
 			:socks5_base(std::move(base_socket), "\x80\x00", 2), server_ep_(_server_ep), udp_socket_(std::move(base_udp_socket)), udp_recv_buf_(std::make_unique<char[]>(UDP_BUF_SIZE))
 		{
 		}
-		socks5_udp_socket(const endpoint &_server_ep, std::unique_ptr<prx_tcp_socket> &&base_socket)
+		socks5_udp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const endpoint &_server_ep)
 			:socks5_base(std::move(base_socket), "\x80", 1), server_ep_(_server_ep), udp_recv_buf_(std::make_unique<char[]>(UDP_BUF_SIZE))
 		{
 		}
@@ -130,7 +130,7 @@ namespace prxsocket
 	class socks5_listener final : public prx_listener
 	{
 	public:
-		socks5_listener(const endpoint &_server_ep, std::function<std::unique_ptr<prx_tcp_socket>()> &&_gen_socket)
+		socks5_listener(std::function<std::unique_ptr<prx_tcp_socket>()> &&_gen_socket, const endpoint &_server_ep)
 			:server_ep_(_server_ep), local_ep_(0ul, 0), methods_("\x80\x00", 2), gen_socket_(std::move(_gen_socket))
 		{
 		}

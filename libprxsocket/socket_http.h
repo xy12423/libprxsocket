@@ -31,7 +31,7 @@ namespace prxsocket
 		enum { STATE_INIT, STATE_OK };
 		static constexpr size_t RECV_BUF_SIZE = 0x800;
 	public:
-		http_tcp_socket(const endpoint &server_endpoint, std::unique_ptr<prx_tcp_socket> &&base_socket)
+		http_tcp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const endpoint &server_endpoint)
 			:socket_(std::move(base_socket)), server_ep_(server_endpoint), recv_buf_(std::make_unique<char[]>(RECV_BUF_SIZE))
 		{
 		}
