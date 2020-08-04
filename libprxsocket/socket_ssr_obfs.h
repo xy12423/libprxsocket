@@ -29,7 +29,7 @@ namespace prxsocket
 
 		class ssr_http_simple_tcp_socket final : public transparent_tcp_socket
 		{
-			static constexpr size_t RECV_BUF_SIZE = 0x800;
+			static constexpr size_t RECV_BUF_SIZE = 0x400;
 
 			void reset() { header_sent_ = header_received_ = false; recv_buf_ptr_ = recv_buf_ptr_end_ = 0; }
 		public:

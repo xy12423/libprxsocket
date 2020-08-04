@@ -128,7 +128,7 @@ namespace prxsocket
 	{
 	private:
 		static constexpr size_t SYM_BLOCK_SIZE = 16;
-		static constexpr size_t RECV_BUF_SIZE = 0x800;
+		static constexpr size_t RECV_BUF_SIZE = 0x400;
 	public:
 		obfs_websock_listener(std::unique_ptr<prx_listener> &&_acceptor, const std::string &_key)
 			:acceptor_(std::move(_acceptor)), recv_buf_(std::make_unique<char[]>(RECV_BUF_SIZE)),
