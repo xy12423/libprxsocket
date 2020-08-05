@@ -90,9 +90,11 @@ static void rnd_data(std::vector<char> &dst, size_t src_size)
 	}
 	else
 	{
-		dst.push_back('\xFF');
-		dst.push_back((uint8_t)(rnd_size + 1));
-		dst.push_back((uint8_t)((rnd_size + 1) >> 8));
+		size_t rnd_size_begin = dst.size();
+		dst.resize(dst.size() + 3);
+		dst[rnd_size_begin] = '\xFF';
+		uint16_t rnd_size_le = boost::endian::native_to_little((uint16_t)rnd_size);
+		memcpy(dst.data() + rnd_size_begin + 1, (char *)&rnd_size_le, sizeof(rnd_size_le));
 		random_bytes(dst, rnd_size - 2);
 	}
 }
@@ -528,8 +530,8 @@ void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data(const std::function<void
 	rnd_data(send_buf_head_, src_size); //rnd_data
 	size_t total_size = send_buf_head_.size() + src_size + 4;
 	//total_size
-	send_buf_head_[0] = (uint8_t)(total_size & 0xFF);
-	send_buf_head_[1] = (uint8_t)(total_size >> 8);
+	uint16_t total_size_le = boost::endian::native_to_little((uint16_t)total_size);
+	memcpy(send_buf_head_.data(), &total_size_le, 2);
 	//total_size_hmac
 	hmac.CalculateDigest(hmac_digest, (const CryptoPP::byte *)send_buf_head_.data(), 2);
 	send_buf_head_[2] = hmac_digest[0];

@@ -153,17 +153,16 @@ void obfs_websock_tcp_socket::encode(std::string &dst, const char *src, size_t s
 		dst.reserve(8 + buf.size());
 		dst.push_back('\x82');
 		dst.push_back('\xFE');
-		dst.push_back((uint8_t)(buf.size() >> 8));
-		dst.push_back((uint8_t)(buf.size()));
+		uint16_t buf_size_be = boost::endian::native_to_big((uint16_t)buf.size());
+		dst.append((char *)&buf_size_be, sizeof(buf_size_be));
 	}
 	else
 	{
 		dst.reserve(14 + buf.size());
 		dst.push_back('\x82');
 		dst.push_back('\xFF');
-		size_t buf_size = buf.size();
-		for (int shift = 56; shift >= 0; shift -= 8)
-			dst.push_back((uint8_t)(buf_size >> shift));
+		uint64_t buf_size_be = boost::endian::native_to_big((uint64_t)buf.size());
+		dst.append((char *)&buf_size_be, sizeof(buf_size_be));
 	}
 
 	byte mask[4];
