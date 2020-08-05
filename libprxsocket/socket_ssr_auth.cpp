@@ -323,6 +323,8 @@ void ssr_auth_aes128_sha1_tcp_socket::write(const_buffer_sequence &&buffer, erro
 			err = ERR_OPERATION_FAILURE;
 			return;
 		}
+		send_seq.push_front(const_buffer(send_buf_head_));
+		send_seq.push_back(const_buffer(send_buf_tail_));
 		socket_->write(std::move(send_seq), err);
 		if (err)
 		{
@@ -354,6 +356,8 @@ void ssr_auth_aes128_sha1_tcp_socket::async_write(const std::shared_ptr<const_bu
 		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 		return;
 	}
+	send_seq.push_front(const_buffer(send_buf_head_));
+	send_seq.push_back(const_buffer(send_buf_tail_));
 
 	socket_->async_write(std::move(send_seq),
 		[this, buffer, callback](error_code err)
@@ -597,8 +601,6 @@ const_buffer_sequence ssr_auth_aes128_sha1_tcp_socket::prepare_send(const_buffer
 	else
 		prepare_send_data(update_func, seq.size_total());
 
-	seq.push_front(const_buffer(send_buf_head_));
-	seq.push_back(const_buffer(send_buf_tail_));
 	return seq;
 }
 
