@@ -113,5 +113,8 @@
     <ClInclude Include="socket_ssr_obfs.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="random_generator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

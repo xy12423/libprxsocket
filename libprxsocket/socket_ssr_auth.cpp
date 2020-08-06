@@ -19,39 +19,14 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 
 #include "stdafx.h"
 #include "socket_ssr_auth.h"
+#include "random_generator.h"
 
 using namespace prxsocket;
 using namespace prxsocket::ssr;
 
-static void random_bytes(void *dst, size_t dst_size)
-{
-	thread_local CryptoPP::AutoSeededRandomPool prng;
-	prng.GenerateBlock((CryptoPP::byte *)dst, dst_size);
-}
-
-static void random_bytes(std::vector<char> &dst, size_t rnd_size)
-{
-	size_t rnd_begin = dst.size();
-	dst.resize(dst.size() + rnd_size);
-	random_bytes(dst.data() + rnd_begin, rnd_size);
-}
-
-template <typename T>
-static T random_int()
-{
-	T val;
-	random_bytes(&val, sizeof(T));
-	return val;
-}
-
-static double random_double()
-{
-	return random_int<uint32_t>() / 4294967296.0;
-}
-
 static double trapizoid_random_double(double d)
 {
-	double s = random_double();
+	double s = random_generator::random_double();
 	if (d == 0)
 		return s;
 	double a = 1 - d;
@@ -73,10 +48,10 @@ static size_t rnd_data_size(size_t src_size)
 	{
 		if (effective < 2 * tcp_mss)
 			return trapezoid_random_int(2 * tcp_mss - effective, -0.3);
-		return random_int<uint8_t>() % 32;
+		return random_generator::random_int<uint8_t>() % 32;
 	}
 	if (src_size > 900)
-		return random_int<uint16_t>() % src_size;
+		return random_generator::random_int<uint16_t>() % src_size;
 	return trapezoid_random_int(tcp_mss - effective, -0.3);
 }
 
@@ -87,7 +62,7 @@ static void rnd_data(std::vector<char> &dst, size_t src_size)
 	if (rnd_size < 128)
 	{
 		dst.push_back((uint8_t)(rnd_size + 1));
-		random_bytes(dst, rnd_size);
+		random_generator::random_bytes(dst, rnd_size);
 	}
 	else
 	{
@@ -96,7 +71,7 @@ static void rnd_data(std::vector<char> &dst, size_t src_size)
 		dst[rnd_size_begin] = '\xFF';
 		uint16_t rnd_size_le = boost::endian::native_to_little((uint16_t)(rnd_size + 1));
 		memcpy(dst.data() + rnd_size_begin + 1, (char *)&rnd_size_le, sizeof(rnd_size_le));
-		random_bytes(dst, rnd_size - 2);
+		random_generator::random_bytes(dst, rnd_size - 2);
 	}
 }
 
@@ -130,7 +105,7 @@ static void str_to_key(char (&dst)[N], const char *src, size_t src_size)
 }
 
 ssr_auth_aes128_sha1_shared_server_data::ssr_auth_aes128_sha1_shared_server_data(const std::string &arg)
-	:client_id(random_int<uint32_t>()), connection_id(random_int<uint32_t>() % 0xFFFFFD), argument(arg)
+	:client_id(random_generator::random_int<uint32_t>()), connection_id(random_generator::random_int<uint32_t>() % 0xFFFFFD), argument(arg)
 {
 }
 
@@ -139,8 +114,8 @@ std::pair<uint32_t, uint32_t> ssr_auth_aes128_sha1_shared_server_data::new_id_pa
 	std::lock_guard<std::mutex> guard(lock);
 	if (connection_id > 0xFF000000)
 	{
-		client_id = random_int<uint32_t>();
-		connection_id = random_int<uint32_t>() % 0xFFFFFD;
+		client_id = random_generator::random_int<uint32_t>();
+		connection_id = random_generator::random_int<uint32_t>() % 0xFFFFFD;
 	}
 	return std::pair<uint32_t, uint32_t>(boost::endian::native_to_little(client_id), boost::endian::native_to_little(++connection_id));
 }
@@ -437,11 +412,11 @@ void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data_auth(const std::function
 	catch (...) {}
 	if (!uid_key_set)
 	{
-		uid = random_int<uint32_t>();
+		uid = random_generator::random_int<uint32_t>();
 		send_key_ = socket_->key();
 	}
 
-	size_t rnd_size = random_int<uint16_t>();
+	size_t rnd_size = random_generator::random_int<uint16_t>();
 	if (src_size > 400)
 		rnd_size %= 512;
 	else
@@ -450,7 +425,7 @@ void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data_auth(const std::function
 
 	send_buf_head_.resize(1 + 6 + 4 + 16 + 4 + rnd_size);
 	//check_head
-	random_bytes(send_buf_head_.data(), 1);
+	random_generator::random_bytes(send_buf_head_.data(), 1);
 	//check_head_hmac
 	hmac.CalculateDigest(hmac_digest, (const CryptoPP::byte *)send_buf_head_.data(), 1);
 	memcpy(send_buf_head_.data() + 1, hmac_digest, 6);
@@ -494,7 +469,7 @@ void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data_auth(const std::function
 	hmac.CalculateDigest(hmac_digest, (const CryptoPP::byte *)send_buf_head_.data() + 7, 20);
 	memcpy(send_buf_head_.data() + 27, hmac_digest, 4);
 	//rnd
-	random_bytes(send_buf_head_.data() + 31, rnd_size);
+	random_generator::random_bytes(send_buf_head_.data() + 31, rnd_size);
 
 	//complete_hmac
 	hmac.SetKey((const CryptoPP::byte *)send_key_.data(), send_key_.size());

@@ -196,6 +196,7 @@
     <ClInclude Include="crypto_cryptopp.h" />
     <ClInclude Include="endpoint.h" />
     <ClInclude Include="http_header.h" />
+    <ClInclude Include="random_generator.h" />
     <ClInclude Include="socket_base.h" />
     <ClInclude Include="socket_http.h" />
     <ClInclude Include="socket_raw.h" />

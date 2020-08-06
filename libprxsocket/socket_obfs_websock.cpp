@@ -19,12 +19,11 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 
 #include "stdafx.h"
 #include "socket_obfs_websock.h"
+#include "random_generator.h"
 
 using namespace prxsocket;
 using namespace prxsocket::http_helper;
 using namespace CryptoPP;
-
-thread_local AutoSeededRandomPool obfs_websock_tcp_socket::prng;
 
 static void base64(std::string &dst, const char *data, size_t size)
 {
@@ -167,7 +166,7 @@ void obfs_websock_tcp_socket::encode(std::string &dst, const char *src, size_t s
 
 	byte mask[4];
 	int maskp = 0;
-	prng.GenerateBlock(mask, 4);
+	random_generator::random_bytes(mask, 4);
 	dst.append((const char*)mask, 4);
 	for (const char *data = buf.data(), *data_end = buf.data() + buf.size(); data < data_end; ++data)
 	{
@@ -207,7 +206,7 @@ void obfs_websock_tcp_socket::connect(const endpoint &ep, error_code &err)
 	try
 	{
 		std::string iv_b64, http_req;
-		prng.GenerateBlock(iv_, SYM_BLOCK_SIZE);
+		random_generator::random_bytes(iv_, SYM_BLOCK_SIZE);
 		e_.SetKeyWithIV(key_, SYM_BLOCK_SIZE, iv_);
 		d_.SetKeyWithIV(key_, SYM_BLOCK_SIZE, iv_);
 		iv_b64.reserve((SYM_BLOCK_SIZE / 3 + 1) * 4);
@@ -276,7 +275,7 @@ void obfs_websock_tcp_socket::send_websocket_req(const std::shared_ptr<null_call
 	std::shared_ptr<std::string> http_req = std::make_shared<std::string>();
 	try
 	{
-		prng.GenerateBlock(iv_, SYM_BLOCK_SIZE);
+		random_generator::random_bytes(iv_, SYM_BLOCK_SIZE);
 		e_.SetKeyWithIV(key_, SYM_BLOCK_SIZE, iv_);
 		d_.SetKeyWithIV(key_, SYM_BLOCK_SIZE, iv_);
 		http_req->append("GET /ep HTTP/1.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ");

@@ -26,8 +26,6 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 #ifndef _LIBPRXSOCKET_BUILD
 #include <cryptopp/cryptlib.h>
 #include <cryptopp/aes.h>
-#include <cryptopp/osrng.h>
-#include <cryptopp/oids.h>
 #include <cryptopp/modes.h>
 #endif
 
@@ -118,7 +116,6 @@ namespace prxsocket
 		std::string dec_buf_;
 		size_t dec_ptr_ = 0;
 
-		thread_local static CryptoPP::AutoSeededRandomPool prng;
 		CryptoPP::CBC_Mode<CryptoPP::AES>::Encryption e_;
 		CryptoPP::CBC_Mode<CryptoPP::AES>::Decryption d_;
 		CryptoPP::SecByteBlock key_, iv_;
