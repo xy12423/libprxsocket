@@ -83,6 +83,7 @@ static size_t rnd_data_size(size_t src_size)
 static void rnd_data(std::vector<char> &dst, size_t src_size)
 {
 	size_t rnd_size = rnd_data_size(src_size);
+	assert(rnd_size + 1 < 0x10000);
 	if (rnd_size < 128)
 	{
 		dst.push_back((uint8_t)(rnd_size + 1));
@@ -93,7 +94,7 @@ static void rnd_data(std::vector<char> &dst, size_t src_size)
 		size_t rnd_size_begin = dst.size();
 		dst.resize(dst.size() + 3);
 		dst[rnd_size_begin] = '\xFF';
-		uint16_t rnd_size_le = boost::endian::native_to_little((uint16_t)rnd_size);
+		uint16_t rnd_size_le = boost::endian::native_to_little((uint16_t)(rnd_size + 1));
 		memcpy(dst.data() + rnd_size_begin + 1, (char *)&rnd_size_le, sizeof(rnd_size_le));
 		random_bytes(dst, rnd_size - 2);
 	}
@@ -129,7 +130,7 @@ static void str_to_key(char (&dst)[N], const char *src, size_t src_size)
 }
 
 ssr_auth_aes128_sha1_shared_server_data::ssr_auth_aes128_sha1_shared_server_data(const std::string &arg)
-	:client_id(random_int<uint32_t>()), connection_id(random_int<uint32_t>() & 0xFFFFFF), argument(arg)
+	:client_id(random_int<uint32_t>()), connection_id(random_int<uint32_t>() % 0xFFFFFD), argument(arg)
 {
 }
 
@@ -139,7 +140,7 @@ std::pair<uint32_t, uint32_t> ssr_auth_aes128_sha1_shared_server_data::new_id_pa
 	if (connection_id > 0xFF000000)
 	{
 		client_id = random_int<uint32_t>();
-		connection_id = random_int<uint32_t>() & 0xFFFFFF;
+		connection_id = random_int<uint32_t>() % 0xFFFFFD;
 	}
 	return std::pair<uint32_t, uint32_t>(boost::endian::native_to_little(client_id), boost::endian::native_to_little(++connection_id));
 }
@@ -549,7 +550,7 @@ void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data(const std::function<void
 size_t ssr_auth_aes128_sha1_tcp_socket::prepare_send(const const_buffer &buffer)
 {
 	size_t transferring;
-	auto update_func = [&](CryptoPP::HMAC<CryptoPP::SHA1> &hasher) { hasher.Update((CryptoPP::byte *)buffer.data(), buffer.size()); };
+	auto update_func = [&](CryptoPP::HMAC<CryptoPP::SHA1> &hasher) { hasher.Update((CryptoPP::byte *)buffer.data(), transferring); };
 	if (!auth_sent_)
 	{
 		transferring = std::min(AUTH_PACK_SIZE, buffer.size());

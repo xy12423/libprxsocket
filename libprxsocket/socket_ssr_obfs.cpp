@@ -311,7 +311,7 @@ size_t ssr_http_simple_tcp_socket::make_header(std::string &dst, const const_buf
 		dst.append(std::to_string(remote_ep.port()));
 	}
 	dst.append("\r\n");
-	if (!body_.empty())
+	if (custom_body_)
 	{
 		dst.append(body_);
 		dst.append("\r\n");
