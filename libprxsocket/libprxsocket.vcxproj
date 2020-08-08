@@ -181,6 +181,7 @@
     <ClCompile Include="socket_ssr_auth.cpp" />
     <ClCompile Include="socket_ssr_obfs.cpp" />
     <ClCompile Include="socket_ss_crypto.cpp" />
+    <ClCompile Include="socket_vmess.cpp" />
     <ClCompile Include="socks5_base.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -206,6 +207,7 @@
     <ClInclude Include="socket_ssr_obfs.h" />
     <ClInclude Include="socket_ss_crypto.h" />
     <ClInclude Include="socket_transparent.h" />
+    <ClInclude Include="socket_vmess.h" />
     <ClInclude Include="socks5_base.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>

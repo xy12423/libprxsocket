@@ -57,6 +57,9 @@
     <ClCompile Include="socket_ssr_obfs.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="socket_vmess.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="address.h">
@@ -111,6 +114,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="random_generator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="socket_vmess.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
