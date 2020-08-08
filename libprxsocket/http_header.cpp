@@ -27,56 +27,61 @@ constexpr const char *http_header::NAME_START_LINE_TYPE, *http_header::START_LIN
 constexpr const char *http_header::NAME_REQUEST_METHOD, *http_header::NAME_REQUEST_TARGET;
 constexpr const char *http_header::NAME_STATUS_CODE, *http_header::NAME_STATUS_REASON_PHRASE;
 
-static void ltrim(std::string &str)
+namespace
 {
-	std::string::iterator itr = str.begin(), itr_end = str.end();
-	for (; itr != itr_end; ++itr)
-		if (!isspace((unsigned char)*itr))
-			break;
-	str.erase(str.begin(), itr);
-}
 
-static void rtrim(std::string &str)
-{
-	while (!str.empty() && isspace((unsigned char)str.back()))
-		str.pop_back();
-}
+	void ltrim(std::string &str)
+	{
+		std::string::iterator itr = str.begin(), itr_end = str.end();
+		for (; itr != itr_end; ++itr)
+			if (!isspace((unsigned char)*itr))
+				break;
+		str.erase(str.begin(), itr);
+	}
 
-static void trim(std::string &str)
-{
-	ltrim(str);
-	rtrim(str);
-}
+	void rtrim(std::string &str)
+	{
+		while (!str.empty() && isspace((unsigned char)str.back()))
+			str.pop_back();
+	}
 
-static std::string ltrimv(const std::string &str)
-{
-	std::string::const_iterator itr = str.begin(), itr_end = str.end();
-	for (; itr != itr_end; ++itr)
-		if (!isspace((unsigned char)*itr))
-			break;
-	return std::string(itr, itr_end);
-}
+	void trim(std::string &str)
+	{
+		ltrim(str);
+		rtrim(str);
+	}
 
-static std::string rtrimv(const std::string &str)
-{
-	std::string::const_reverse_iterator ritr = str.rbegin(), ritr_end = str.rend();
-	for (; ritr != ritr_end; ++ritr)
-		if (!isspace((unsigned char)*ritr))
-			break;
-	return std::string(str.begin(), ritr.base());
-}
+	std::string ltrimv(const std::string &str)
+	{
+		std::string::const_iterator itr = str.begin(), itr_end = str.end();
+		for (; itr != itr_end; ++itr)
+			if (!isspace((unsigned char)*itr))
+				break;
+		return std::string(itr, itr_end);
+	}
 
-static std::string trimv(const std::string &str)
-{
-	std::string::const_iterator itr = str.begin(), itr_end = str.end();
-	for (; itr != itr_end; ++itr)
-		if (!isspace((unsigned char)*itr))
-			break;
-	std::string::const_reverse_iterator ritr = str.rbegin(), ritr_end(itr);
-	for (; ritr != ritr_end; ++ritr)
-		if (!isspace((unsigned char)*ritr))
-			break;
-	return std::string(itr, ritr.base());
+	std::string rtrimv(const std::string &str)
+	{
+		std::string::const_reverse_iterator ritr = str.rbegin(), ritr_end = str.rend();
+		for (; ritr != ritr_end; ++ritr)
+			if (!isspace((unsigned char)*ritr))
+				break;
+		return std::string(str.begin(), ritr.base());
+	}
+
+	std::string trimv(const std::string &str)
+	{
+		std::string::const_iterator itr = str.begin(), itr_end = str.end();
+		for (; itr != itr_end; ++itr)
+			if (!isspace((unsigned char)*itr))
+				break;
+		std::string::const_reverse_iterator ritr = str.rbegin(), ritr_end(itr);
+		for (; ritr != ritr_end; ++ritr)
+			if (!isspace((unsigned char)*ritr))
+				break;
+		return std::string(itr, ritr.base());
+	}
+
 }
 
 std::string http_header::to_string() const

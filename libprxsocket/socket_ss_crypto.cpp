@@ -793,7 +793,7 @@ void ss_crypto_udp_socket::encode(std::vector<char> &dst, const char *src, size_
 	enc_->encrypt(dst, src, src_size);
 }
 
-std::vector<char>& ss_crypto_udp_socket::decode(const char *src, size_t src_size)
+std::vector<char> &ss_crypto_udp_socket::decode(const char *src, size_t src_size)
 {
 	thread_local std::vector<char> dec_buf;
 	dec_buf.clear();

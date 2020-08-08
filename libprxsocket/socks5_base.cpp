@@ -23,7 +23,7 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 using namespace prxsocket;
 using namespace prxsocket::socks5_helper;
 
-static endpoint empty_endpoint;
+static const endpoint empty_endpoint;
 
 error_code socks5_base::auth()
 {
@@ -359,10 +359,10 @@ error_code socks5_base::recv_s5(uint8_t &resp, endpoint &result)
 		switch (resp_head[3])   //ATYP
 		{
 		case 1:
-			read(mutable_buffer(resp_head + 5, address_v4::addr_size + 1));
+			read(mutable_buffer(resp_head + 5, address_v4::ADDR_SIZE + 1));
 			result = endpoint(
 				address_v4(resp_head + 4),
-				((uint8_t)(resp_head[4 + address_v4::addr_size]) << 8) | (uint8_t)(resp_head[4 + address_v4::addr_size + 1])
+				((uint8_t)(resp_head[4 + address_v4::ADDR_SIZE]) << 8) | (uint8_t)(resp_head[4 + address_v4::ADDR_SIZE + 1])
 			);
 			break;
 		case 3:
@@ -373,10 +373,10 @@ error_code socks5_base::recv_s5(uint8_t &resp, endpoint &result)
 			);
 			break;
 		case 4:
-			read(mutable_buffer(resp_head + 5, address_v6::addr_size + 1));
+			read(mutable_buffer(resp_head + 5, address_v6::ADDR_SIZE + 1));
 			result = endpoint(
 				address_v6(resp_head + 4),
-				((uint8_t)(resp_head[4 + address_v6::addr_size]) << 8) | (uint8_t)(resp_head[4 + address_v6::addr_size + 1])
+				((uint8_t)(resp_head[4 + address_v6::ADDR_SIZE]) << 8) | (uint8_t)(resp_head[4 + address_v6::ADDR_SIZE + 1])
 			);
 			break;
 		default:
@@ -433,13 +433,13 @@ void socks5_base::async_recv_s5_body(const std::shared_ptr<std::array<char, 263>
 	switch (resp_head[3])	//ATYP
 	{
 		case 1:
-			bytes_last = address_v4::addr_size + 1;
+			bytes_last = address_v4::ADDR_SIZE + 1;
 			break;
 		case 3:
 			bytes_last = resp_head[4] + 2;
 			break;
 		case 4:
-			bytes_last = address_v6::addr_size + 1;
+			bytes_last = address_v6::ADDR_SIZE + 1;
 			break;
 		default:
 			throw(socks5_error(ERR_UNSUPPORTED));

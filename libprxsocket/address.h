@@ -36,21 +36,21 @@ namespace prxsocket
 	class address_v4
 	{
 	public:
-		static constexpr size_t addr_size = 4;
+		static constexpr size_t ADDR_SIZE = 4;
 	private:
 		union addr_v4_data
 		{
 			addr_v4_data() :u32(0) {}
 			addr_v4_data(uint32_t _u32) :u32(_u32) {}
 
-			char c8[addr_size];
-			uint8_t u8[addr_size];
+			char c8[ADDR_SIZE];
+			uint8_t u8[ADDR_SIZE];
 			uint32_t u32;
 		} data_;
 	public:
 		address_v4() = default;
 		address_v4(uint32_t host_u32) :data_(boost::endian::native_to_big(host_u32)) {}
-		address_v4(const char *data) { memmove(data_.c8, data, addr_size); }
+		address_v4(const char *data) { memmove(data_.c8, data, ADDR_SIZE); }
 
 		const char *data() const { return data_.c8; }
 		const uint8_t *to_bytes() const { return data_.u8; }
@@ -67,19 +67,19 @@ namespace prxsocket
 	class address_v6
 	{
 	public:
-		static constexpr size_t addr_size = 16;
+		static constexpr size_t ADDR_SIZE = 16;
 	private:
 		union addr_v6_data
 		{
 			addr_v6_data() { memset(u8, 0, sizeof(u8)); }
 
-			char c8[addr_size];
-			uint8_t u8[addr_size];
+			char c8[ADDR_SIZE];
+			uint8_t u8[ADDR_SIZE];
 		} data_;
 	public:
 		address_v6() = default;
-		address_v6(const char *data) { memmove(data_.c8, data, addr_size); }
-		address_v6(uint8_t *data) { memmove(data_.u8, data, addr_size); }
+		address_v6(const char *data) { memmove(data_.c8, data, ADDR_SIZE); }
+		address_v6(uint8_t *data) { memmove(data_.u8, data, ADDR_SIZE); }
 
 		const char *data() const { return data_.c8; }
 		const uint8_t *to_bytes() const { return data_.u8; }

@@ -90,11 +90,11 @@ namespace prxsocket
 			size_t read_data(char *dst, size_t dst_size);
 
 			ssr_auth_aes128_sha1_shared_server_data &server_data_;
-			std::vector<char> send_key_, recv_key_;
+			std::vector<char> send_hmac_key_, recv_hmac_key_;
 			uint32_t send_id_ = 1, recv_id_ = 1;
 
-			std::vector<char> send_buf_head_, send_buf_tail_;
 			bool auth_sent_ = false;
+			std::vector<char> send_buf_head_, send_buf_tail_;
 			std::unique_ptr<char[]> recv_buf_;
 			size_t recv_ptr_ = 0, recv_size_ = 0;
 		};

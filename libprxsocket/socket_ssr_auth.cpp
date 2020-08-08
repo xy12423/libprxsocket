@@ -24,84 +24,89 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 using namespace prxsocket;
 using namespace prxsocket::ssr;
 
-static double trapizoid_random_double(double d)
+namespace
 {
-	double s = random_generator::random_double();
-	if (d == 0)
-		return s;
-	double a = 1 - d;
-	return (sqrt(a * a + 4 * d * s) - a) / (2 * d);
-}
 
-static size_t trapezoid_random_int(size_t max, double d)
-{
-	return (size_t)(max * trapizoid_random_double(d));
-}
-
-static size_t rnd_data_size(size_t src_size)
-{
-	static constexpr size_t tcp_mss = 1440;
-	size_t effective = src_size + 9;
-	if (effective == tcp_mss)
-		return 0;
-	if (effective > tcp_mss)
+	double trapizoid_random_double(double d)
 	{
-		if (effective < 2 * tcp_mss)
-			return trapezoid_random_int(2 * tcp_mss - effective, -0.3);
-		return random_generator::random_int<uint8_t>() % 32;
+		double s = random_generator::random_double();
+		if (d == 0)
+			return s;
+		double a = 1 - d;
+		return (sqrt(a * a + 4 * d * s) - a) / (2 * d);
 	}
-	if (src_size > 900)
-		return random_generator::random_int<uint16_t>() % src_size;
-	return trapezoid_random_int(tcp_mss - effective, -0.3);
-}
 
-static void rnd_data(std::vector<char> &dst, size_t src_size)
-{
-	size_t rnd_size = rnd_data_size(src_size);
-	assert(rnd_size + 1 < 0x10000);
-	if (rnd_size < 128)
+	size_t trapezoid_random_int(size_t max, double d)
 	{
-		dst.push_back((uint8_t)(rnd_size + 1));
-		random_generator::random_bytes(dst, rnd_size);
+		return (size_t)(max * trapizoid_random_double(d));
 	}
-	else
+
+	size_t rnd_data_size(size_t src_size)
 	{
-		size_t rnd_size_begin = dst.size();
-		dst.resize(dst.size() + 3);
-		dst[rnd_size_begin] = '\xFF';
-		uint16_t rnd_size_le = boost::endian::native_to_little((uint16_t)(rnd_size + 1));
-		memcpy(dst.data() + rnd_size_begin + 1, (char *)&rnd_size_le, sizeof(rnd_size_le));
-		random_generator::random_bytes(dst, rnd_size - 2);
-	}
-}
-
-static CryptoPP::Weak::MD5 &md5_hasher()
-{
-	thread_local CryptoPP::Weak::MD5 md5;
-	return md5;
-}
-
-template <size_t N>
-static void str_to_key(char (&dst)[N], const char *src, size_t src_size)
-{
-	static_assert(N > 0 && N % 16 == 0, "str_to_key doesn't support dst with any size");
-	CryptoPP::Weak::MD5 &md5 = md5_hasher();
-
-	size_t i = 0;
-	while (i < N)
-	{
-		if (i == 0)
+		static constexpr size_t tcp_mss = 1440;
+		size_t effective = src_size + 9;
+		if (effective == tcp_mss)
+			return 0;
+		if (effective > tcp_mss)
 		{
-			md5.CalculateDigest((CryptoPP::byte *)dst, (const CryptoPP::byte *)src, src_size);
+			if (effective < 2 * tcp_mss)
+				return trapezoid_random_int(2 * tcp_mss - effective, -0.3);
+			return random_generator::random_int<uint8_t>() % 32;
+		}
+		if (src_size > 900)
+			return random_generator::random_int<uint16_t>() % src_size;
+		return trapezoid_random_int(tcp_mss - effective, -0.3);
+	}
+
+	void rnd_data(std::vector<char> &dst, size_t src_size)
+	{
+		size_t rnd_size = rnd_data_size(src_size);
+		assert(rnd_size + 1 < 0x10000);
+		if (rnd_size < 128)
+		{
+			dst.push_back((uint8_t)(rnd_size + 1));
+			random_generator::random_bytes(dst, rnd_size);
 		}
 		else
 		{
-			md5.Update((const CryptoPP::byte *)dst + i - md5.DIGESTSIZE, md5.DIGESTSIZE);
-			md5.Update((const CryptoPP::byte *)src, src_size);
-			md5.Final((CryptoPP::byte *)dst + i);
+			size_t rnd_size_begin = dst.size();
+			dst.resize(dst.size() + 3);
+			dst[rnd_size_begin] = '\xFF';
+			uint16_t rnd_size_le = boost::endian::native_to_little((uint16_t)(rnd_size + 1));
+			memcpy(dst.data() + rnd_size_begin + 1, (char *)&rnd_size_le, sizeof(rnd_size_le));
+			random_generator::random_bytes(dst, rnd_size - 2);
 		}
-		i += md5.DIGESTSIZE;
 	}
+
+	CryptoPP::Weak::MD5 &md5_hasher()
+	{
+		thread_local CryptoPP::Weak::MD5 md5;
+		return md5;
+	}
+
+	template <size_t N>
+	void str_to_key(char(&dst)[N], const char *src, size_t src_size)
+	{
+		static_assert(N > 0 && N % 16 == 0, "str_to_key doesn't support dst with any size");
+		CryptoPP::Weak::MD5 &md5 = md5_hasher();
+
+		size_t i = 0;
+		while (i < N)
+		{
+			if (i == 0)
+			{
+				md5.CalculateDigest((CryptoPP::byte *)dst, (const CryptoPP::byte *)src, src_size);
+			}
+			else
+			{
+				md5.Update((const CryptoPP::byte *)dst + i - md5.DIGESTSIZE, md5.DIGESTSIZE);
+				md5.Update((const CryptoPP::byte *)src, src_size);
+				md5.Final((CryptoPP::byte *)dst + i);
+			}
+			i += md5.DIGESTSIZE;
+		}
+	}
+
 }
 
 ssr_auth_aes128_sha1_shared_server_data::ssr_auth_aes128_sha1_shared_server_data(const std::string &arg)
@@ -257,7 +262,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_read(mutable_buffer_sequence &&buffe
 	complete_handler(0);
 }
 
-void ssr_auth_aes128_sha1_tcp_socket::async_read(const std::shared_ptr<mutable_buffer_sequence>& buffer, const std::shared_ptr<null_callback>& callback)
+void ssr_auth_aes128_sha1_tcp_socket::async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback)
 {
 	while (!buffer->empty())
 	{
@@ -322,7 +327,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_write(const_buffer_sequence &&buffer
 	async_write(std::make_shared<const_buffer_sequence>(std::move(buffer)), std::make_shared<null_callback>(std::move(complete_handler)));
 }
 
-void ssr_auth_aes128_sha1_tcp_socket::async_write(const std::shared_ptr<const_buffer_sequence>& buffer, const std::shared_ptr<null_callback>& callback)
+void ssr_auth_aes128_sha1_tcp_socket::async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback)
 {
 	const_buffer_sequence send_seq;
 	try
@@ -404,8 +409,8 @@ void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data_auth(const std::function
 		if (delim_pos != std::string::npos)
 		{
 			uid = std::stoi(arg.substr(0, delim_pos));
-			send_key_.resize(hasher.DIGESTSIZE);
-			hasher.CalculateDigest((CryptoPP::byte *)send_key_.data(), (CryptoPP::byte *)arg.data() + delim_pos + 1, arg.size() - (delim_pos + 1));
+			send_hmac_key_.resize(hasher.DIGESTSIZE);
+			hasher.CalculateDigest((CryptoPP::byte *)send_hmac_key_.data(), (CryptoPP::byte *)arg.data() + delim_pos + 1, arg.size() - (delim_pos + 1));
 			uid_key_set = true;
 		}
 	}
@@ -413,7 +418,7 @@ void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data_auth(const std::function
 	if (!uid_key_set)
 	{
 		uid = random_generator::random_int<uint32_t>();
-		send_key_ = socket_->key();
+		send_hmac_key_ = socket_->key();
 	}
 
 	size_t rnd_size = random_generator::random_int<uint16_t>();
@@ -452,7 +457,7 @@ void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data_auth(const std::function
 	//encrypted
 	enc_key_str.clear();
 	CryptoPP::StringSource ss(
-		(const CryptoPP::byte *)send_key_.data(), send_key_.size(),
+		(const CryptoPP::byte *)send_hmac_key_.data(), send_hmac_key_.size(),
 		true, 
 		new CryptoPP::Base64Encoder(new CryptoPP::StringSinkTemplate<std::vector<char>>(enc_key_str), false)
 	);
@@ -472,14 +477,14 @@ void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data_auth(const std::function
 	random_generator::random_bytes(send_buf_head_.data() + 31, rnd_size);
 
 	//complete_hmac
-	hmac.SetKey((const CryptoPP::byte *)send_key_.data(), send_key_.size());
+	hmac.SetKey((const CryptoPP::byte *)send_hmac_key_.data(), send_hmac_key_.size());
 	hmac.Update((const CryptoPP::byte *)send_buf_head_.data(), send_buf_head_.size());
 	src_iter(hmac);
 	hmac.Final(hmac_digest);
 	send_buf_tail_.assign((const char *)hmac_digest, (const char *)hmac_digest + 4);
 
-	send_key_.resize(send_key_.size() + 4); //Reserved for pack_id_le in key of hmac in prepare_send_data
-	recv_key_ = send_key_; //Separate send and recv
+	send_hmac_key_.resize(send_hmac_key_.size() + 4); //Reserved for pack_id_le in key of hmac in prepare_send_data
+	recv_hmac_key_ = send_hmac_key_; //Separate send and recv
 	auth_sent_ = true;
 }
 
@@ -498,9 +503,9 @@ void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data(const std::function<void
 	*/
 
 	uint32_t pack_id_le = boost::endian::native_to_little(send_id_);
-	assert(send_key_.size() > 4);
-	memcpy(send_key_.data() + send_key_.size() - 4, &pack_id_le, 4);
-	hmac.SetKey((const CryptoPP::byte *)send_key_.data(), send_key_.size());
+	assert(send_hmac_key_.size() > 4);
+	memcpy(send_hmac_key_.data() + send_hmac_key_.size() - 4, &pack_id_le, 4);
+	hmac.SetKey((const CryptoPP::byte *)send_hmac_key_.data(), send_hmac_key_.size());
 
 	send_buf_head_.resize(4); //Reserved for total_size(2 bytes) & total_size_mac(2 bytes)
 	rnd_data(send_buf_head_, src_size); //rnd_data
@@ -665,7 +670,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_recv_data(null_callback &&complete_h
 	});
 }
 
-void ssr_auth_aes128_sha1_tcp_socket::async_recv_data_body(size_t total_size, const std::shared_ptr<null_callback>& callback)
+void ssr_auth_aes128_sha1_tcp_socket::async_recv_data_body(size_t total_size, const std::shared_ptr<null_callback> &callback)
 {
 	if (total_size < 4 || total_size > RECV_BUF_SIZE)
 	{
@@ -708,9 +713,9 @@ error_code ssr_auth_aes128_sha1_tcp_socket::decode_recv_data(size_t total_size)
 	CryptoPP::byte hmac_digest[hmac.DIGESTSIZE];
 
 	uint32_t recv_id_le = boost::endian::native_to_little(recv_id_);
-	assert(recv_key_.size() > 4);
-	memcpy(recv_key_.data() + recv_key_.size() - 4, &recv_id_le, 4);
-	hmac.SetKey((const CryptoPP::byte *)recv_key_.data(), recv_key_.size());
+	assert(recv_hmac_key_.size() > 4);
+	memcpy(recv_hmac_key_.data() + recv_hmac_key_.size() - 4, &recv_id_le, 4);
+	hmac.SetKey((const CryptoPP::byte *)recv_hmac_key_.data(), recv_hmac_key_.size());
 
 	assert(((uint8_t)recv_buf_[0] | ((uint8_t)recv_buf_[1] << 8)) == total_size); //total_size
 	hmac.CalculateDigest(hmac_digest, (CryptoPP::byte *)recv_buf_.get(), 2);

@@ -92,7 +92,7 @@ size_t address::from_socks5(const char *data)
 		case V4:
 		{
 			v4_ = address_v4(data);
-			size = 1 + address_v4::addr_size;
+			size = 1 + address_v4::ADDR_SIZE;
 			break;
 		}
 		case STR:
@@ -106,7 +106,7 @@ size_t address::from_socks5(const char *data)
 		case V6:
 		{
 			v6_ = address_v6(data);
-			size = 1 + address_v6::addr_size;
+			size = 1 + address_v6::ADDR_SIZE;
 			break;
 		}
 		default:
@@ -124,7 +124,7 @@ void address::to_socks5(std::string &ret) const
 	{
 		case V4:
 		{
-			ret.append(v4_.data(), v4_.addr_size);
+			ret.append(v4_.data(), v4_.ADDR_SIZE);
 			break;
 		}
 		case STR:
@@ -138,7 +138,7 @@ void address::to_socks5(std::string &ret) const
 		}
 		case V6:
 		{
-			ret.append(v6_.data(), v6_.addr_size);
+			ret.append(v6_.data(), v6_.ADDR_SIZE);
 			break;
 		}
 		default:

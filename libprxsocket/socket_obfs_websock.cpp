@@ -25,25 +25,28 @@ using namespace prxsocket;
 using namespace prxsocket::http_helper;
 using namespace CryptoPP;
 
-static void base64(std::string &dst, const char *data, size_t size)
+namespace
 {
-	static constexpr char base64_map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-	static constexpr char base64_pad = '=';
 
-	const char *data_end = data + size - 3;
-	for (; data <= data_end; data += 3)
+	void base64(std::string &dst, const char *data, size_t size)
 	{
-		dst.push_back(base64_map[(uint8_t)(data[0]) >> 2]);
-		dst.push_back(base64_map[(((uint8_t)(data[0]) << 4) | ((uint8_t)(data[1]) >> 4)) & 0x3F]);
-		dst.push_back(base64_map[(((uint8_t)(data[1]) << 2) | ((uint8_t)(data[2]) >> 6)) & 0x3F]);
-		dst.push_back(base64_map[(uint8_t)(data[2]) & 0x3F]);
-	}
+		static constexpr char base64_map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+		static constexpr char base64_pad = '=';
 
-	if (data != data_end)
-	{
-		data_end += 3;
-		switch (data_end - data)
+		const char *data_end = data + size - 3;
+		for (; data <= data_end; data += 3)
 		{
+			dst.push_back(base64_map[(uint8_t)(data[0]) >> 2]);
+			dst.push_back(base64_map[(((uint8_t)(data[0]) << 4) | ((uint8_t)(data[1]) >> 4)) & 0x3F]);
+			dst.push_back(base64_map[(((uint8_t)(data[1]) << 2) | ((uint8_t)(data[2]) >> 6)) & 0x3F]);
+			dst.push_back(base64_map[(uint8_t)(data[2]) & 0x3F]);
+		}
+
+		if (data != data_end)
+		{
+			data_end += 3;
+			switch (data_end - data)
+			{
 			case 1:
 				dst.push_back(base64_map[(uint8_t)(data[0]) >> 2]);
 				dst.push_back(base64_map[((uint8_t)(data[0]) << 4) & 0x3F]);
@@ -56,82 +59,84 @@ static void base64(std::string &dst, const char *data, size_t size)
 				dst.push_back(base64_map[((uint8_t)(data[1]) << 2) & 0x3F]);
 				dst.push_back(base64_pad);
 				break;
+			}
 		}
 	}
-}
 
-static void base64(std::string &dst, const std::string &src)
-{
-	base64(dst, src.data(), src.size());
-}
-
-static void base64(std::string &dst, const byte *src, size_t src_size)
-{
-	base64(dst, (const char*)src, src_size);
-}
-
-static void base64_rev(std::string &dst, const char *data, size_t size)
-{
-	static constexpr uint8_t base64_rev_map[] = {
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //00-15
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //16-31
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 62,0, 0, 0, 63,//32-47
-		52,53,54,55,56,57,58,59,60,61,0, 0, 0, 0, 0, 0, //48-63
-		0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13,14,//64-79
-		15,16,17,18,19,20,21,22,23,24,25,0, 0, 0, 0, 0, //80-95
-		0, 26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,//96-111
-		41,42,43,44,45,46,47,48,49,50,51,0, 0, 0, 0, 0, //112-127
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //128-255
-	};
-	static constexpr char base64_pad = '=';
-
-	if (size % 4 != 0)
-		throw(std::runtime_error("Invalid base64"));
-	if (size == 0)
-		return;
-	dst.reserve(dst.size() + size / 4 * 3);
-
-	const char *data_end = data + size;
-	for (; data < data_end; data += 4)
+	void base64(std::string &dst, const std::string &src)
 	{
-		dst.push_back((base64_rev_map[(uint8_t)data[0]] << 2) | (base64_rev_map[(uint8_t)data[1]] >> 4));
-		dst.push_back((base64_rev_map[(uint8_t)data[1]] << 4) | (base64_rev_map[(uint8_t)data[2]] >> 2));
-		dst.push_back((base64_rev_map[(uint8_t)data[2]] << 6) | base64_rev_map[(uint8_t)data[3]]);
+		base64(dst, src.data(), src.size());
 	}
-	if (data[-1] == base64_pad)
+
+	void base64(std::string &dst, const byte *src, size_t src_size)
 	{
-		dst.pop_back();
-		if (data[-2] == base64_pad)
+		base64(dst, (const char*)src, src_size);
+	}
+
+	void base64_rev(std::string &dst, const char *data, size_t size)
+	{
+		static constexpr uint8_t base64_rev_map[] = {
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //00-15
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //16-31
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 62,0, 0, 0, 63,//32-47
+			52,53,54,55,56,57,58,59,60,61,0, 0, 0, 0, 0, 0, //48-63
+			0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13,14,//64-79
+			15,16,17,18,19,20,21,22,23,24,25,0, 0, 0, 0, 0, //80-95
+			0, 26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,//96-111
+			41,42,43,44,45,46,47,48,49,50,51,0, 0, 0, 0, 0, //112-127
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //128-255
+		};
+		static constexpr char base64_pad = '=';
+
+		if (size % 4 != 0)
+			throw(std::runtime_error("Invalid base64"));
+		if (size == 0)
+			return;
+		dst.reserve(dst.size() + size / 4 * 3);
+
+		const char *data_end = data + size;
+		for (; data < data_end; data += 4)
+		{
+			dst.push_back((base64_rev_map[(uint8_t)data[0]] << 2) | (base64_rev_map[(uint8_t)data[1]] >> 4));
+			dst.push_back((base64_rev_map[(uint8_t)data[1]] << 4) | (base64_rev_map[(uint8_t)data[2]] >> 2));
+			dst.push_back((base64_rev_map[(uint8_t)data[2]] << 6) | base64_rev_map[(uint8_t)data[3]]);
+		}
+		if (data[-1] == base64_pad)
+		{
 			dst.pop_back();
+			if (data[-2] == base64_pad)
+				dst.pop_back();
+		}
 	}
-}
 
-static void gen_websocket_accept(std::string &dst, const std::string &src_b64)
-{
-	static constexpr char uuid[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-	static constexpr size_t uuid_size = sizeof(uuid) - 1;
-	std::string buf;
-	buf.reserve(src_b64.size() + uuid_size);
-	buf.append(src_b64);
-	buf.append(uuid, uuid_size);
-	thread_local SHA1 hasher_sha1;
-	char result[20];
-	hasher_sha1.CalculateDigest((byte*)result, (const byte*)buf.data(), buf.size());
-	base64(dst, result, 20);
-}
+	void gen_websocket_accept(std::string &dst, const std::string &src_b64)
+	{
+		static constexpr char uuid[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+		static constexpr size_t uuid_size = sizeof(uuid) - 1;
+		std::string buf;
+		buf.reserve(src_b64.size() + uuid_size);
+		buf.append(src_b64);
+		buf.append(uuid, uuid_size);
+		thread_local SHA1 hasher_sha1;
+		char result[20];
+		hasher_sha1.CalculateDigest((byte*)result, (const byte*)buf.data(), buf.size());
+		base64(dst, result, 20);
+	}
 
-static void gen_websocket_accept(std::string &dst, const byte *src, size_t size)
-{
-	std::string src_b64;
-	base64(src_b64, src, size);
-	gen_websocket_accept(dst, src_b64);
+	void gen_websocket_accept(std::string &dst, const byte *src, size_t size)
+	{
+		std::string src_b64;
+		base64(src_b64, src, size);
+		gen_websocket_accept(dst, src_b64);
+	}
+
 }
 
 void obfs_websock_tcp_socket::encode(std::string &dst, const char *src, size_t size)
