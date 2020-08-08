@@ -193,7 +193,6 @@
     <ClInclude Include="address.h" />
     <ClInclude Include="buffer.h" />
     <ClInclude Include="crypto_base.h" />
-    <ClInclude Include="crypto_cryptopp.h" />
     <ClInclude Include="endpoint.h" />
     <ClInclude Include="http_header.h" />
     <ClInclude Include="random_generator.h" />

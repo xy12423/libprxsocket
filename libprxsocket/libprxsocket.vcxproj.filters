@@ -98,9 +98,6 @@
     <ClInclude Include="crypto_base.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="crypto_cryptopp.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="socket_ss_crypto.h">
       <Filter>头文件</Filter>
     </ClInclude>
