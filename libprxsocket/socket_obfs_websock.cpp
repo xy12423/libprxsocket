@@ -839,12 +839,6 @@ void obfs_websock_listener::accept(std::unique_ptr<prx_tcp_socket> &soc, error_c
 
 void obfs_websock_listener::async_accept(accept_callback &&complete_handler)
 {
-	if (socket_accept_)
-	{
-		complete_handler(WARN_ALREADY_IN_STATE, nullptr);
-		return;
-	}
-	//TODO: support queue
 	std::shared_ptr<accept_callback> callback = std::make_shared<accept_callback>(std::move(complete_handler));
 	acceptor_->async_accept([this, callback](error_code err, std::unique_ptr<prx_tcp_socket> &&socket)
 	{
@@ -853,24 +847,24 @@ void obfs_websock_listener::async_accept(accept_callback &&complete_handler)
 			(*callback)(err, nullptr);
 			return;
 		}
-		socket_accept_ = std::move(socket);
-		recv_websocket_req(callback, std::make_shared<http_header>());
+		std::shared_ptr<std::unique_ptr<prx_tcp_socket>> socket_accept = std::make_shared<std::unique_ptr<prx_tcp_socket>>(std::move(socket));
+		recv_websocket_req(callback, socket_accept, std::make_shared<http_header>());
 	});
 }
 
-void obfs_websock_listener::recv_websocket_req(const std::shared_ptr<accept_callback> &callback, const std::shared_ptr<http_header> &header, size_t old_ptr, size_t old_ptr_end)
+void obfs_websock_listener::recv_websocket_req(
+	const std::shared_ptr<accept_callback> &callback,
+	const std::shared_ptr<std::unique_ptr<prx_tcp_socket>> &socket_accept,
+	const std::shared_ptr<http_header> &header,
+	size_t old_ptr, size_t old_ptr_end
+)
 {
-	socket_accept_->async_recv(mutable_buffer(recv_buf_.get() + old_ptr_end, RECV_BUF_SIZE - old_ptr_end),
-		[this, callback, header, old_ptr, old_ptr_end](error_code err, size_t transferred)
+	(*socket_accept)->async_recv(mutable_buffer(recv_buf_.get() + old_ptr_end, RECV_BUF_SIZE - old_ptr_end),
+		[this, callback, socket_accept, header, old_ptr, old_ptr_end](error_code err, size_t transferred)
 	{
 		if (err)
 		{
-			error_code ec;
-			//TODO: check if close continues to use resources
-			//TODO: check if async invalidates callback
-			socket_accept_->close(ec);
-			socket_accept_.reset();
-			(*callback)(err, nullptr);
+			(*socket_accept)->async_close([this, socket_accept, callback, err](error_code) { (*callback)(err, nullptr); });
 			return;
 		}
 
@@ -884,7 +878,7 @@ void obfs_websock_listener::recv_websocket_req(const std::shared_ptr<accept_call
 			{
 				if (new_ptr_end >= RECV_BUF_SIZE)
 					throw(std::runtime_error("HTTP header too long"));
-				recv_websocket_req(callback, header, new_ptr, new_ptr_end);
+				recv_websocket_req(callback, socket_accept, header, new_ptr, new_ptr_end);
 				return;
 			}
 
@@ -901,18 +895,15 @@ void obfs_websock_listener::recv_websocket_req(const std::shared_ptr<accept_call
 		}
 		catch (const std::exception &)
 		{
-			error_code ec;
-			socket_accept_->close(ec);
-			socket_accept_.reset();
-			(*callback)(ERR_OPERATION_FAILURE, nullptr);
+			(*socket_accept)->async_close([this, socket_accept, callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, nullptr); });
 			return;
 		}
 
-		send_websocket_resp(callback);
+		send_websocket_resp(callback, socket_accept);
 	});
 }
 
-void obfs_websock_listener::send_websocket_resp(const std::shared_ptr<accept_callback> &callback)
+void obfs_websock_listener::send_websocket_resp(const std::shared_ptr<accept_callback> &callback, const std::shared_ptr<std::unique_ptr<prx_tcp_socket>> &socket_accept)
 {
 	std::shared_ptr<std::string> http_resp = std::make_shared<std::string>();
 	try
@@ -928,25 +919,19 @@ void obfs_websock_listener::send_websocket_resp(const std::shared_ptr<accept_cal
 	}
 	catch (const std::exception &)
 	{
-		error_code ec;
-		socket_accept_->close(ec);
-		socket_accept_.reset();
-		(*callback)(ERR_OPERATION_FAILURE, nullptr);
+		(*socket_accept)->async_close([this, socket_accept, callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, nullptr); });
 		return;
 	}
 
-	socket_accept_->async_write(const_buffer(*http_resp),
-		[this, http_resp, callback](error_code err)
+	(*socket_accept)->async_write(const_buffer(*http_resp),
+		[this, http_resp, socket_accept, callback](error_code err)
 	{
 		if (err)
 		{
-			error_code ec;
-			socket_accept_->close(ec);
-			socket_accept_.reset();
-			(*callback)(err, nullptr);
+			(*socket_accept)->async_close([this, socket_accept, callback, err](error_code) { (*callback)(err, nullptr); });
 			return;
 		}
 
-		(*callback)(0, std::make_unique<obfs_websock_tcp_socket>(std::move(socket_accept_), key_, iv_));
+		(*callback)(0, std::make_unique<obfs_websock_tcp_socket>(std::move(*socket_accept), key_, iv_));
 	});
 }

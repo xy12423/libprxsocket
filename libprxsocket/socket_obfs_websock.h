@@ -154,12 +154,16 @@ namespace prxsocket
 		virtual void close(error_code &ec) override { return acceptor_->close(ec); }
 		virtual void async_close(null_callback &&complete_handler) override { acceptor_->async_close(std::move(complete_handler)); }
 	private:
-		void recv_websocket_req(const std::shared_ptr<accept_callback> &callback, const std::shared_ptr<http_helper::http_header> &header, size_t recv_buf_ptr = 0, size_t recv_buf_ptr_end = 0);
-		void send_websocket_resp(const std::shared_ptr<accept_callback> &callback);
+		void recv_websocket_req(
+			const std::shared_ptr<accept_callback> &callback,
+			const std::shared_ptr<std::unique_ptr<prx_tcp_socket>> &socket_accept,
+			const std::shared_ptr<http_helper::http_header> &header,
+			size_t recv_buf_ptr = 0, size_t recv_buf_ptr_end = 0
+		);
+		void send_websocket_resp(const std::shared_ptr<accept_callback> &callback, const std::shared_ptr<std::unique_ptr<prx_tcp_socket>> &socket_accept);
 
 		std::unique_ptr<prx_listener> acceptor_;
 		std::unique_ptr<char[]> recv_buf_;
-		std::unique_ptr<prx_tcp_socket> socket_accept_;
 
 		std::string key_, iv_, sec_accept_;
 	};
