@@ -250,6 +250,13 @@ namespace prxsocket
 		};
 		using shake_128 = kekkak_sha3<256>;
 
+		enum SecurityTypes
+		{
+			SEC_AES_128_GCM = 3,
+			SEC_CHACHA20_POLY1305 = 4,
+			SEC_NONE = 5,
+		};
+
 		class vmess_tcp_socket final : public prx_tcp_socket
 		{
 			static constexpr size_t MAX_BLOCK_SIZE = 1 << 14;

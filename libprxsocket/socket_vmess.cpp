@@ -663,7 +663,7 @@ void vmess_tcp_socket::encode_header(std::vector<char> &buf)
 
 	memcpy(request_key_, command_buf + 17, 16);
 	hasher_md5.CalculateDigest(response_key_, request_key_, 16);
-	if (security_ == 0x03) //ChaCha20-Poly1305 need special body key
+	if (security_ == SEC_CHACHA20_POLY1305) //ChaCha20-Poly1305 need special body key
 	{
 		memcpy(request_body_key_, response_key_, 16);
 		hasher_md5.CalculateDigest(request_body_key_ + 16, request_body_key_, 16);
@@ -684,8 +684,8 @@ void vmess_tcp_socket::encode_header(std::vector<char> &buf)
 	response_mask_.Restart();
 	response_mask_.Update(response_iv_, 16);
 	response_mask_.ShakeStart();
-	request_count_ = 1;
-	response_count_ = 1;
+	request_count_ = 0;
+	response_count_ = 0;
 }
 
 size_t vmess_tcp_socket::encode(const const_buffer &buffer)
