@@ -139,7 +139,7 @@ void raw_tcp_socket::open(error_code &err)
 	socket_.open(asio::ip::tcp::v4(), ec);
 	if (ec)
 	{
-		err = (is_open() && !is_connected() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
+		err = ERR_OPERATION_FAILURE;
 		return;
 	}
 	set_keep_alive();
@@ -152,6 +152,25 @@ void raw_tcp_socket::async_open(null_callback &&complete_handler)
 	error_code err;
 	open(err);
 	complete_handler(err);
+}
+
+void raw_tcp_socket::check_protocol(const asio::ip::tcp::endpoint::protocol_type &protocol)
+{
+	if (!socket_.is_open())
+	{
+		socket_.open(protocol, ec);
+		set_keep_alive();
+	}
+	else
+	{
+		asio::ip::tcp::endpoint local_endpoint = socket_.local_endpoint(ec);
+		if (ec || local_endpoint.protocol() != protocol)
+		{
+			socket_.close(ec);
+			socket_.open(protocol, ec);
+			set_keep_alive();
+		}
+	}
 }
 
 void raw_tcp_socket::bind(const endpoint &ep, error_code &err)
@@ -168,17 +187,13 @@ void raw_tcp_socket::bind(const endpoint &ep, error_code &err)
 	{
 		case address::V4:
 		{
-			socket_.close(ec);
-			socket_.open(asio::ip::tcp::v4(), ec);
-			set_keep_alive();
+			check_protocol(asio::ip::tcp::v4());
 			native_addr = asio::ip::address_v4(addr.v4().to_ulong());
 			break;
 		}
 		case address::V6:
 		{
-			socket_.close(ec);
-			socket_.open(asio::ip::tcp::v6(), ec);
-			set_keep_alive();
+			check_protocol(asio::ip::tcp::v6());
 			std::array<uint8_t, address_v6::ADDR_SIZE> addr_byte;
 			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::ADDR_SIZE);
 			native_addr = asio::ip::address_v6(addr_byte);
@@ -192,7 +207,7 @@ void raw_tcp_socket::bind(const endpoint &ep, error_code &err)
 	}
 	socket_.bind(asio::ip::tcp::endpoint(native_addr, ep.port()), ec);
 	binded_ = !ec;
-	if (ec)
+	if (!binded_)
 		err = ERR_OPERATION_FAILURE;
 }
 
@@ -203,36 +218,12 @@ void raw_tcp_socket::async_bind(const endpoint &ep, null_callback &&complete_han
 	complete_handler(err);
 }
 
-void raw_tcp_socket::check_protocol(const asio::ip::tcp::endpoint::protocol_type &protocol)
-{
-	try
-	{
-		if (!socket_.is_open())
-		{
-			socket_.open(protocol, ec);
-			set_keep_alive();
-		}
-		else if (socket_.local_endpoint().protocol() != protocol)
-		{
-			socket_.close(ec);
-			socket_.open(protocol, ec);
-			set_keep_alive();
-		}
-	}
-	catch (const std::exception &)
-	{
-		socket_.close(ec);
-		socket_.open(protocol, ec);
-		set_keep_alive();
-	}
-}
-
 void raw_tcp_socket::connect(const endpoint &ep, error_code &err)
 {
 	err = 0;
 	if (is_connected())
 	{
-		err = WARN_ALREADY_IN_STATE;
+		err = ERR_ALREADY_IN_STATE;
 		return;
 	}
 	const address &addr = ep.addr();
@@ -302,7 +293,7 @@ void raw_tcp_socket::async_connect(const endpoint &ep, null_callback &&complete_
 {
 	if (is_connected())
 	{
-		complete_handler(WARN_ALREADY_IN_STATE);
+		complete_handler(ERR_ALREADY_IN_STATE);
 		return;
 	}
 	const address &addr = ep.addr();
@@ -600,7 +591,7 @@ void raw_udp_socket::open(error_code &err)
 	err = 0;
 	if (is_open())
 	{
-		err = WARN_ALREADY_IN_STATE;
+		err = ERR_ALREADY_IN_STATE;
 		return;
 	}
 	socket_.open(asio::ip::udp::v4(), ec);
@@ -628,24 +619,21 @@ void raw_udp_socket::async_open(null_callback &&complete_handler)
 void raw_udp_socket::bind(const endpoint &ep, error_code &err)
 {
 	err = 0;
-	if (is_open())
-	{
-		err = ERR_ALREADY_IN_STATE;
-		return;
-	}
 	const address &addr = ep.addr();
 	asio::ip::address native_addr;
 	switch (addr.type())
 	{
 		case address::V4:
 		{
+			socket_.close(ec);
 			socket_.open(asio::ip::udp::v4(), ec);
 			native_addr = asio::ip::address_v4(addr.v4().to_ulong());
 			break;
 		}
 		case address::V6:
 		{
-			socket_.open(asio::ip::udp::v4(), ec);
+			socket_.close(ec);
+			socket_.open(asio::ip::udp::v6(), ec);
 			std::array<uint8_t, address_v6::ADDR_SIZE> addr_byte;
 			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::ADDR_SIZE);
 			native_addr = asio::ip::address_v6(addr_byte);
@@ -685,7 +673,7 @@ void raw_udp_socket::send_to(const endpoint &ep, const const_buffer &buffer, err
 	}
 	socket_.send_to(asio::buffer(buffer.data(), buffer.size()), native_ep, 0, ec);
 	if (ec)
-		err = (socket_.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
+		err = ERR_OPERATION_FAILURE;
 }
 
 void raw_udp_socket::async_send_to(const endpoint &ep, const const_buffer &buffer, null_callback &&complete_handler)
@@ -702,7 +690,7 @@ void raw_udp_socket::async_send_to(const endpoint &ep, const const_buffer &buffe
 			[this, callback](const boost::system::error_code &e, size_t)
 		{
 			if (e)
-				(*callback)(socket_.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
+				(*callback)(ERR_OPERATION_FAILURE);
 			else
 				(*callback)(0);
 		});
@@ -716,7 +704,7 @@ void raw_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_
 	transferred = socket_.receive_from(asio::buffer(buffer.data(), buffer.size()), native_ep, 0, ec);
 	if (ec)
 	{
-		err = (socket_.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
+		err = (ERR_OPERATION_FAILURE);
 		return;
 	}
 	raw_ep_to_ep(native_ep, ep);
@@ -730,7 +718,7 @@ void raw_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buffer,
 	{
 		if (e)
 		{
-			(*callback)((socket_.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE), recved);
+			(*callback)(ERR_OPERATION_FAILURE, recved);
 			return;
 		}
 		raw_ep_to_ep(recv_ep_, ep);
@@ -750,7 +738,7 @@ void raw_udp_socket::send_to(const endpoint &ep, const_buffer_sequence &&buffers
 	}
 	socket_.send_to(to_raw_buffers(buffers), native_ep, 0, ec);
 	if (ec)
-		err = (socket_.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
+		err = (ERR_OPERATION_FAILURE);
 }
 
 void raw_udp_socket::async_send_to(const endpoint &ep, const_buffer_sequence &&buffers, null_callback &&complete_handler)
@@ -767,7 +755,7 @@ void raw_udp_socket::async_send_to(const endpoint &ep, const_buffer_sequence &&b
 			[this, callback](const boost::system::error_code &e, size_t)
 		{
 			if (e)
-				(*callback)(socket_.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
+				(*callback)(ERR_OPERATION_FAILURE);
 			else
 				(*callback)(0);
 		});
@@ -781,7 +769,7 @@ void raw_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buffers, 
 	transferred = socket_.receive_from(to_raw_buffers(buffers), native_ep, 0, ec);
 	if (ec)
 	{
-		err = (socket_.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE);
+		err = (ERR_OPERATION_FAILURE);
 		return;
 	}
 	raw_ep_to_ep(native_ep, ep);
@@ -795,7 +783,7 @@ void raw_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&buf
 	{
 		if (e)
 		{
-			(*callback)((socket_.is_open() ? WARN_OPERATION_FAILURE : ERR_OPERATION_FAILURE), recved);
+			(*callback)(ERR_OPERATION_FAILURE, recved);
 			return;
 		}
 		raw_ep_to_ep(recv_ep_, ep);

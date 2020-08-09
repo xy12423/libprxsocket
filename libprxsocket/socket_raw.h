@@ -37,7 +37,7 @@ namespace prxsocket
 		virtual ~raw_tcp_socket() override {}
 
 		virtual bool is_open() override { return socket_.is_open(); }
-		virtual bool is_connected() override { assert(!connected_ || is_open()); return connected_ && is_open(); }
+		virtual bool is_connected() override { return connected_ && is_open(); }
 
 		virtual void local_endpoint(endpoint &ep, error_code &err) override;
 		virtual void remote_endpoint(endpoint &ep, error_code &err) override;

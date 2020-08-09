@@ -86,6 +86,8 @@ namespace prxsocket
 
 			template <typename... T> void close(T &&...args) { auth_method_ = 0xFF; return socket_->close(std::forward<T>(args)...); }
 			template <typename... T> void async_close(T &&...args) { auth_method_ = 0xFF; return socket_->async_close(std::forward<T>(args)...); }
+		protected:
+			std::unique_ptr<prx_tcp_socket> socket_;
 		private:
 			void async_auth_recv(const std::shared_ptr<null_callback> &callback);
 			void async_select_recv_body(const std::shared_ptr<sockssel_callback> &selector, const std::shared_ptr<std::array<char, 257>> &method_avail, const std::shared_ptr<null_callback> &callback);
@@ -93,8 +95,6 @@ namespace prxsocket
 			void async_recv_s5_body(const std::shared_ptr<std::array<char, 263>> &resp_data, const std::shared_ptr<socksreq_callback> &callback);
 
 			void close() { error_code err; close(err); }
-
-			std::unique_ptr<prx_tcp_socket> socket_;
 
 			std::string available_methods_;
 			uint8_t auth_method_ = 0xFF;

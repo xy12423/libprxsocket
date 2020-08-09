@@ -182,7 +182,7 @@ void ss_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_t
 		size_t ep_size = ep.from_socks5(udp_recv_buf_.get());
 		if (ep_size == 0 || ep_size > udp_recv_size)
 		{
-			err = WARN_OPERATION_FAILURE;
+			err = ERR_OPERATION_FAILURE;
 			return;
 		}
 
@@ -194,7 +194,7 @@ void ss_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_t
 	catch (const std::exception &)
 	{
 		transferred = 0;
-		err = WARN_OPERATION_FAILURE;
+		err = ERR_OPERATION_FAILURE;
 		return;
 	}
 }
@@ -224,7 +224,7 @@ void ss_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buffer, 
 			size_t ep_size = ep.from_socks5(udp_recv_buf_.get());
 			if (ep_size == 0 || ep_size > udp_recv_size)
 			{
-				(*callback)(WARN_OPERATION_FAILURE, 0);
+				(*callback)(ERR_OPERATION_FAILURE, 0);
 				return;
 			}
 
@@ -236,7 +236,7 @@ void ss_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buffer, 
 		}
 		catch (const std::exception &)
 		{
-			(*callback)(WARN_OPERATION_FAILURE, 0);
+			(*callback)(ERR_OPERATION_FAILURE, 0);
 			return;
 		}
 	});
@@ -254,7 +254,7 @@ void ss_udp_socket::send_to(const endpoint &ep, const_buffer_sequence &&buffers,
 	}
 	catch (const std::exception &)
 	{
-		err = WARN_OPERATION_FAILURE;
+		err = ERR_OPERATION_FAILURE;
 		return;
 	}
 
@@ -276,7 +276,7 @@ void ss_udp_socket::async_send_to(const endpoint &ep, const_buffer_sequence &&bu
 	}
 	catch (const std::exception &)
 	{
-		complete_handler(WARN_OPERATION_FAILURE);
+		complete_handler(ERR_OPERATION_FAILURE);
 		return;
 	}
 
@@ -317,7 +317,7 @@ void ss_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buffers, s
 		size_t ep_size = ep.from_socks5(udp_recv_buf_.get());
 		if (ep_size == 0 || ep_size > udp_recv_size)
 		{
-			err = WARN_OPERATION_FAILURE;
+			err = ERR_OPERATION_FAILURE;
 			return;
 		}
 
@@ -329,7 +329,7 @@ void ss_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buffers, s
 	catch (const std::exception &)
 	{
 		transferred = 0;
-		err = WARN_OPERATION_FAILURE;
+		err = ERR_OPERATION_FAILURE;
 		return;
 	}
 }
@@ -360,7 +360,7 @@ void ss_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&buff
 			size_t ep_size = ep.from_socks5(udp_recv_buf_.get());
 			if (ep_size == 0 || ep_size > udp_recv_size)
 			{
-				(*callback)(WARN_OPERATION_FAILURE, 0);
+				(*callback)(ERR_OPERATION_FAILURE, 0);
 				return;
 			}
 
@@ -373,7 +373,7 @@ void ss_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&buff
 		}
 		catch (const std::exception &)
 		{
-			(*callback)(WARN_OPERATION_FAILURE, 0);
+			(*callback)(ERR_OPERATION_FAILURE, 0);
 			return;
 		}
 	});

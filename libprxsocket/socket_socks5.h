@@ -41,8 +41,8 @@ namespace prxsocket
 		}
 		virtual ~socks5_tcp_socket() override {}
 
-		virtual bool is_open() override { return state_ >= STATE_OPEN; }
-		virtual bool is_connected() override { return state_ >= STATE_CONNECTED; }
+		virtual bool is_open() override { return state_ >= STATE_OPEN && socket_->is_connected(); }
+		virtual bool is_connected() override { return state_ >= STATE_CONNECTED && socket_->is_connected(); }
 
 		virtual void local_endpoint(endpoint &ep, error_code &ec) override { ec = 0; if (!is_connected()) { ec = ERR_OPERATION_FAILURE; return; } ep = local_ep_; }
 		virtual void remote_endpoint(endpoint &ep, error_code &ec) override { ec = 0; if (!is_connected()) { ec = ERR_OPERATION_FAILURE; return; } ep = remote_ep_; }
@@ -89,7 +89,7 @@ namespace prxsocket
 		}
 		virtual ~socks5_udp_socket() override {}
 
-		virtual bool is_open() override { return state_ >= STATE_ASSOCIATED; }
+		virtual bool is_open() override { return state_ >= STATE_ASSOCIATED && socket_->is_connected() && (!udp_socket_ || udp_socket_->is_open()); }
 
 		virtual void local_endpoint(endpoint &ep, error_code &ec) override;
 
@@ -113,8 +113,8 @@ namespace prxsocket
 	private:
 		void open(const endpoint &endpoint, error_code &ec);
 		void async_open(const endpoint &endpoint, null_callback &&complete_handler);
-		void close() { error_code ec; state_ = STATE_INIT; return socks5_base::close(ec); }
-		void udp_alive();
+		void async_open_continue(const endpoint &endpoint, const std::shared_ptr<null_callback> &callback);
+		void close() { error_code ec; return close(ec); }
 		void async_skip(size_t size, const std::shared_ptr<transfer_callback> &callback);
 		error_code parse_udp(size_t udp_recv_size, endpoint &ep, const mutable_buffer &buffer, size_t &transferred);
 		error_code parse_udp(size_t udp_recv_size, endpoint &ep, mutable_buffer_sequence &&buffer, size_t &transferred);
@@ -124,7 +124,6 @@ namespace prxsocket
 		endpoint server_ep_, udp_server_ep_, udp_recv_ep_, udp_local_ep_;
 		std::unique_ptr<prx_udp_socket> udp_socket_;
 		std::unique_ptr<char[]> udp_recv_buf_;
-		char udp_alive_buf_;
 	};
 
 	class socks5_listener final : public prx_listener

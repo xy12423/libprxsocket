@@ -478,18 +478,18 @@ error_code socks5_base::parse_udp(const char *udp_recv_buf, size_t udp_recv_size
 
 		for (int i = 0; i < 3; i++)
 			if (udp_recv_buf[i] != 0)
-				return WARN_OPERATION_FAILURE;
+				return ERR_OPERATION_FAILURE;
 
 		size_t ep_size = ep.from_socks5(udp_recv_buf + 3);
 		if (ep_size == 0 || 3 + ep_size > udp_recv_size)
-			return WARN_OPERATION_FAILURE;
+			return ERR_OPERATION_FAILURE;
 
 		buffer = udp_recv_buf + 3 + ep_size;
 		transferred = udp_recv_size - (3 + ep_size);
 	}
 	catch (const std::exception &)
 	{
-		return WARN_OPERATION_FAILURE;
+		return ERR_OPERATION_FAILURE;
 	}
 	return 0;
 }

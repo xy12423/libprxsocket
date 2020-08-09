@@ -36,11 +36,6 @@ namespace prxsocket
 	using null_callback = std::function<void(error_code)>;
 
 	enum {
-		//Deprecated
-		WARN_OPERATION_FAILURE = 1,
-		WARN_UNSUPPORTED = 7,
-		WARN_ALREADY_IN_STATE = 11,
-
 		ERR_OPERATION_FAILURE = 1,
 		ERR_UNRESOLVED_HOST = 4,
 		ERR_CONNECTION_REFUSED = 5,
