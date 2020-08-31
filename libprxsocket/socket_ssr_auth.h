@@ -49,8 +49,6 @@ namespace prxsocket
 			static constexpr size_t AUTH_PACK_SIZE = 1200;
 			static constexpr size_t PACK_SIZE = 8100;
 			static constexpr size_t RECV_BUF_SIZE = 0x2000;
-
-			void reset() { send_id_ = recv_id_ = 1; auth_sent_ = false; recv_ptr_ = recv_size_ = 0; }
 		public:
 			ssr_auth_aes128_sha1_tcp_socket(std::unique_ptr<ss::ss_crypto_tcp_socket> &&base_socket, ssr_auth_aes128_sha1_shared_server_data &arg)
 				:transparent_tcp_socket_template<ss::ss_crypto_tcp_socket>(std::move(base_socket)),
@@ -72,7 +70,7 @@ namespace prxsocket
 			virtual void close(error_code &ec) override { reset(); return socket_->close(ec); }
 			virtual void async_close(null_callback &&complete_handler) override { reset(); socket_->async_close(std::move(complete_handler)); }
 		private:
-			void close() { error_code ec; close(ec); }
+			void reset() { send_id_ = recv_id_ = 1; auth_sent_ = false; recv_ptr_ = recv_size_ = 0; }
 
 			void async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
 			void async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);

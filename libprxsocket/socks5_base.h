@@ -84,9 +84,11 @@ namespace prxsocket
 			template <typename... T> void write(T &&...args) { return socket_->write(std::forward<T>(args)...); }
 			template <typename... T> void async_write(T &&...args) { return socket_->async_write(std::forward<T>(args)...); }
 
-			template <typename... T> void close(T &&...args) { auth_method_ = 0xFF; return socket_->close(std::forward<T>(args)...); }
-			template <typename... T> void async_close(T &&...args) { auth_method_ = 0xFF; return socket_->async_close(std::forward<T>(args)...); }
+			template <typename... T> void close(T &&...args) { reset(); return socket_->close(std::forward<T>(args)...); }
+			template <typename... T> void async_close(T &&...args) { reset(); return socket_->async_close(std::forward<T>(args)...); }
 		protected:
+			void reset() { auth_method_ = 0xFF; }
+
 			std::unique_ptr<prx_tcp_socket> socket_;
 		private:
 			void async_auth_recv(const std::shared_ptr<null_callback> &callback);

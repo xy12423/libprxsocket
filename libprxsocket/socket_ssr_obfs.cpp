@@ -57,7 +57,7 @@ void ssr_http_simple_tcp_socket::send(const const_buffer &buffer, size_t &transf
 		socket_->write(const_buffer(header), err);
 		if (err)
 		{
-			close();
+			reset();
 			transferred = 0;
 			return;
 		}
@@ -67,7 +67,7 @@ void ssr_http_simple_tcp_socket::send(const const_buffer &buffer, size_t &transf
 	}
 	socket_->send(buffer, transferred, err);
 	if (err)
-		close();
+		reset();
 }
 
 void ssr_http_simple_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
@@ -82,7 +82,8 @@ void ssr_http_simple_tcp_socket::async_send(const const_buffer &buffer, transfer
 		{
 			if (err)
 			{
-				async_close([callback, err](error_code) { (*callback)(err, 0); });
+				reset();
+				(*callback)(err, 0);
 				return;
 			}
 			header_sent_ = true;
@@ -94,9 +95,12 @@ void ssr_http_simple_tcp_socket::async_send(const const_buffer &buffer, transfer
 		[this, callback](error_code err, size_t transferred)
 	{
 		if (err)
-			async_close([callback, err, transferred](error_code) { (*callback)(err, transferred); });
-		else
-			(*callback)(0, transferred);
+		{
+			reset();
+			(*callback)(err, transferred);
+			return;
+		}
+		(*callback)(0, transferred);
 	});
 }
 
@@ -118,7 +122,7 @@ void ssr_http_simple_tcp_socket::recv(const mutable_buffer &buffer, size_t &tran
 	}
 	socket_->recv(buffer, transferred, err);
 	if (err)
-		close();
+		reset();
 }
 
 void ssr_http_simple_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
@@ -129,7 +133,7 @@ void ssr_http_simple_tcp_socket::async_recv(const mutable_buffer &buffer, transf
 		async_wait_header([this, buffer, callback](error_code err)
 		{
 			if (err)
-				async_close([callback, err](error_code) { (*callback)(err, 0); });
+				(*callback)(err, 0);
 			else
 				async_recv(buffer, std::move(*callback));
 		});
@@ -148,9 +152,12 @@ void ssr_http_simple_tcp_socket::async_recv(const mutable_buffer &buffer, transf
 		[this, callback](error_code err, size_t transferred)
 	{
 		if (err)
-			async_close([callback, err, transferred](error_code) { (*callback)(err, transferred); });
-		else
-			(*callback)(0, transferred);
+		{
+			reset();
+			(*callback)(err, transferred);
+			return;
+		}
+		(*callback)(0, transferred);
 	});
 }
 
@@ -174,7 +181,7 @@ void ssr_http_simple_tcp_socket::read(mutable_buffer_sequence &&buffer, error_co
 	}
 	socket_->read(std::move(buffer), err);
 	if (err)
-		close();
+		reset();
 }
 
 void ssr_http_simple_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler)
@@ -186,7 +193,7 @@ void ssr_http_simple_tcp_socket::async_read(mutable_buffer_sequence &&buffer, nu
 		async_wait_header([this, buffer_ptr, callback](error_code err)
 		{
 			if (err)
-				async_close([callback, err](error_code) { (*callback)(err); });
+				(*callback)(err);
 			else
 				async_read(std::move(*buffer_ptr), std::move(*callback));
 		});
@@ -212,9 +219,12 @@ void ssr_http_simple_tcp_socket::async_read(mutable_buffer_sequence &&buffer, nu
 		[this, callback](error_code err)
 	{
 		if (err)
-			async_close([callback, err](error_code) { (*callback)(err); });
-		else
-			(*callback)(0);
+		{
+			reset();
+			(*callback)(err);
+			return;
+		}
+		(*callback)(0);
 	});
 }
 
@@ -228,7 +238,7 @@ void ssr_http_simple_tcp_socket::write(const_buffer_sequence &&buffer, error_cod
 		socket_->write(const_buffer(header), err);
 		if (err)
 		{
-			close();
+			reset();
 			return;
 		}
 		header_sent_ = true;
@@ -236,7 +246,7 @@ void ssr_http_simple_tcp_socket::write(const_buffer_sequence &&buffer, error_cod
 	}
 	socket_->write(std::move(buffer), err);
 	if (err)
-		close();
+		reset();
 }
 
 void ssr_http_simple_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler)
@@ -253,7 +263,8 @@ void ssr_http_simple_tcp_socket::async_write(const_buffer_sequence &&buffer, nul
 		{
 			if (err)
 			{
-				async_close([callback, err](error_code) { (*callback)(err); });
+				reset();
+				(*callback)(err);
 				return;
 			}
 			header_sent_ = true;
@@ -265,9 +276,12 @@ void ssr_http_simple_tcp_socket::async_write(const_buffer_sequence &&buffer, nul
 		[this, callback](error_code err)
 	{
 		if (err)
-			async_close([callback, err](error_code) { (*callback)(err); });
-		else
-			(*callback)(0);
+		{
+			reset();
+			(*callback)(err);
+			return;
+		}
+		(*callback)(0);
 	});
 }
 
@@ -337,15 +351,15 @@ void ssr_http_simple_tcp_socket::wait_header(error_code &err)
 	{
 		if (recv_buf_ptr_end_ >= RECV_BUF_SIZE)
 		{
+			reset();
 			err = ERR_OPERATION_FAILURE;
-			close();
 			return;
 		}
 		size_t transferred;
 		socket_->recv(mutable_buffer(recv_buf_.get() + recv_buf_ptr_end_, RECV_BUF_SIZE - recv_buf_ptr_end_), transferred, err);
 		if (err)
 		{
-			close();
+			reset();
 			return;
 		}
 		recv_buf_ptr_end_ += transferred;
@@ -376,7 +390,8 @@ void ssr_http_simple_tcp_socket::async_wait_header(const std::shared_ptr<null_ca
 	{
 		if (err)
 		{
-			async_close([callback, err](error_code) { (*callback)(err); });
+			reset();
+			(*callback)(err);
 			return;
 		}
 		recv_buf_ptr_end_ += transferred;
@@ -399,7 +414,8 @@ void ssr_http_simple_tcp_socket::async_wait_header(const std::shared_ptr<null_ca
 		}
 		if (recv_buf_ptr_end_ >= RECV_BUF_SIZE)
 		{
-			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
+			reset();
+			(*callback)(ERR_OPERATION_FAILURE);
 			return;
 		}
 		async_wait_header(callback, matched);

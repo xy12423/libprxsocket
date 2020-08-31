@@ -87,10 +87,10 @@ namespace prxsocket
 		virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
 		virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 
-		virtual void close(error_code &ec) override { state = STATE_INIT; dec_buf_.clear(); dec_ptr_ = 0; return socket_->close(ec); }
-		virtual void async_close(null_callback &&complete_handler) override { state = STATE_INIT; dec_buf_.clear(); dec_ptr_ = 0; socket_->async_close(std::move(complete_handler)); }
+		virtual void close(error_code &ec) override { reset(); return socket_->close(ec); }
+		virtual void async_close(null_callback &&complete_handler) override { reset(); socket_->async_close(std::move(complete_handler)); }
 	private:
-		void close() { error_code ec; close(ec); }
+		void reset() { state = STATE_INIT; dec_buf_.clear(); dec_ptr_ = 0; }
 
 		void encode(std::string &dst, const char *src, size_t size);
 		void decode(std::string &dst, const char *src, size_t size);

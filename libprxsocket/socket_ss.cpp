@@ -35,7 +35,7 @@ void ss_tcp_socket::connect(const endpoint &ep, error_code &err)
 	socket_->write(const_buffer(header), err);
 	if (err)
 	{
-		close();
+		reset();
 		return;
 	}
 	remote_ep_sent_ = true;
@@ -61,7 +61,8 @@ void ss_tcp_socket::async_connect(const endpoint &ep, null_callback &&complete_h
 		{
 			if (err)
 			{
-				async_close([callback, err](error_code) { (*callback)(err); });
+				reset();
+				(*callback)(err);
 				return;
 			}
 			remote_ep_sent_ = true;
@@ -74,7 +75,7 @@ void ss_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_
 {
 	socket_->send(buffer, transferred, err);
 	if (err)
-		close();
+		reset();
 }
 
 void ss_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
@@ -84,9 +85,12 @@ void ss_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&c
 		[this, callback](error_code err, size_t transferred)
 	{
 		if (err)
-			async_close([callback, err, transferred](error_code) { (*callback)(err, transferred); });
-		else
-			(*callback)(0, transferred);
+		{
+			reset();
+			(*callback)(err, transferred);
+			return;
+		}
+		(*callback)(0, transferred);
 	});
 }
 
@@ -94,7 +98,7 @@ void ss_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, erro
 {
 	socket_->recv(buffer, transferred, err);
 	if (err)
-		close();
+		reset();
 }
 
 void ss_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
@@ -104,9 +108,12 @@ void ss_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &
 		[this, callback](error_code err, size_t transferred)
 	{
 		if (err)
-			async_close([callback, err, transferred](error_code) { (*callback)(err, transferred); });
-		else
-			(*callback)(0, transferred);
+		{
+			reset();
+			(*callback)(err, transferred);
+			return;
+		}
+		(*callback)(0, transferred);
 	});
 }
 
@@ -114,7 +121,7 @@ void ss_tcp_socket::read(mutable_buffer_sequence &&buffer, error_code &err)
 {
 	socket_->read(std::move(buffer), err);
 	if (err)
-		close();
+		reset();
 }
 
 void ss_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler)
@@ -124,9 +131,12 @@ void ss_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback &
 		[this, callback](error_code err)
 	{
 		if (err)
-			async_close([callback, err](error_code) { (*callback)(err); });
-		else
-			(*callback)(0);
+		{
+			reset();
+			(*callback)(err);
+			return;
+		}
+		(*callback)(0);
 	});
 }
 
@@ -134,7 +144,7 @@ void ss_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
 {
 	socket_->write(std::move(buffer), err);
 	if (err)
-		close();
+		reset();
 }
 
 void ss_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler)
@@ -144,9 +154,12 @@ void ss_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback &&
 		[this, callback](error_code err)
 	{
 		if (err)
-			async_close([callback, err](error_code) { (*callback)(err); });
-		else
-			(*callback)(0);
+		{
+			reset();
+			(*callback)(err);
+			return;
+		}
+		(*callback)(0);
 	});
 }
 
@@ -170,10 +183,7 @@ void ss_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_t
 	if (err)
 	{
 		if (!udp_socket_->is_open())
-		{
-			error_code ec;
-			close(ec);
-		}
+			reset();
 		return;
 	}
 
@@ -209,13 +219,8 @@ void ss_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buffer, 
 		if (err)
 		{
 			if (!udp_socket_->is_open())
-			{
-				async_close([err, callback](error_code) { (*callback)(err, 0); });
-			}
-			else
-			{
-				(*callback)(err, 0);
-			}
+				reset();
+			(*callback)(err, 0);
 			return;
 		}
 
@@ -260,10 +265,7 @@ void ss_udp_socket::send_to(const endpoint &ep, const_buffer_sequence &&buffers,
 
 	udp_socket_->send_to(udp_server_ep_, std::move(buffers), err);
 	if (!udp_socket_->is_open())
-	{
-		error_code ec;
-		close(ec);
-	}
+		reset();
 }
 
 void ss_udp_socket::async_send_to(const endpoint &ep, const_buffer_sequence &&buffers, null_callback &&complete_handler)
@@ -285,13 +287,8 @@ void ss_udp_socket::async_send_to(const endpoint &ep, const_buffer_sequence &&bu
 		[this, header, callback](error_code err)
 	{
 		if (!udp_socket_->is_open())
-		{
-			async_close([err, callback](error_code) { (*callback)(err); });
-		}
-		else
-		{
-			(*callback)(err);
-		}
+			reset();
+		(*callback)(err);
 	});
 }
 
@@ -305,10 +302,7 @@ void ss_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buffers, s
 	if (err)
 	{
 		if (!udp_socket_->is_open())
-		{
-			error_code ec;
-			close(ec);
-		}
+			reset();
 		return;
 	}
 
@@ -345,13 +339,8 @@ void ss_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence &&buff
 		if (err)
 		{
 			if (!udp_socket_->is_open())
-			{
-				async_close([err, callback](error_code) { (*callback)(err, 0); });
-			}
-			else
-			{
-				(*callback)(err, 0);
-			}
+				reset();
+			(*callback)(err, 0);
 			return;
 		}
 

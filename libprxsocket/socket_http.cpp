@@ -44,7 +44,7 @@ void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 		socket_->write(const_buffer(http_req), err);
 		if (err)
 		{
-			close();
+			reset();
 			return;
 		}
 
@@ -59,7 +59,7 @@ void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 			socket_->recv(mutable_buffer(recv_buf_.get() + recv_buf_ptr_end_, RECV_BUF_SIZE - recv_buf_ptr_end_), size_read, err);
 			if (err)
 			{
-				close();
+				reset();
 				return;
 			}
 			recv_buf_ptr_end_ += size_read;
@@ -70,7 +70,7 @@ void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 	}
 	catch (const std::exception &)
 	{
-		close();
+		reset();
 		err = ERR_OPERATION_FAILURE;
 		return;
 	}
@@ -112,7 +112,8 @@ void http_tcp_socket::send_http_req(const std::shared_ptr<null_callback> &callba
 	}
 	catch (const std::exception &)
 	{
-		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
+		reset();
+		(*callback)(ERR_OPERATION_FAILURE);
 		return;
 	}
 
@@ -121,7 +122,8 @@ void http_tcp_socket::send_http_req(const std::shared_ptr<null_callback> &callba
 	{
 		if (err)
 		{
-			async_close([callback, err](error_code) { (*callback)(err); });
+			reset();
+			(*callback)(err);
 			return;
 		}
 		recv_buf_ptr_ = recv_buf_ptr_end_ = 0;
@@ -136,7 +138,8 @@ void http_tcp_socket::recv_http_resp(const std::shared_ptr<null_callback> &callb
 	{
 		if (err)
 		{
-			async_close([callback, err](error_code) { (*callback)(err); });
+			reset();
+			(*callback)(err);
 			return;
 		}
 
@@ -161,7 +164,8 @@ void http_tcp_socket::recv_http_resp(const std::shared_ptr<null_callback> &callb
 		}
 		catch (const std::exception &)
 		{
-			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
+			reset();
+			(*callback)(ERR_OPERATION_FAILURE);
 		}
 	});
 }
@@ -170,7 +174,7 @@ void http_tcp_socket::send(const const_buffer &buffer, size_t &transferred, erro
 {
 	socket_->send(buffer, transferred, err);
 	if (err)
-		close();
+		reset();
 }
 
 void http_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
@@ -180,9 +184,12 @@ void http_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &
 		[this, callback](error_code err, size_t transferred)
 	{
 		if (err)
-			async_close([callback, err, transferred](error_code) { (*callback)(err, transferred); });
-		else
-			(*callback)(0, transferred);
+		{
+			reset();
+			(*callback)(err, transferred);
+			return;
+		}
+		(*callback)(0, transferred);
 	});
 }
 
@@ -198,7 +205,7 @@ void http_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, er
 	}
 	socket_->recv(buffer, transferred, err);
 	if (err)
-		close();
+		reset();
 }
 
 void http_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
@@ -216,9 +223,12 @@ void http_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback
 		[this, callback](error_code err, size_t transferred)
 	{
 		if (err)
-			async_close([callback, err, transferred](error_code) { (*callback)(err, transferred); });
-		else
-			(*callback)(0, transferred);
+		{
+			reset();
+			(*callback)(err, transferred);
+			return;
+		}
+		(*callback)(0, transferred);
 	});
 }
 
@@ -236,7 +246,7 @@ void http_tcp_socket::read(mutable_buffer_sequence &&buffer, error_code &err)
 	}
 	socket_->read(std::move(buffer), err);
 	if (err)
-		close();
+		reset();
 }
 
 void http_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler)
@@ -261,9 +271,12 @@ void http_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback
 		[this, callback](error_code err)
 	{
 		if (err)
-			async_close([callback, err](error_code) { (*callback)(err); });
-		else
-			(*callback)(0);
+		{
+			reset();
+			(*callback)(err);
+			return;
+		}
+		(*callback)(0);
 	});
 }
 
@@ -271,7 +284,7 @@ void http_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
 {
 	socket_->write(std::move(buffer), err);
 	if (err)
-		close();
+		reset();
 }
 
 void http_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler)
@@ -281,8 +294,11 @@ void http_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback 
 		[this, callback](error_code err)
 	{
 		if (err)
-			async_close([callback, err](error_code) { (*callback)(err); });
-		else
-			(*callback)(0);
+		{
+			reset();
+			(*callback)(err);
+			return;
+		}
+		(*callback)(0);
 	});
 }

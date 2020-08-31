@@ -30,8 +30,6 @@ namespace prxsocket
 		class ssr_http_simple_tcp_socket final : public transparent_tcp_socket
 		{
 			static constexpr size_t RECV_BUF_SIZE = 0x400;
-
-			void reset() { header_sent_ = header_received_ = false; recv_buf_ptr_ = recv_buf_ptr_end_ = 0; }
 		public:
 			ssr_http_simple_tcp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const std::string &arg);
 			virtual ~ssr_http_simple_tcp_socket() override {}
@@ -48,7 +46,7 @@ namespace prxsocket
 			virtual void close(error_code &ec) override { reset(); return socket_->close(ec); }
 			virtual void async_close(null_callback &&complete_handler) override { reset(); socket_->async_close(std::move(complete_handler)); }
 		private:
-			void close() { error_code ec; close(ec); }
+			void reset() { header_sent_ = header_received_ = false; recv_buf_ptr_ = recv_buf_ptr_end_ = 0; }
 
 			size_t make_header(std::string &dst, const const_buffer &payload);
 			void wait_header(error_code &err);

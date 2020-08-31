@@ -137,7 +137,7 @@ void ssr_auth_aes128_sha1_tcp_socket::send(const const_buffer &buffer, size_t &t
 	}
 	catch (const std::exception &)
 	{
-		close();
+		reset();
 		err = ERR_OPERATION_FAILURE;
 		return;
 	}
@@ -149,7 +149,7 @@ void ssr_auth_aes128_sha1_tcp_socket::send(const const_buffer &buffer, size_t &t
 	socket_->write(std::move(send_seq), err);
 	if (err)
 	{
-		close();
+		reset();
 		return;
 	}
 	transferred = transferring;
@@ -166,7 +166,8 @@ void ssr_auth_aes128_sha1_tcp_socket::async_send(const const_buffer &buffer, tra
 	}
 	catch (const std::exception &)
 	{
-		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, 0); });
+		reset();
+		(*callback)(ERR_OPERATION_FAILURE, 0);
 		return;
 	}
 
@@ -180,7 +181,8 @@ void ssr_auth_aes128_sha1_tcp_socket::async_send(const const_buffer &buffer, tra
 	{
 		if (err)
 		{
-			async_close([callback, err](error_code) { (*callback)(err, 0); });
+			reset();
+			(*callback)(err, 0);
 			return;
 		}
 		(*callback)(0, transferring);
@@ -302,7 +304,7 @@ void ssr_auth_aes128_sha1_tcp_socket::write(const_buffer_sequence &&buffer, erro
 		}
 		catch (const std::exception &)
 		{
-			close();
+			reset();
 			err = ERR_OPERATION_FAILURE;
 			return;
 		}
@@ -311,7 +313,7 @@ void ssr_auth_aes128_sha1_tcp_socket::write(const_buffer_sequence &&buffer, erro
 		socket_->write(std::move(send_seq), err);
 		if (err)
 		{
-			close();
+			reset();
 			return;
 		}
 	}
@@ -336,7 +338,8 @@ void ssr_auth_aes128_sha1_tcp_socket::async_write(const std::shared_ptr<const_bu
 	}
 	catch (const std::exception &)
 	{
-		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
+		reset();
+		(*callback)(ERR_OPERATION_FAILURE);
 		return;
 	}
 	send_seq.push_front(const_buffer(send_buf_head_));
@@ -347,7 +350,8 @@ void ssr_auth_aes128_sha1_tcp_socket::async_write(const std::shared_ptr<const_bu
 	{
 		if (err)
 		{
-			async_close([callback, err](error_code) { (*callback)(err); });
+			reset();
+			(*callback)(err);
 			return;
 		}
 		if (buffer->count() == 1)
@@ -597,7 +601,7 @@ void ssr_auth_aes128_sha1_tcp_socket::recv_data(error_code &err)
 		send(const_buffer(nullptr, 0), transferred, err);
 		if (err)
 		{
-			close();
+			reset();
 			return;
 		}
 	}
@@ -605,20 +609,20 @@ void ssr_auth_aes128_sha1_tcp_socket::recv_data(error_code &err)
 	socket_->read(mutable_buffer(recv_buf_.get(), 4), err);
 	if (err)
 	{
-		close();
+		reset();
 		return;
 	}
 	size_t total_size = ((uint8_t)recv_buf_[0] | ((uint8_t)recv_buf_[1] << 8));
 	if (total_size < 4 || total_size > RECV_BUF_SIZE)
 	{
 		err = ERR_BAD_ARG_REMOTE;
-		close();
+		reset();
 		return;
 	}
 	socket_->read(mutable_buffer(recv_buf_.get() + 4, total_size - 4), err);
 	if (err)
 	{
-		close();
+		reset();
 		return;
 	}
 
@@ -632,7 +636,7 @@ void ssr_auth_aes128_sha1_tcp_socket::recv_data(error_code &err)
 	}
 	if (err)
 	{
-		close();
+		reset();
 		return;
 	}
 }
@@ -649,7 +653,8 @@ void ssr_auth_aes128_sha1_tcp_socket::async_recv_data(null_callback &&complete_h
 		{
 			if (err)
 			{
-				async_close([callback, err](error_code) { (*callback)(err); });
+				reset();
+				(*callback)(err);
 				return;
 			}
 			async_recv_data(std::move(*callback));
@@ -662,7 +667,8 @@ void ssr_auth_aes128_sha1_tcp_socket::async_recv_data(null_callback &&complete_h
 	{
 		if (err)
 		{
-			async_close([callback, err](error_code) { (*callback)(err); });
+			reset();
+			(*callback)(err);
 			return;
 		}
 		size_t total_size = ((uint8_t)recv_buf_[0] | ((uint8_t)recv_buf_[1] << 8));
@@ -674,7 +680,8 @@ void ssr_auth_aes128_sha1_tcp_socket::async_recv_data_body(size_t total_size, co
 {
 	if (total_size < 4 || total_size > RECV_BUF_SIZE)
 	{
-		async_close([callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
+		reset();
+		(*callback)(ERR_BAD_ARG_REMOTE);
 		return;
 	}
 	socket_->async_read(mutable_buffer(recv_buf_.get() + 4, total_size - 4),
@@ -682,7 +689,8 @@ void ssr_auth_aes128_sha1_tcp_socket::async_recv_data_body(size_t total_size, co
 	{
 		if (err)
 		{
-			async_close([callback, err](error_code) { (*callback)(err); });
+			reset();
+			(*callback)(err);
 			return;
 		}
 
@@ -696,7 +704,8 @@ void ssr_auth_aes128_sha1_tcp_socket::async_recv_data_body(size_t total_size, co
 		}
 		if (err)
 		{
-			async_close([callback, err](error_code) { (*callback)(err); });
+			reset();
+			(*callback)(err);
 			return;
 		}
 

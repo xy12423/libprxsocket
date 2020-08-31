@@ -37,7 +37,7 @@ namespace prxsocket
 			virtual ~ss_tcp_socket() override {}
 
 			virtual bool is_open() override { return socket_->is_open(); }
-			virtual bool is_connected() override { return socket_->is_connected() && remote_ep_sent_; }
+			virtual bool is_connected() override { return remote_ep_sent_ && socket_->is_connected(); }
 
 			virtual void local_endpoint(endpoint &ep, error_code &ec) override { ec = ERR_UNSUPPORTED; }
 			virtual void remote_endpoint(endpoint &ep, error_code &ec) override { ec = 0; if (!is_connected()) { ec = ERR_OPERATION_FAILURE; return; } ep = remote_ep_; }
@@ -60,10 +60,10 @@ namespace prxsocket
 			virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
 			virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 
-			virtual void close(error_code &ec) override { remote_ep_sent_ = false; socket_->close(ec); }
-			virtual void async_close(null_callback &&complete_handler) override { remote_ep_sent_ = false; socket_->async_close(std::move(complete_handler)); }
+			virtual void close(error_code &ec) override { reset(); socket_->close(ec); }
+			virtual void async_close(null_callback &&complete_handler) override { reset(); socket_->async_close(std::move(complete_handler)); }
 		private:
-			void close() { error_code ec; close(ec); }
+			void reset() { remote_ep_sent_ = false; }
 
 			std::unique_ptr<prx_tcp_socket> socket_;
 			endpoint server_ep_, remote_ep_;
@@ -99,9 +99,11 @@ namespace prxsocket
 			virtual void recv_from(endpoint &endpoint, mutable_buffer_sequence &&buffer, size_t &transferred, error_code &ec) override;
 			virtual void async_recv_from(endpoint &endpoint, mutable_buffer_sequence &&buffer, transfer_callback &&complete_handler) override;
 
-			virtual void close(error_code &ec) override { udp_socket_->close(ec); }
-			virtual void async_close(null_callback &&complete_handler) override { udp_socket_->async_close(std::move(complete_handler)); }
+			virtual void close(error_code &ec) override { reset(); udp_socket_->close(ec); }
+			virtual void async_close(null_callback &&complete_handler) override { reset(); udp_socket_->async_close(std::move(complete_handler)); }
 		private:
+			void reset() {}
+
 			std::unique_ptr<prx_udp_socket> udp_socket_;
 			endpoint udp_server_ep_, udp_recv_ep_;
 			std::unique_ptr<char[]> udp_recv_buf_;

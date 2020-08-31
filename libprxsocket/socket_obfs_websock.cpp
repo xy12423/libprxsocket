@@ -223,7 +223,7 @@ void obfs_websock_tcp_socket::connect(const endpoint &ep, error_code &err)
 		socket_->write(const_buffer(http_req), err);
 		if (err)
 		{
-			close();
+			reset();
 			return;
 		}
 
@@ -237,7 +237,7 @@ void obfs_websock_tcp_socket::connect(const endpoint &ep, error_code &err)
 			socket_->recv(mutable_buffer(recv_buf_.get() + recv_buf_ptr_end, RECV_BUF_SIZE - recv_buf_ptr_end), size_read, err);
 			if (err)
 			{
-				close();
+				reset();
 				return;
 			}
 			recv_buf_ptr_end += size_read;
@@ -252,7 +252,7 @@ void obfs_websock_tcp_socket::connect(const endpoint &ep, error_code &err)
 	}
 	catch (const std::exception &)
 	{
-		close();
+		reset();
 		err = ERR_OPERATION_FAILURE;
 		return;
 	}
@@ -289,7 +289,8 @@ void obfs_websock_tcp_socket::send_websocket_req(const std::shared_ptr<null_call
 	}
 	catch (const std::exception &)
 	{
-		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
+		reset();
+		(*callback)(ERR_OPERATION_FAILURE);
 		return;
 	}
 
@@ -298,7 +299,8 @@ void obfs_websock_tcp_socket::send_websocket_req(const std::shared_ptr<null_call
 	{
 		if (err)
 		{
-			async_close([callback, err](error_code) { (*callback)(err); });
+			reset();
+			(*callback)(err);
 			return;
 		}
 		recv_websocket_resp(callback, std::make_shared<http_header>());
@@ -312,7 +314,8 @@ void obfs_websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_cal
 	{
 		if (err)
 		{
-			async_close([callback, err](error_code) { (*callback)(err); });
+			reset();
+			(*callback)(err);
 			return;
 		}
 
@@ -341,7 +344,8 @@ void obfs_websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_cal
 		}
 		catch (const std::exception &)
 		{
-			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
+			reset();
+			(*callback)(ERR_OPERATION_FAILURE);
 		}
 	});
 }
@@ -358,14 +362,14 @@ void obfs_websock_tcp_socket::send(const const_buffer &buffer, size_t &transferr
 	}
 	catch (const std::exception &)
 	{
-		close();
+		reset();
 		err = ERR_OPERATION_FAILURE;
 		return;
 	}
 	socket_->write(const_buffer(send_buf_), err);
 	if (err)
 	{
-		close();
+		reset();
 		return;
 	}
 	transferred = transferring;
@@ -382,7 +386,8 @@ void obfs_websock_tcp_socket::async_send(const const_buffer &buffer, transfer_ca
 	}
 	catch (const std::exception &)
 	{
-		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, 0); });
+		reset();
+		(*callback)(ERR_OPERATION_FAILURE, 0);
 		return;
 	}
 
@@ -391,7 +396,8 @@ void obfs_websock_tcp_socket::async_send(const const_buffer &buffer, transfer_ca
 	{
 		if (err)
 		{
-			async_close([callback, err](error_code) { (*callback)(err, 0); });
+			reset();
+			(*callback)(err, 0);
 			return;
 		}
 		(*callback)(0, transferring);
@@ -516,14 +522,14 @@ void obfs_websock_tcp_socket::write(const_buffer_sequence &&buffer, error_code &
 		}
 		catch (const std::exception &)
 		{
-			close();
+			reset();
 			err = ERR_OPERATION_FAILURE;
 			return;
 		}
 		socket_->write(const_buffer(send_buf_), err);
 		if (err)
 		{
-			close();
+			reset();
 			return;
 		}
 	}
@@ -551,7 +557,8 @@ void obfs_websock_tcp_socket::async_write(const std::shared_ptr<const_buffer_seq
 	}
 	catch (const std::exception &)
 	{
-		async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
+		reset();
+		(*callback)(ERR_OPERATION_FAILURE);
 		return;
 	}
 
@@ -560,7 +567,8 @@ void obfs_websock_tcp_socket::async_write(const std::shared_ptr<const_buffer_seq
 	{
 		if (err)
 		{
-			async_close([callback, err](error_code) { (*callback)(err); });
+			reset();
+			(*callback)(err);
 			return;
 		}
 		if (buffer->count() == 1)
@@ -583,17 +591,17 @@ error_code obfs_websock_tcp_socket::recv_data()
 	socket_->read(mutable_buffer(recv_buf_.get(), 2), err);
 	if (err)
 	{
-		close();
+		reset();
 		return err;
 	}
 	if (recv_buf_[0] != '\x82')
 	{
-		close();
+		reset();
 		return ERR_BAD_ARG_REMOTE;
 	}
 	if (((uint8_t)recv_buf_[1] & 0x80u) != 0x80u)
 	{
-		close();
+		reset();
 		return ERR_BAD_ARG_REMOTE;
 	}
 
@@ -603,7 +611,7 @@ error_code obfs_websock_tcp_socket::recv_data()
 		socket_->read(mutable_buffer(recv_buf_.get(), 8), err);
 		if (err)
 		{
-			close();
+			reset();
 			return err;
 		}
 
@@ -612,7 +620,7 @@ error_code obfs_websock_tcp_socket::recv_data()
 			size64 = (size64 << 8) | (uint8_t)*data;
 		if (size64 > std::numeric_limits<size_t>::max() - 4)
 		{
-			close();
+			reset();
 			return ERR_BAD_ARG_REMOTE;
 		}
 		size = (size_t)(size64 + 4);
@@ -622,7 +630,7 @@ error_code obfs_websock_tcp_socket::recv_data()
 		socket_->read(mutable_buffer(recv_buf_.get(), 2), err);
 		if (err)
 		{
-			close();
+			reset();
 			return err;
 		}
 		size = (((uint8_t)recv_buf_[0] << 8u) | (uint8_t)recv_buf_[1]) + 4;
@@ -634,14 +642,14 @@ error_code obfs_websock_tcp_socket::recv_data()
 
 	if (size > RECV_BUF_SIZE)
 	{
-		close();
+		reset();
 		return ERR_OPERATION_FAILURE;
 	}
 
 	socket_->read(mutable_buffer(recv_buf_.get(), size), err);
 	if (err)
 	{
-		close();
+		reset();
 		return err;
 	}
 
@@ -652,7 +660,7 @@ error_code obfs_websock_tcp_socket::recv_data()
 	}
 	catch (const std::exception &)
 	{
-		close();
+		reset();
 		return ERR_OPERATION_FAILURE;
 	}
 
@@ -667,17 +675,20 @@ void obfs_websock_tcp_socket::async_recv_data(null_callback &&complete_handler)
 	{
 		if (err)
 		{
-			async_close([callback, err](error_code) { (*callback)(err); });
+			reset();
+			(*callback)(err);
 			return;
 		}
 		if (recv_buf_[0] != '\x82')
 		{
-			async_close([callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
+			reset();
+			(*callback)(ERR_BAD_ARG_REMOTE);
 			return;
 		}
 		if (((uint8_t)recv_buf_[1] & 0x80u) != 0x80u)
 		{
-			async_close([callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
+			reset();
+			(*callback)(ERR_BAD_ARG_REMOTE);
 			return;
 		}
 
@@ -697,7 +708,8 @@ void obfs_websock_tcp_socket::async_recv_data_size_16(const std::shared_ptr<null
 	{
 		if (err)
 		{
-			async_close([callback, err](error_code) { (*callback)(err); });
+			reset();
+			(*callback)(err);
 			return;
 		}
 		uint16_t size = ((uint8_t)recv_buf_[0] << 8u) | (uint8_t)recv_buf_[1];
@@ -712,7 +724,8 @@ void obfs_websock_tcp_socket::async_recv_data_size_64(const std::shared_ptr<null
 	{
 		if (err)
 		{
-			async_close([callback, err](error_code) { (*callback)(err); });
+			reset();
+			(*callback)(err);
 			return;
 		}
 		uint64_t size = 0;
@@ -721,7 +734,8 @@ void obfs_websock_tcp_socket::async_recv_data_size_64(const std::shared_ptr<null
 
 		if (size > std::numeric_limits<size_t>::max() - 4)
 		{
-			async_close([callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
+			reset();
+			(*callback)(ERR_BAD_ARG_REMOTE);
 			return;
 		}
 		async_recv_data_body(callback, (size_t)(size + 4));
@@ -732,7 +746,8 @@ void obfs_websock_tcp_socket::async_recv_data_body(const std::shared_ptr<null_ca
 {
 	if (size > RECV_BUF_SIZE)
 	{
-		async_close([callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
+		reset();
+		(*callback)(ERR_BAD_ARG_REMOTE);
 		return;
 	}
 	socket_->async_read(mutable_buffer(recv_buf_.get(), size),
@@ -740,7 +755,8 @@ void obfs_websock_tcp_socket::async_recv_data_body(const std::shared_ptr<null_ca
 	{
 		if (err)
 		{
-			async_close([callback, err](error_code) { (*callback)(err); });
+			reset();
+			(*callback)(err);
 			return;
 		}
 
@@ -751,7 +767,8 @@ void obfs_websock_tcp_socket::async_recv_data_body(const std::shared_ptr<null_ca
 		}
 		catch (const std::exception &)
 		{
-			async_close([callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
+			reset();
+			(*callback)(ERR_OPERATION_FAILURE);
 			return;
 		}
 
@@ -830,7 +847,7 @@ void obfs_websock_listener::accept(std::unique_ptr<prx_tcp_socket> &soc, error_c
 		error_code err;
 		socket->close(err);
 		if (!ec)
-			ec= ERR_BAD_ARG_REMOTE;
+			ec = ERR_BAD_ARG_REMOTE;
 		return;
 	}
 

@@ -35,7 +35,6 @@ namespace prxsocket
 			static constexpr size_t RECV_BUF_SIZE = 0x1000;
 
 			static constexpr size_t transfer_size(size_t buffer_size) { return buffer_size > SEND_SIZE_MAX ? SEND_SIZE_PREF : buffer_size; }
-			void reset() { iv_init_ = iv_sent_ = iv_received_ = false; dec_buf_.clear(); dec_ptr_ = 0; }
 		public:
 			ss_crypto_tcp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const std::vector<char> &key, std::unique_ptr<encryptor> &&enc, std::unique_ptr<decryptor> &&dec)
 				:transparent_tcp_socket(std::move(base_socket)),
@@ -64,7 +63,7 @@ namespace prxsocket
 			const decryptor &dec() const { return *dec_; }
 			void init_enc() { if (!iv_init_) { enc_->set_key(key_.data()); iv_init_ = true; } }
 		private:
-			void close() { error_code ec; close(ec); }
+			void reset() { iv_init_ = iv_sent_ = iv_received_ = false; dec_buf_.clear(); dec_ptr_ = 0; }
 
 			void async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
 			void async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
@@ -123,7 +122,7 @@ namespace prxsocket
 			const encryptor &enc() const { return *enc_; }
 			const decryptor &dec() const { return *dec_; }
 		private:
-			void close() { error_code ec; transparent_udp_socket::close(ec); }
+			void reset() {}
 
 			void encode(std::vector<char> &dst, const char *src, size_t src_size);
 			//Returns thread_local buffer. Use with caution.
