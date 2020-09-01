@@ -620,6 +620,7 @@ void vmess_tcp_socket::encode_header(std::vector<char> &buf)
 	}
 	default:
 		assert(false);
+		command_size = 0;
 	}
 
 	//Rnd

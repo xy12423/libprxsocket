@@ -17,10 +17,10 @@ You should have received a copy of the GNU General Public License
 along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 */
 
+#pragma once
+
 #ifndef _H_STDAFX
 #define _H_STDAFX
-
-#pragma once
 
 #define _LIBPRXSOCKET_BUILD
 
