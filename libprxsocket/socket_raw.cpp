@@ -106,8 +106,8 @@ void raw_tcp_socket::set_keep_alive()
 	struct timeval tv;
 	tv.tv_sec = timeout_milli / 1000;
 	tv.tv_usec = timeout_milli % 1000;
-	setsockopt(socket.native_handle(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-	setsockopt(socket.native_handle(), SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+	setsockopt(socket_.native_handle(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+	setsockopt(socket_.native_handle(), SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 #endif
 }
 
@@ -687,7 +687,7 @@ void raw_udp_socket::async_send_to(const endpoint &ep, const const_buffer &buffe
 			return;
 		}
 		socket_.async_send_to(asio::buffer(buffer.data(), buffer.size()), native_ep,
-			[this, callback](const boost::system::error_code &e, size_t)
+			[callback](const boost::system::error_code &e, size_t)
 		{
 			if (e)
 				(*callback)(ERR_OPERATION_FAILURE);
@@ -752,7 +752,7 @@ void raw_udp_socket::async_send_to(const endpoint &ep, const_buffer_sequence &&b
 			return;
 		}
 		socket_.async_send_to(to_raw_buffers(buffers), native_ep,
-			[this, callback](const boost::system::error_code &e, size_t)
+			[callback](const boost::system::error_code &e, size_t)
 		{
 			if (e)
 				(*callback)(ERR_OPERATION_FAILURE);

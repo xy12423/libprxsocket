@@ -881,7 +881,7 @@ void obfs_websock_listener::recv_websocket_req(
 	{
 		if (err)
 		{
-			(*socket_accept)->async_close([this, socket_accept, callback, err](error_code) { (*callback)(err, nullptr); });
+			(*socket_accept)->async_close([socket_accept, callback, err](error_code) { (*callback)(err, nullptr); });
 			return;
 		}
 
@@ -912,7 +912,7 @@ void obfs_websock_listener::recv_websocket_req(
 		}
 		catch (const std::exception &)
 		{
-			(*socket_accept)->async_close([this, socket_accept, callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, nullptr); });
+			(*socket_accept)->async_close([socket_accept, callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, nullptr); });
 			return;
 		}
 
@@ -936,7 +936,7 @@ void obfs_websock_listener::send_websocket_resp(const std::shared_ptr<accept_cal
 	}
 	catch (const std::exception &)
 	{
-		(*socket_accept)->async_close([this, socket_accept, callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, nullptr); });
+		(*socket_accept)->async_close([socket_accept, callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, nullptr); });
 		return;
 	}
 
@@ -945,7 +945,7 @@ void obfs_websock_listener::send_websocket_resp(const std::shared_ptr<accept_cal
 	{
 		if (err)
 		{
-			(*socket_accept)->async_close([this, socket_accept, callback, err](error_code) { (*callback)(err, nullptr); });
+			(*socket_accept)->async_close([socket_accept, callback, err](error_code) { (*callback)(err, nullptr); });
 			return;
 		}
 
