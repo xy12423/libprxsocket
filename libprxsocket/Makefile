@@ -38,11 +38,13 @@ socket_ss.o : $(baseheaders) socket_ss.h socket_ss.cpp
 	$(CXX) socket_ss.cpp $(CXXFLAGS) -o socket_ss.o
 socket_ss_crypto.o : $(baseheaders) socket_transparent.h crypto_base.h socket_ss_crypto.h socket_ss_crypto.cpp
 	$(CXX) socket_ss_crypto.cpp $(CXXFLAGS) -o socket_ss_crypto.o
-socket_ssr_auth.o : $(baseheaders) socket_transparent.h crypto_base.h socket_ss_crypto.h socket_ssr_auth.h socket_ssr_auth.cpp
+socket_ssr_auth.o : $(baseheaders) socket_transparent.h random_generator.h crypto_base.h socket_ss_crypto.h socket_ssr_auth.h socket_ssr_auth.cpp
 	$(CXX) socket_ssr_auth.cpp $(CXXFLAGS) -o socket_ssr_auth.o
 socket_ssr_obfs.o : $(baseheaders) socket_transparent.h socket_ssr_obfs.h socket_ssr_obfs.cpp
 	$(CXX) socket_ssr_obfs.cpp $(CXXFLAGS) -o socket_ssr_obfs.o
-socket_obfs_websock.o : $(baseheaders) socket_obfs_websock.h http_header.h socket_obfs_websock.cpp
+socket_vmess.o : $(baseheaders) random_generator.h socket_vmess.h socket_vmess.cpp
+	$(CXX) socket_vmess.cpp $(CXXFLAGS) -o socket_vmess.o
+socket_obfs_websock.o : $(baseheaders) random_generator.h socket_obfs_websock.h http_header.h socket_obfs_websock.cpp
 	$(CXX) socket_obfs_websock.cpp $(CXXFLAGS) -o socket_obfs_websock.o
 
 clean :
