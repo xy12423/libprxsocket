@@ -10,7 +10,7 @@ else
 	CXXFLAGS += -g3 -O0 -D_DEBUG
 endif
 
-objects = address.o endpoint.o socket_base.o http_header.o socket_http.o socket_raw.o socks5_base.o socket_socks5.o socket_ss.o socket_ss_crypto.o socket_ssr_auth.o socket_ssr_obfs.o socket_obfs_websock.o
+objects = address.o endpoint.o socket_base.o http_header.o socket_http.o socket_raw.o socks5_base.o socket_socks5.o socket_ss.o socket_ss_crypto.o socket_ssr_auth.o socket_ssr_obfs.o socket_vmess.o socket_obfs_websock.o
 baseheaders = stdafx.h address.h endpoint.h buffer.h socket_base.h
 
 all : libprxsocket.a
