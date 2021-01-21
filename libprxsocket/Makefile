@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -c -pthread -I ~/boost -std=c++14 -Wall
+CXXFLAGS = -c -pthread -I ~/boost -std=c++17 -Wall
 AR = ar
 ARFLAGS = -cr
 RANLIB = ranlib
