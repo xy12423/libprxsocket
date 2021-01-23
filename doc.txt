@@ -1,0 +1,85 @@
+Operations must not be called when there are other unfinished operations.
+    Exception: One of (send/write/shutdown with shutdown_send) and one of (recv/read/shutdown with shutdown_receive) can be used parallelly.
+Asynchronized operations should not fork internally.
+Sockets should not be destructed before all synchronized operations is complete and all asynchronized operations has their handler function objects destructed.
+If any operation is called without their prerequisite fulfilled, the behavior is undefined.
+
+local_endpoint, remote_endpoint, is_open and is_connected should not change the state of the socket.
+local_endpoint, remote_endpoint, is_open and is_connected must reflect the state of the socket just after the last operation completes.
+If send, recv, read, write or shutdown fails, any I/O operation and shutdown on corresponding direction has undefined behavior.
+If send_to or recv_from fails, the value of is_open should be checked. If it is false, the state of the socket is undefined, any operation on socket (except close) has undefined behavior, and the socket should be closed immediately.
+If any operation else fails, the state of the socket is undefined. local_endpoint, remote_endpoint, is_open and is_connected may give inaccurate results. The socket should be closed immediately.
+
+TCP
+
+open/async_open
+Should only be called only if the socket is in its initial state(newly constructed or closed).
+Opens the socket.
+
+bind/async_bind
+Should only be called after a successful call to open and before a successful call to connect.
+Binds the socket to a local endpoint.
+
+connect/async_connect
+Should only be called after a successful call to open and before a successful call to connect.
+Connects to a remote endpoint.
+
+send/async_send
+Should only be called after a successful call to connect and before a successful call to shutdown with an argument that includes shutdown_send.
+Sends data to remote host. May only send part of given data.
+
+recv/async_recv
+Should only be called after a successful call to connect and before a successful call to shutdown with an argument that includes shutdown_receive.
+Receives data from remote host. May not completely fill the given buffer.
+
+read/async_read
+Should only be called after a successful call to connect and before a successful call to shutdown with an argument that includes shutdown_send.
+Completely fills buffer with data received from remote host.
+
+write/async_write
+Should only be called after a successful call to connect and before a successful call to shutdown with an argument that includes shutdown_receive.
+Sends all data to remote host.
+
+shutdown/async_shutdown
+Should only be called after a successful call to connect.
+Should not be called to shutdown the same direction twice.
+Disables I/O operations and shutdown on corresponding direction.
+
+close/async_close
+Resets the socket to its initial state.
+Even if this operation failes, the socket is reset.
+
+is_open
+Returns whether there was a successful call to open/async_open.
+Note: shutdown doesn't change its return value.
+
+is_connected
+Returns whether there was a successful call to connect/async_connect.
+Note: shutdown doesn't change its return value.
+
+Notes for devs:
+When send, recv, read, write or shutdown have error in current layer, shutdown recursively, then return error.
+When send, recv, read, write or shutdown get error from lower layer, reset only itself and only on corresponding direction, then return error.
+When anything else have error, reset itself only (preferred) or do nothing, then return error. (Top level should close it afterward).
+
+UDP
+
+open/async_open
+Should only be called only if the socket is in its initial state(newly constructed or closed).
+Opens the socket.
+
+bind/async_bind
+Should only be called only if the socket is in its initial state(newly constructed or closed).
+Opens the socket and binds the socket to a local endpoint.
+
+send_to/async_send_to
+Should only be called after a successful call to open or bind.
+Sends datagram to remote host.
+
+recv_from/async_recv_from
+Should only be called after a successful call to open or bind.
+Receives datagram from remote host.
+
+close/async_close
+Resets the socket to its initial state.
+Even if this operation failes, the socket is reset.
