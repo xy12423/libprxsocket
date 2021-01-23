@@ -268,7 +268,7 @@ namespace prxsocket
 			virtual ~vmess_tcp_socket() override {}
 
 			virtual bool is_open() override { return socket_->is_open(); }
-			virtual bool is_connected() override { return socket_->is_connected() && header_sent_; }
+			virtual bool is_connected() override { return header_sent_ && socket_->is_connected(); }
 
 			virtual void local_endpoint(endpoint &ep, error_code &ec) override { ec = ERR_UNSUPPORTED; }
 			virtual void remote_endpoint(endpoint &ep, error_code &ec) override { ec = 0; if (!is_connected()) { ec = ERR_OPERATION_FAILURE; return; } ep = remote_ep_; }
@@ -291,12 +291,14 @@ namespace prxsocket
 			virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
 			virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 
+			virtual void shutdown(shutdown_type type, error_code &ec) override;
+			virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) override;
 			virtual void close(error_code &ec) override;
 			virtual void async_close(null_callback &&complete_handler) override;
 		private:
-			void force_close() { error_code err; force_close(err); }
-			void force_close(error_code &ec);
-			void force_async_close(null_callback &&complete_handler);
+			void reset_send() { header_sent_ = false; }
+			void reset_recv() { header_received_ = false; dec_buf_.clear(); dec_ptr_ = 0; }
+			void reset() { reset_send(); reset_recv(); }
 
 			void async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
 			void async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);

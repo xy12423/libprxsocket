@@ -74,8 +74,6 @@ void ss_tcp_socket::async_connect(const endpoint &ep, null_callback &&complete_h
 void ss_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
 {
 	socket_->send(buffer, transferred, err);
-	if (err)
-		reset();
 }
 
 void ss_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
@@ -84,21 +82,13 @@ void ss_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&c
 	socket_->async_send(buffer,
 		[this, callback](error_code err, size_t transferred)
 	{
-		if (err)
-		{
-			reset();
-			(*callback)(err, transferred);
-			return;
-		}
-		(*callback)(0, transferred);
+		(*callback)(err, transferred);
 	});
 }
 
 void ss_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
 {
 	socket_->recv(buffer, transferred, err);
-	if (err)
-		reset();
 }
 
 void ss_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
@@ -107,21 +97,13 @@ void ss_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &
 	socket_->async_recv(buffer,
 		[this, callback](error_code err, size_t transferred)
 	{
-		if (err)
-		{
-			reset();
-			(*callback)(err, transferred);
-			return;
-		}
-		(*callback)(0, transferred);
+		(*callback)(err, transferred);
 	});
 }
 
 void ss_tcp_socket::read(mutable_buffer_sequence &&buffer, error_code &err)
 {
 	socket_->read(std::move(buffer), err);
-	if (err)
-		reset();
 }
 
 void ss_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler)
@@ -130,21 +112,13 @@ void ss_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback &
 	socket_->async_read(std::move(buffer),
 		[this, callback](error_code err)
 	{
-		if (err)
-		{
-			reset();
-			(*callback)(err);
-			return;
-		}
-		(*callback)(0);
+		(*callback)(err);
 	});
 }
 
 void ss_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
 {
 	socket_->write(std::move(buffer), err);
-	if (err)
-		reset();
 }
 
 void ss_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler)
@@ -153,14 +127,30 @@ void ss_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback &&
 	socket_->async_write(std::move(buffer),
 		[this, callback](error_code err)
 	{
-		if (err)
-		{
-			reset();
-			(*callback)(err);
-			return;
-		}
-		(*callback)(0);
+		(*callback)(err);
 	});
+}
+
+void ss_tcp_socket::shutdown(shutdown_type type, error_code &ec)
+{
+	socket_->shutdown(type, ec);
+}
+
+void ss_tcp_socket::async_shutdown(shutdown_type type, null_callback &&complete_handler)
+{
+	socket_->async_shutdown(type, std::move(complete_handler));
+}
+
+void ss_tcp_socket::close(error_code &ec)
+{
+	reset();
+	socket_->close(ec);
+}
+
+void ss_tcp_socket::async_close(null_callback &&complete_handler)
+{
+	reset();
+	socket_->async_close(std::move(complete_handler));
 }
 
 void ss_udp_socket::send_to(const endpoint &ep, const const_buffer &buffer, error_code &err)

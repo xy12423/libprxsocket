@@ -51,7 +51,7 @@ namespace prxsocket
 			memcpy(key_.data(), _key.data(), std::min(block_size, _key.size()));
 		}
 		obfs_websock_tcp_socket(std::unique_ptr<prx_tcp_socket> &&_socket, const std::string &_key, const std::string &_iv)
-			:state(STATE_OK),
+			:state_(STATE_OK),
 			socket_(std::move(_socket)), recv_buf_(std::make_unique<char[]>(RECV_BUF_SIZE)),
 			key_(SYM_BLOCK_SIZE), iv_(SYM_BLOCK_SIZE)
 		{
@@ -64,7 +64,7 @@ namespace prxsocket
 		virtual ~obfs_websock_tcp_socket() override {}
 
 		virtual bool is_open() override { return socket_->is_open(); }
-		virtual bool is_connected() override { return state >= STATE_OK && socket_->is_connected(); }
+		virtual bool is_connected() override { return state_ >= STATE_OK && socket_->is_connected(); }
 
 		virtual void local_endpoint(endpoint &ep, error_code &ec) override { return socket_->local_endpoint(ep, ec); }
 		virtual void remote_endpoint(endpoint &ep, error_code &ec) override { return socket_->remote_endpoint(ep, ec); }
@@ -87,10 +87,14 @@ namespace prxsocket
 		virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
 		virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 
-		virtual void close(error_code &ec) override { reset(); return socket_->close(ec); }
-		virtual void async_close(null_callback &&complete_handler) override { reset(); socket_->async_close(std::move(complete_handler)); }
+		virtual void shutdown(shutdown_type type, error_code &ec) override;
+		virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) override;
+		virtual void close(error_code &ec) override;
+		virtual void async_close(null_callback &&complete_handler) override;
 	private:
-		void reset() { state = STATE_INIT; dec_buf_.clear(); dec_ptr_ = 0; }
+		void reset_send() {}
+		void reset_recv() { dec_buf_.clear(); dec_ptr_ = 0; }
+		void reset() { reset_send(); reset_recv(); state_ = STATE_INIT; }
 
 		void encode(std::string &dst, const char *src, size_t size);
 		void decode(std::string &dst, const char *src, size_t size);
@@ -108,7 +112,7 @@ namespace prxsocket
 		void async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
 		void async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
 
-		int state = STATE_INIT;
+		int state_ = STATE_INIT;
 
 		std::unique_ptr<prx_tcp_socket> socket_;
 		std::string send_buf_;

@@ -64,6 +64,8 @@ namespace prxsocket
 		virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
 		virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 
+		virtual void shutdown(shutdown_type type, error_code &ec) override;
+		virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) override;
 		virtual void close(error_code &err) override;
 		virtual void async_close(null_callback &&complete_handler) override;
 	private:

@@ -59,6 +59,8 @@ namespace prxsocket
 		virtual void write(const_buffer_sequence &&buffer, error_code &ec) override { return socket_->write(std::move(buffer), ec); }
 		virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override { socket_->async_write(std::move(buffer), std::move(complete_handler)); }
 
+		virtual void shutdown(shutdown_type type, error_code &ec) override { return socket_->shutdown(type, ec); }
+		virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) override { socket_->async_shutdown(type, std::move(complete_handler)); }
 		virtual void close(error_code &ec) override { return socket_->close(ec); }
 		virtual void async_close(null_callback &&complete_handler) override { socket_->async_close(std::move(complete_handler)); }
 	protected:

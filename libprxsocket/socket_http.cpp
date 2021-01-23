@@ -174,7 +174,7 @@ void http_tcp_socket::send(const const_buffer &buffer, size_t &transferred, erro
 {
 	socket_->send(buffer, transferred, err);
 	if (err)
-		reset();
+		reset_send();
 }
 
 void http_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
@@ -185,7 +185,7 @@ void http_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &
 	{
 		if (err)
 		{
-			reset();
+			reset_send();
 			(*callback)(err, transferred);
 			return;
 		}
@@ -205,7 +205,7 @@ void http_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, er
 	}
 	socket_->recv(buffer, transferred, err);
 	if (err)
-		reset();
+		reset_recv();
 }
 
 void http_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
@@ -224,7 +224,7 @@ void http_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback
 	{
 		if (err)
 		{
-			reset();
+			reset_recv();
 			(*callback)(err, transferred);
 			return;
 		}
@@ -246,7 +246,7 @@ void http_tcp_socket::read(mutable_buffer_sequence &&buffer, error_code &err)
 	}
 	socket_->read(std::move(buffer), err);
 	if (err)
-		reset();
+		reset_recv();
 }
 
 void http_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler)
@@ -272,7 +272,7 @@ void http_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback
 	{
 		if (err)
 		{
-			reset();
+			reset_recv();
 			(*callback)(err);
 			return;
 		}
@@ -284,7 +284,7 @@ void http_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
 {
 	socket_->write(std::move(buffer), err);
 	if (err)
-		reset();
+		reset_send();
 }
 
 void http_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler)
@@ -295,10 +295,40 @@ void http_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback 
 	{
 		if (err)
 		{
-			reset();
+			reset_send();
 			(*callback)(err);
 			return;
 		}
 		(*callback)(0);
 	});
+}
+
+void http_tcp_socket::shutdown(shutdown_type type, error_code &ec)
+{
+	if (type & shutdown_send)
+		reset_send();
+	if (type & shutdown_receive)
+		reset_recv();
+	socket_->shutdown(type, ec);
+}
+
+void http_tcp_socket::async_shutdown(shutdown_type type, null_callback &&complete_handler)
+{
+	if (type & shutdown_send)
+		reset_send();
+	if (type & shutdown_receive)
+		reset_recv();
+	socket_->async_shutdown(type, std::move(complete_handler));
+}
+
+void http_tcp_socket::close(error_code &ec)
+{
+	reset();
+	return socket_->close(ec);
+}
+
+void http_tcp_socket::async_close(null_callback &&complete_handler)
+{
+	reset();
+	socket_->async_close(std::move(complete_handler));
 }

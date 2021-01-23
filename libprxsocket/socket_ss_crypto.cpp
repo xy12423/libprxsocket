@@ -38,7 +38,7 @@ void ss_crypto_tcp_socket::send(const const_buffer &buffer, size_t &transferred,
 	}
 	catch (const std::exception &)
 	{
-		reset();
+		shutdown(shutdown_send, err);
 		err = ERR_OPERATION_FAILURE;
 		return;
 	}
@@ -46,9 +46,52 @@ void ss_crypto_tcp_socket::send(const const_buffer &buffer, size_t &transferred,
 	socket_->write(const_buffer(send_buf_), err);
 	if (err)
 	{
-		reset();
+		reset_send();
 		return;
 	}
+	transferred = transferring;
+}
+
+void ss_crypto_tcp_socket::send_with_iv(const const_buffer &buffer, size_t &transferred, error_code &err)
+{
+	assert(!iv_sent_);
+	iv_sent_ = true;
+	err = 0;
+	transferred = 0;
+
+	init_enc();
+	if (buffer.size() == 0)
+	{
+		socket_->write(const_buffer(enc_->iv(), enc_iv_size_), err);
+		if (err)
+		{
+			reset_send();
+			return;
+		}
+		return;
+	}
+
+	size_t transferring;
+	try
+	{
+		transferring = prepare_send(buffer);
+	}
+	catch (const std::exception &)
+	{
+		shutdown(shutdown_send, err);
+		err = ERR_OPERATION_FAILURE;
+		return;
+	}
+
+	const_buffer_sequence iv_seq(const_buffer(enc_->iv(), enc_iv_size_));
+	iv_seq.push_back(const_buffer(send_buf_));
+	socket_->write(std::move(iv_seq), err);
+	if (err)
+	{
+		reset_send();
+		return;
+	}
+
 	transferred = transferring;
 }
 
@@ -66,8 +109,7 @@ void ss_crypto_tcp_socket::async_send(const const_buffer &buffer, transfer_callb
 	}
 	catch (const std::exception &)
 	{
-		reset();
-		(*callback)(ERR_OPERATION_FAILURE, 0);
+		async_shutdown(shutdown_send, [callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, 0); });
 		return;
 	}
 
@@ -76,7 +118,56 @@ void ss_crypto_tcp_socket::async_send(const const_buffer &buffer, transfer_callb
 	{
 		if (err)
 		{
-			reset();
+			reset_send();
+			(*callback)(err, 0);
+			return;
+		}
+		(*callback)(0, transferring);
+	});
+}
+
+void ss_crypto_tcp_socket::async_send_with_iv(const const_buffer &buffer, transfer_callback &&complete_handler)
+{
+	assert(!iv_sent_);
+	iv_sent_ = true;
+	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
+
+	init_enc();
+	if (buffer.size() == 0)
+	{
+		socket_->async_write(const_buffer(enc_->iv(), enc_iv_size_),
+			[this, callback](error_code err)
+		{
+			if (err)
+			{
+				reset_send();
+				(*callback)(err, 0);
+				return;
+			}
+			(*callback)(0, 0);
+		});
+		return;
+	}
+
+	size_t transferring;
+	try
+	{
+		transferring = prepare_send(buffer);
+	}
+	catch (const std::exception &)
+	{
+		async_shutdown(shutdown_send, [callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, 0); });
+		return;
+	}
+
+	const_buffer_sequence iv_seq(const_buffer(enc_->iv(), enc_iv_size_));
+	iv_seq.push_back(const_buffer(send_buf_));
+	socket_->async_write(std::move(iv_seq),
+		[this, transferring, callback](error_code err)
+	{
+		if (err)
+		{
+			reset_send();
 			(*callback)(err, 0);
 			return;
 		}
@@ -200,17 +291,59 @@ void ss_crypto_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err
 		}
 		catch (const std::exception &)
 		{
-			reset();
+			shutdown(shutdown_send, err);
 			err = ERR_OPERATION_FAILURE;
 			return;
 		}
 		socket_->write(const_buffer(send_buf_), err);
 		if (err)
 		{
-			reset();
+			reset_send();
 			return;
 		}
 	}
+}
+
+void ss_crypto_tcp_socket::write_with_iv(const_buffer_sequence &&buffer, error_code &err)
+{
+	assert(!iv_sent_);
+	iv_sent_ = true;
+	err = 0;
+
+	init_enc();
+	if (buffer.empty())
+	{
+		socket_->write(const_buffer(enc_->iv(), enc_iv_size_), err);
+		if (err)
+		{
+			reset_send();
+			return;
+		}
+		return;
+	}
+
+	try
+	{
+		prepare_send(buffer);
+	}
+	catch (const std::exception &)
+	{
+		shutdown(shutdown_send, err);
+		err = ERR_OPERATION_FAILURE;
+		return;
+	}
+
+	const_buffer_sequence iv_seq(const_buffer(enc_->iv(), enc_iv_size_));
+	iv_seq.push_back(const_buffer(send_buf_));
+	socket_->write(std::move(iv_seq), err);
+	if (err)
+	{
+		reset_send();
+		return;
+	}
+
+	if (!buffer.empty())
+		return write(std::move(buffer), err);
 }
 
 void ss_crypto_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler)
@@ -235,8 +368,7 @@ void ss_crypto_tcp_socket::async_write(const std::shared_ptr<const_buffer_sequen
 	}
 	catch (const std::exception &)
 	{
-		reset();
-		(*callback)(ERR_OPERATION_FAILURE);
+		async_shutdown(shutdown_send, [callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 		return;
 	}
 
@@ -245,147 +377,12 @@ void ss_crypto_tcp_socket::async_write(const std::shared_ptr<const_buffer_sequen
 	{
 		if (err)
 		{
-			reset();
+			reset_send();
 			(*callback)(err);
 			return;
 		}
 		continue_async_write(buffer, callback);
 	});
-}
-
-void ss_crypto_tcp_socket::send_with_iv(const const_buffer &buffer, size_t &transferred, error_code &err)
-{
-	assert(!iv_sent_);
-	iv_sent_ = true;
-	err = 0;
-	transferred = 0;
-
-	init_enc();
-	if (buffer.size() == 0)
-	{
-		socket_->write(const_buffer(enc_->iv(), enc_iv_size_), err);
-		if (err)
-		{
-			reset();
-			return;
-		}
-		return;
-	}
-
-	size_t transferring;
-	try
-	{
-		transferring = prepare_send(buffer);
-	}
-	catch (const std::exception &)
-	{
-		reset();
-		err = ERR_OPERATION_FAILURE;
-		return;
-	}
-
-	const_buffer_sequence iv_seq(const_buffer(enc_->iv(), enc_iv_size_));
-	iv_seq.push_back(const_buffer(send_buf_));
-	socket_->write(std::move(iv_seq), err);
-	if (err)
-	{
-		reset();
-		return;
-	}
-
-	transferred = transferring;
-}
-
-void ss_crypto_tcp_socket::async_send_with_iv(const const_buffer &buffer, transfer_callback &&complete_handler)
-{
-	assert(!iv_sent_);
-	iv_sent_ = true;
-	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
-
-	init_enc();
-	if (buffer.size() == 0)
-	{
-		socket_->async_write(const_buffer(enc_->iv(), enc_iv_size_),
-			[this, callback](error_code err)
-		{
-			if (err)
-			{
-				reset();
-				(*callback)(err, 0);
-				return;
-			}
-			(*callback)(0, 0);
-		});
-		return;
-	}
-
-	size_t transferring;
-	try
-	{
-		transferring = prepare_send(buffer);
-	}
-	catch (const std::exception &)
-	{
-		reset();
-		(*callback)(ERR_OPERATION_FAILURE, 0);
-		return;
-	}
-
-	const_buffer_sequence iv_seq(const_buffer(enc_->iv(), enc_iv_size_));
-	iv_seq.push_back(const_buffer(send_buf_));
-	socket_->async_write(std::move(iv_seq),
-		[this, transferring, callback](error_code err)
-	{
-		if (err)
-		{
-			reset();
-			(*callback)(err, 0);
-			return;
-		}
-		(*callback)(0, transferring);
-	});
-}
-
-void ss_crypto_tcp_socket::write_with_iv(const_buffer_sequence &&buffer, error_code &err)
-{
-	assert(!iv_sent_);
-	iv_sent_ = true;
-	err = 0;
-
-	init_enc();
-	if (buffer.empty())
-	{
-		socket_->write(const_buffer(enc_->iv(), enc_iv_size_), err);
-		if (err)
-		{
-			reset();
-			return;
-		}
-		return;
-	}
-
-	try
-	{
-		prepare_send(buffer);
-	}
-	catch (const std::exception &)
-	{
-		reset();
-		err = ERR_OPERATION_FAILURE;
-		return;
-	}
-
-	const_buffer_sequence iv_seq(const_buffer(enc_->iv(), enc_iv_size_));
-	iv_seq.push_back(const_buffer(send_buf_));
-	socket_->write(std::move(iv_seq), err);
-	if (err)
-	{
-		reset();
-		return;
-	}
-
-	if (!buffer.empty())
-		return write(std::move(buffer), err);
 }
 
 void ss_crypto_tcp_socket::async_write_with_iv(const_buffer_sequence &&buffer_obj, null_callback &&complete_handler)
@@ -402,7 +399,7 @@ void ss_crypto_tcp_socket::async_write_with_iv(const_buffer_sequence &&buffer_ob
 		{
 			if (err)
 			{
-				reset();
+				reset_send();
 				(*callback)(err);
 				return;
 			}
@@ -418,8 +415,7 @@ void ss_crypto_tcp_socket::async_write_with_iv(const_buffer_sequence &&buffer_ob
 	}
 	catch (const std::exception &)
 	{
-		reset();
-		(*callback)(ERR_OPERATION_FAILURE);
+		async_shutdown(shutdown_send, [callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 		return;
 	}
 
@@ -430,12 +426,57 @@ void ss_crypto_tcp_socket::async_write_with_iv(const_buffer_sequence &&buffer_ob
 	{
 		if (err)
 		{
-			reset();
+			reset_send();
 			(*callback)(err);
 			return;
 		}
 		continue_async_write(buffer, callback);
 	});
+}
+
+void ss_crypto_tcp_socket::continue_async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback)
+{
+	if (buffer->count() == 1)
+	{
+		prx_tcp_socket::async_write(buffer->front(), std::move(*callback));
+		return;
+	}
+	if (buffer->empty())
+	{
+		(*callback)(0);
+		return;
+	}
+	async_write(buffer, callback);
+}
+
+void ss_crypto_tcp_socket::shutdown(shutdown_type type, error_code &ec)
+{
+	if (type & shutdown_send)
+		reset_send();
+	if (type & shutdown_receive)
+		reset_recv();
+	socket_->shutdown(type, ec);
+}
+
+void ss_crypto_tcp_socket::async_shutdown(shutdown_type type, null_callback &&complete_handler)
+{
+	if (type & shutdown_send)
+		reset_send();
+	if (type & shutdown_receive)
+		reset_recv();
+	socket_->async_shutdown(type, std::move(complete_handler));
+}
+
+void ss_crypto_tcp_socket::close(error_code &ec)
+{
+	reset();
+	socket_->close(ec);
+}
+
+void ss_crypto_tcp_socket::async_close(null_callback &&complete_handler)
+{
+	reset();
+	socket_->async_close(std::move(complete_handler));
 }
 
 size_t ss_crypto_tcp_socket::prepare_send(const const_buffer &buffer)
@@ -456,21 +497,6 @@ void ss_crypto_tcp_socket::prepare_send(const_buffer_sequence &buffer)
 	enc_->encrypt(send_buf_, buf.get(), copied);
 }
 
-void ss_crypto_tcp_socket::continue_async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback)
-{
-	if (buffer->count() == 1)
-	{
-		prx_tcp_socket::async_write(buffer->front(), std::move(*callback));
-		return;
-	}
-	if (buffer->empty())
-	{
-		(*callback)(0);
-		return;
-	}
-	async_write(buffer, callback);
-}
-
 void ss_crypto_tcp_socket::recv_data(error_code &err)
 {
 	if (!iv_received_)
@@ -479,7 +505,7 @@ void ss_crypto_tcp_socket::recv_data(error_code &err)
 		socket_->read(mutable_buffer(recv_buf_.get(), dec_iv_size_), err);
 		if (err)
 		{
-			reset();
+			reset_recv();
 			return;
 		}
 		iv_received_ = true;
@@ -490,7 +516,7 @@ void ss_crypto_tcp_socket::recv_data(error_code &err)
 	socket_->recv(mutable_buffer(recv_buf_.get(), RECV_BUF_SIZE), transferred, err);
 	if (err)
 	{
-		reset();
+		reset_recv();
 		return;
 	}
 
@@ -501,7 +527,7 @@ void ss_crypto_tcp_socket::recv_data(error_code &err)
 	}
 	catch (const std::exception &)
 	{
-		reset();
+		shutdown(shutdown_receive, err);
 		err = ERR_OPERATION_FAILURE;
 		return;
 	}
@@ -518,7 +544,7 @@ void ss_crypto_tcp_socket::async_recv_data(null_callback &&complete_handler)
 		{
 			if (err)
 			{
-				reset();
+				reset_recv();
 				(*callback)(err);
 				return;
 			}
@@ -534,7 +560,7 @@ void ss_crypto_tcp_socket::async_recv_data(null_callback &&complete_handler)
 	{
 		if (err)
 		{
-			reset();
+			reset_recv();
 			(*callback)(err);
 			return;
 		}
@@ -546,8 +572,7 @@ void ss_crypto_tcp_socket::async_recv_data(null_callback &&complete_handler)
 		}
 		catch (const std::exception &)
 		{
-			reset();
-			(*callback)(ERR_OPERATION_FAILURE);
+			async_shutdown(shutdown_receive, [callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 			return;
 		}
 

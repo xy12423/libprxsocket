@@ -67,10 +67,14 @@ namespace prxsocket
 			virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
 			virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 
-			virtual void close(error_code &ec) override { reset(); return socket_->close(ec); }
-			virtual void async_close(null_callback &&complete_handler) override { reset(); socket_->async_close(std::move(complete_handler)); }
+			virtual void shutdown(shutdown_type type, error_code &ec) override;
+			virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) override;
+			virtual void close(error_code &ec) override;
+			virtual void async_close(null_callback &&complete_handler) override;
 		private:
-			void reset() { send_id_ = recv_id_ = 1; auth_sent_ = false; recv_ptr_ = recv_size_ = 0; }
+			void reset_send() { send_id_ = 1; auth_sent_ = false; }
+			void reset_recv() { recv_id_ = 1; recv_ptr_ = recv_size_ = 0; }
+			void reset() { reset_send(); reset_recv(); }
 
 			void async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
 			void async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);

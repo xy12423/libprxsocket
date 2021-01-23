@@ -377,8 +377,7 @@ void raw_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error
 	transferred = socket_.send(asio::buffer(buffer.data(), buffer.size()), 0, ec);
 	if (ec)
 	{
-		socket_.close(ec);
-		connected_ = false;
+		socket_.shutdown(socket_.shutdown_send, ec);
 		err = ERR_OPERATION_FAILURE;
 	}
 }
@@ -391,8 +390,7 @@ void raw_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&
 	{
 		if (e)
 		{
-			socket_.close(ec);
-			connected_ = false;
+			socket_.shutdown(socket_.shutdown_send, ec);
 			(*callback)(ERR_OPERATION_FAILURE, transferred);
 		}
 		else
@@ -408,8 +406,7 @@ void raw_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, err
 	transferred = socket_.receive(asio::buffer(buffer.data(), buffer.size()), 0, ec);
 	if (ec)
 	{
-		socket_.close(ec);
-		connected_ = false;
+		socket_.shutdown(socket_.shutdown_receive, ec);
 		err = ERR_OPERATION_FAILURE;
 	}
 }
@@ -422,8 +419,7 @@ void raw_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback 
 	{
 		if (e)
 		{
-			socket_.close(ec);
-			connected_ = false;
+			socket_.shutdown(socket_.shutdown_receive, ec);
 			(*callback)(ERR_OPERATION_FAILURE, transferred);
 		}
 		else
@@ -439,8 +435,7 @@ void prxsocket::raw_tcp_socket::read(const mutable_buffer &buffer, error_code &e
 	asio::read(socket_, asio::buffer(buffer.data(), buffer.size()), ec);
 	if (ec)
 	{
-		socket_.close(ec);
-		connected_ = false;
+		socket_.shutdown(socket_.shutdown_receive, ec);
 		err = ERR_OPERATION_FAILURE;
 	}
 }
@@ -453,8 +448,7 @@ void prxsocket::raw_tcp_socket::async_read(const mutable_buffer &buffer, null_ca
 	{
 		if (e)
 		{
-			socket_.close(ec);
-			connected_ = false;
+			socket_.shutdown(socket_.shutdown_receive, ec);
 			(*callback)(ERR_OPERATION_FAILURE);
 		}
 		else
@@ -470,8 +464,7 @@ void prxsocket::raw_tcp_socket::write(const const_buffer &buffer, error_code &er
 	asio::write(socket_, asio::buffer(buffer.data(), buffer.size()), ec);
 	if (ec)
 	{
-		socket_.close(ec);
-		connected_ = false;
+		socket_.shutdown(socket_.shutdown_send, ec);
 		err = ERR_OPERATION_FAILURE;
 	}
 }
@@ -484,8 +477,7 @@ void prxsocket::raw_tcp_socket::async_write(const const_buffer &buffer, null_cal
 	{
 		if (e)
 		{
-			socket_.close(ec);
-			connected_ = false;
+			socket_.shutdown(socket_.shutdown_send, ec);
 			(*callback)(ERR_OPERATION_FAILURE);
 		}
 		else
@@ -501,8 +493,7 @@ void raw_tcp_socket::read(mutable_buffer_sequence &&buffers, error_code &err)
 	asio::read(socket_, to_raw_buffers(buffers), ec);
 	if (ec)
 	{
-		socket_.close(ec);
-		connected_ = false;
+		socket_.shutdown(socket_.shutdown_receive, ec);
 		err = ERR_OPERATION_FAILURE;
 	}
 }
@@ -515,8 +506,7 @@ void raw_tcp_socket::async_read(mutable_buffer_sequence &&buffers, null_callback
 	{
 		if (e)
 		{
-			socket_.close(ec);
-			connected_ = false;
+			socket_.shutdown(socket_.shutdown_receive, ec);
 			(*callback)(ERR_OPERATION_FAILURE);
 		}
 		else
@@ -532,8 +522,7 @@ void raw_tcp_socket::write(const_buffer_sequence &&buffers, error_code &err)
 	asio::write(socket_, to_raw_buffers(buffers), ec);
 	if (ec)
 	{
-		socket_.close(ec);
-		connected_ = false;
+		socket_.shutdown(socket_.shutdown_send, ec);
 		err = ERR_OPERATION_FAILURE;
 	}
 }
@@ -546,8 +535,7 @@ void raw_tcp_socket::async_write(const_buffer_sequence &&buffers, null_callback 
 	{
 		if (e)
 		{
-			socket_.close(ec);
-			connected_ = false;
+			socket_.shutdown(socket_.shutdown_send, ec);
 			(*callback)(ERR_OPERATION_FAILURE);
 		}
 		else
@@ -557,9 +545,54 @@ void raw_tcp_socket::async_write(const_buffer_sequence &&buffers, null_callback 
 	});
 }
 
+void raw_tcp_socket::shutdown(shutdown_type type, error_code &err)
+{
+	if (type & shutdown_both)
+	{
+		socket_.shutdown(socket_.shutdown_both, ec);
+		err = ec ? ERR_OPERATION_FAILURE : 0;
+	}
+	else if (type & shutdown_send)
+	{
+		socket_.shutdown(socket_.shutdown_send, ec);
+		err = ec ? ERR_OPERATION_FAILURE : 0;
+	}
+	else if (type & shutdown_receive)
+	{
+		socket_.shutdown(socket_.shutdown_receive, ec);
+		err = ec ? ERR_OPERATION_FAILURE : 0;
+	}
+	else
+	{
+		err = 0;
+	}
+}
+
+void raw_tcp_socket::async_shutdown(shutdown_type type, null_callback &&complete_handler)
+{
+	if (type & shutdown_both)
+	{
+		socket_.shutdown(socket_.shutdown_both, ec);
+		complete_handler(ec ? ERR_OPERATION_FAILURE : 0);
+	}
+	else if (type & shutdown_send)
+	{
+		socket_.shutdown(socket_.shutdown_send, ec);
+		complete_handler(ec ? ERR_OPERATION_FAILURE : 0);
+	}
+	else if (type & shutdown_receive)
+	{
+		socket_.shutdown(socket_.shutdown_receive, ec);
+		complete_handler(ec ? ERR_OPERATION_FAILURE : 0);
+	}
+	else
+	{
+		complete_handler(0);
+	}
+}
+
 void raw_tcp_socket::close(error_code &err)
 {
-	socket_.shutdown(socket_.shutdown_both, ec);
 	socket_.close(ec);
 	binded_ = false;
 	connected_ = false;
@@ -568,7 +601,6 @@ void raw_tcp_socket::close(error_code &err)
 
 void raw_tcp_socket::async_close(null_callback &&complete_handler)
 {
-	socket_.shutdown(socket_.shutdown_both, ec);
 	socket_.close(ec);
 	binded_ = false;
 	connected_ = false;

@@ -84,6 +84,8 @@ namespace prxsocket
 			template <typename... T> void write(T &&...args) { return socket_->write(std::forward<T>(args)...); }
 			template <typename... T> void async_write(T &&...args) { return socket_->async_write(std::forward<T>(args)...); }
 
+			template <typename... T> void shutdown(T &&...args) { return socket_->shutdown(std::forward<T>(args)...); }
+			template <typename... T> void async_shutdown(T &&...args) { return socket_->async_shutdown(std::forward<T>(args)...); }
 			template <typename... T> void close(T &&...args) { reset(); return socket_->close(std::forward<T>(args)...); }
 			template <typename... T> void async_close(T &&...args) { reset(); return socket_->async_close(std::forward<T>(args)...); }
 		protected:

@@ -55,15 +55,19 @@ namespace prxsocket
 			virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
 			virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 
-			virtual void close(error_code &ec) override { reset(); socket_->close(ec); }
-			virtual void async_close(null_callback &&complete_handler) override { reset(); socket_->async_close(std::move(complete_handler)); }
+			virtual void shutdown(shutdown_type type, error_code &ec) override;
+			virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) override;
+			virtual void close(error_code &ec) override;
+			virtual void async_close(null_callback &&complete_handler) override;
 
 			const std::vector<char> &key() const { return key_; }
 			const encryptor &enc() const { return *enc_; }
 			const decryptor &dec() const { return *dec_; }
 			void init_enc() { if (!iv_init_) { enc_->set_key(key_.data()); iv_init_ = true; } }
 		private:
-			void reset() { iv_init_ = iv_sent_ = iv_received_ = false; dec_buf_.clear(); dec_ptr_ = 0; }
+			void reset_send() { iv_init_ = iv_sent_ = false; }
+			void reset_recv() { iv_received_ = false; dec_buf_.clear(); dec_ptr_ = 0; }
+			void reset() { reset_send(); reset_recv(); }
 
 			void async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
 			void async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);

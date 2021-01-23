@@ -115,8 +115,6 @@ void socks5_tcp_socket::async_connect(const endpoint &ep, null_callback &&comple
 void socks5_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
 {
 	socks5_base::send(buffer, transferred, err);
-	if (err)
-		reset();
 }
 
 void socks5_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
@@ -125,21 +123,13 @@ void socks5_tcp_socket::async_send(const const_buffer &buffer, transfer_callback
 	socks5_base::async_send(buffer,
 		[this, callback](error_code err, size_t transferred)
 	{
-		if (err)
-		{
-			reset();
-			(*callback)(err, transferred);
-			return;
-		}
-		(*callback)(0, transferred);
+		(*callback)(err, transferred);
 	});
 }
 
 void socks5_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
 {
 	socks5_base::recv(buffer, transferred, err);
-	if (err)
-		reset();
 }
 
 void socks5_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
@@ -148,21 +138,13 @@ void socks5_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callba
 	socks5_base::async_recv(buffer,
 		[this, callback](error_code err, size_t transferred)
 	{
-		if (err)
-		{
-			reset();
-			(*callback)(err, transferred);
-			return;
-		}
-		(*callback)(0, transferred);
+		(*callback)(err, transferred);
 	});
 }
 
 void socks5_tcp_socket::read(mutable_buffer_sequence &&buffer, error_code &err)
 {
 	socks5_base::read(std::move(buffer), err);
-	if (err)
-		reset();
 }
 
 void socks5_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler)
@@ -171,21 +153,13 @@ void socks5_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callba
 	socks5_base::async_read(std::move(buffer),
 		[this, callback](error_code err)
 	{
-		if (err)
-		{
-			reset();
-			(*callback)(err);
-			return;
-		}
-		(*callback)(0);
+		(*callback)(err);
 	});
 }
 
 void socks5_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
 {
 	socks5_base::write(std::move(buffer), err);
-	if (err)
-		reset();
 }
 
 void socks5_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler)
@@ -194,14 +168,30 @@ void socks5_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callbac
 	socks5_base::async_write(std::move(buffer),
 		[this, callback](error_code err)
 	{
-		if (err)
-		{
-			reset();
-			(*callback)(err);
-			return;
-		}
-		(*callback)(0);
+		(*callback)(err);
 	});
+}
+
+void socks5_tcp_socket::shutdown(shutdown_type type, error_code &ec)
+{
+	socks5_base::shutdown(type, ec);
+}
+
+void socks5_tcp_socket::async_shutdown(shutdown_type type, null_callback &&complete_handler)
+{
+	socks5_base::async_shutdown(type, std::move(complete_handler));
+}
+
+void socks5_tcp_socket::close(error_code &ec)
+{
+	reset();
+	socks5_base::close(ec);
+}
+
+void socks5_tcp_socket::async_close(null_callback &&complete_handler)
+{
+	reset();
+	socks5_base::async_close(std::move(complete_handler));
 }
 
 void socks5_udp_socket::local_endpoint(endpoint &ep, error_code &err)

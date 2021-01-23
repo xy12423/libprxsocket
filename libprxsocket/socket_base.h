@@ -56,6 +56,10 @@ namespace prxsocket
 	public:
 		using transfer_callback = std::function<void(error_code, size_t)>;
 
+		using shutdown_type = size_t;
+		static constexpr shutdown_type shutdown_send = 0x01, shutdown_receive = 0x02;
+		static constexpr shutdown_type shutdown_both = shutdown_send | shutdown_receive;
+
 		prx_tcp_socket() = default;
 		prx_tcp_socket(const prx_tcp_socket &) = delete;
 		prx_tcp_socket(prx_tcp_socket &&) = default;
@@ -89,6 +93,8 @@ namespace prxsocket
 		virtual void write(const_buffer_sequence &&buffer, error_code &ec) = 0;
 		virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) = 0;
 
+		virtual void shutdown(shutdown_type type, error_code &ec) = 0;
+		virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) = 0;
 		virtual void close(error_code &ec) = 0;
 		virtual void async_close(null_callback &&complete_handler) = 0;
 
@@ -104,6 +110,7 @@ namespace prxsocket
 		void write(const const_buffer &buffer);
 		void read(mutable_buffer_sequence &&buffer);
 		void write(const_buffer_sequence &&buffer);
+		void shutdown(shutdown_type type);
 		void close();
 #endif
 	};

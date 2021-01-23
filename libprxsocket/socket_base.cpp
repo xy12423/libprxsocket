@@ -185,6 +185,13 @@ void prx_tcp_socket::write(const_buffer_sequence &&buffer)
 	check_ec(ec);
 }
 
+void prx_tcp_socket::shutdown(shutdown_type type)
+{
+	error_code ec;
+	shutdown(type, ec);
+	check_ec(ec);
+}
+
 void prx_tcp_socket::close()
 {
 	error_code ec;

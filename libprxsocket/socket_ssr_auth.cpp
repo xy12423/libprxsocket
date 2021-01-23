@@ -137,7 +137,7 @@ void ssr_auth_aes128_sha1_tcp_socket::send(const const_buffer &buffer, size_t &t
 	}
 	catch (const std::exception &)
 	{
-		reset();
+		shutdown(shutdown_send, err);
 		err = ERR_OPERATION_FAILURE;
 		return;
 	}
@@ -149,7 +149,7 @@ void ssr_auth_aes128_sha1_tcp_socket::send(const const_buffer &buffer, size_t &t
 	socket_->write(std::move(send_seq), err);
 	if (err)
 	{
-		reset();
+		reset_send();
 		return;
 	}
 	transferred = transferring;
@@ -166,8 +166,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_send(const const_buffer &buffer, tra
 	}
 	catch (const std::exception &)
 	{
-		reset();
-		(*callback)(ERR_OPERATION_FAILURE, 0);
+		async_shutdown(shutdown_send, [callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, 0); });
 		return;
 	}
 
@@ -181,7 +180,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_send(const const_buffer &buffer, tra
 	{
 		if (err)
 		{
-			reset();
+			reset_send();
 			(*callback)(err, 0);
 			return;
 		}
@@ -304,7 +303,7 @@ void ssr_auth_aes128_sha1_tcp_socket::write(const_buffer_sequence &&buffer, erro
 		}
 		catch (const std::exception &)
 		{
-			reset();
+			shutdown(shutdown_send, err);
 			err = ERR_OPERATION_FAILURE;
 			return;
 		}
@@ -313,7 +312,7 @@ void ssr_auth_aes128_sha1_tcp_socket::write(const_buffer_sequence &&buffer, erro
 		socket_->write(std::move(send_seq), err);
 		if (err)
 		{
-			reset();
+			reset_send();
 			return;
 		}
 	}
@@ -329,6 +328,24 @@ void ssr_auth_aes128_sha1_tcp_socket::async_write(const_buffer_sequence &&buffer
 	async_write(std::make_shared<const_buffer_sequence>(std::move(buffer)), std::make_shared<null_callback>(std::move(complete_handler)));
 }
 
+void ssr_auth_aes128_sha1_tcp_socket::shutdown(shutdown_type type, error_code &ec)
+{
+	if (type & shutdown_send)
+		reset_send();
+	if (type & shutdown_receive)
+		reset_recv();
+	socket_->shutdown(type, ec);
+}
+
+void ssr_auth_aes128_sha1_tcp_socket::async_shutdown(shutdown_type type, null_callback &&complete_handler)
+{
+	if (type & shutdown_send)
+		reset_send();
+	if (type & shutdown_receive)
+		reset_recv();
+	socket_->async_shutdown(type, std::move(complete_handler));
+}
+
 void ssr_auth_aes128_sha1_tcp_socket::async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback)
 {
 	const_buffer_sequence send_seq;
@@ -338,8 +355,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_write(const std::shared_ptr<const_bu
 	}
 	catch (const std::exception &)
 	{
-		reset();
-		(*callback)(ERR_OPERATION_FAILURE);
+		async_shutdown(shutdown_send, [callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
 		return;
 	}
 	send_seq.push_front(const_buffer(send_buf_head_));
@@ -350,7 +366,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_write(const std::shared_ptr<const_bu
 	{
 		if (err)
 		{
-			reset();
+			reset_send();
 			(*callback)(err);
 			return;
 		}
@@ -366,6 +382,18 @@ void ssr_auth_aes128_sha1_tcp_socket::async_write(const std::shared_ptr<const_bu
 		}
 		async_write(buffer, callback);
 	});
+}
+
+void ssr_auth_aes128_sha1_tcp_socket::close(error_code &ec)
+{
+	reset();
+	return socket_->close(ec);
+}
+
+void ssr_auth_aes128_sha1_tcp_socket::async_close(null_callback &&complete_handler)
+{
+	reset();
+	socket_->async_close(std::move(complete_handler));
 }
 
 void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data_auth(const std::function<void(CryptoPP::HMAC<CryptoPP::SHA1> &hasher)> &src_iter, size_t src_size)
@@ -595,34 +623,23 @@ void ssr_auth_aes128_sha1_tcp_socket::recv_data(error_code &err)
 {
 	assert(read_empty());
 
-	if (!auth_sent_)
-	{
-		size_t transferred;
-		send(const_buffer(nullptr, 0), transferred, err);
-		if (err)
-		{
-			reset();
-			return;
-		}
-	}
-
 	socket_->read(mutable_buffer(recv_buf_.get(), 4), err);
 	if (err)
 	{
-		reset();
+		reset_recv();
 		return;
 	}
 	size_t total_size = ((uint8_t)recv_buf_[0] | ((uint8_t)recv_buf_[1] << 8));
 	if (total_size < 4 || total_size > RECV_BUF_SIZE)
 	{
+		shutdown(shutdown_receive, err);
 		err = ERR_BAD_ARG_REMOTE;
-		reset();
 		return;
 	}
 	socket_->read(mutable_buffer(recv_buf_.get() + 4, total_size - 4), err);
 	if (err)
 	{
-		reset();
+		reset_recv();
 		return;
 	}
 
@@ -636,7 +653,8 @@ void ssr_auth_aes128_sha1_tcp_socket::recv_data(error_code &err)
 	}
 	if (err)
 	{
-		reset();
+		error_code err2;
+		shutdown(shutdown_receive, err2);
 		return;
 	}
 }
@@ -646,28 +664,12 @@ void ssr_auth_aes128_sha1_tcp_socket::async_recv_data(null_callback &&complete_h
 	assert(read_empty());
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 
-	if (!auth_sent_)
-	{
-		async_send(const_buffer(nullptr, 0),
-			[this, callback](error_code err, size_t transferred)
-		{
-			if (err)
-			{
-				reset();
-				(*callback)(err);
-				return;
-			}
-			async_recv_data(std::move(*callback));
-		});
-		return;
-	}
-
 	socket_->async_read(mutable_buffer(recv_buf_.get(), 4),
 		[this, callback](error_code err)
 	{
 		if (err)
 		{
-			reset();
+			reset_recv();
 			(*callback)(err);
 			return;
 		}
@@ -680,8 +682,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_recv_data_body(size_t total_size, co
 {
 	if (total_size < 4 || total_size > RECV_BUF_SIZE)
 	{
-		reset();
-		(*callback)(ERR_BAD_ARG_REMOTE);
+		async_shutdown(shutdown_receive, [callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
 		return;
 	}
 	socket_->async_read(mutable_buffer(recv_buf_.get() + 4, total_size - 4),
@@ -689,7 +690,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_recv_data_body(size_t total_size, co
 	{
 		if (err)
 		{
-			reset();
+			reset_recv();
 			(*callback)(err);
 			return;
 		}
@@ -704,8 +705,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_recv_data_body(size_t total_size, co
 		}
 		if (err)
 		{
-			reset();
-			(*callback)(err);
+			async_shutdown(shutdown_receive, [callback, err](error_code) { (*callback)(err); });
 			return;
 		}
 

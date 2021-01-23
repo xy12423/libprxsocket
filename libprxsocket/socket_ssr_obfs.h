@@ -43,10 +43,14 @@ namespace prxsocket
 			virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
 			virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 
-			virtual void close(error_code &ec) override { reset(); return socket_->close(ec); }
-			virtual void async_close(null_callback &&complete_handler) override { reset(); socket_->async_close(std::move(complete_handler)); }
+			virtual void shutdown(shutdown_type type, error_code &ec) override;
+			virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) override;
+			virtual void close(error_code &ec) override;
+			virtual void async_close(null_callback &&complete_handler) override;
 		private:
-			void reset() { header_sent_ = header_received_ = false; recv_buf_ptr_ = recv_buf_ptr_end_ = 0; }
+			void reset_send() { header_sent_ = false; }
+			void reset_recv() { header_received_ = false; recv_buf_ptr_ = recv_buf_ptr_end_ = 0; }
+			void reset() { reset_send(); reset_recv(); }
 
 			size_t make_header(std::string &dst, const const_buffer &payload);
 			void wait_header(error_code &err);
