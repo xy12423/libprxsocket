@@ -123,6 +123,8 @@ void vmess_tcp_socket::send(const const_buffer &buffer, size_t &transferred, err
 {
 	err = 0;
 	transferred = 0;
+	if (buffer.size() == 0)
+		return; //VMess forbids empty segment except FIN
 
 	size_t transferring;
 	try
@@ -148,6 +150,12 @@ void vmess_tcp_socket::send(const const_buffer &buffer, size_t &transferred, err
 
 void vmess_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
 {
+	if (buffer.size() == 0)
+	{
+		complete_handler(0, 0);
+		return; //VMess forbids empty segment except FIN
+	}
+
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 
 	size_t transferring;
@@ -355,12 +363,20 @@ void vmess_tcp_socket::shutdown(shutdown_type type, error_code &ec)
 		reset_recv();
 	if (type & shutdown_send)
 	{
-		size_t transferred;
-		send(const_buffer(nullptr, 0), transferred, ec);
+		try
+		{
+			encode(const_buffer(nullptr, 0));
+		}
+		catch (const std::exception &)
+		{
+			reset_send();
+			socket_->shutdown(type, ec);
+			return;
+		}
+		socket_->write(const_buffer(send_buf_), ec);
+		reset_send();
 		if (ec)
 			type &= ~shutdown_send;
-		else
-			reset_send();
 	}
 	if (type)
 		socket_->shutdown(type, ec);
@@ -372,17 +388,29 @@ void vmess_tcp_socket::async_shutdown(shutdown_type type, null_callback &&comple
 		reset_recv();
 	if (type & shutdown_send)
 	{
-		std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-		async_send(const_buffer(nullptr, 0),
-			[this, type, callback](error_code err, size_t)
+		try
 		{
-			size_t new_type = type;
+			encode(const_buffer(nullptr, 0));
+		}
+		catch (const std::exception &)
+		{
+			reset_send();
+			socket_->async_shutdown(type, std::move(complete_handler));
+			return;
+		}
+		std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+		socket_->async_write(const_buffer(send_buf_),
+			[this, type, callback](error_code err)
+		{
+			reset_send();
 			if (err)
-				new_type &= ~shutdown_send;
-			else
-				reset_send();
-			if (new_type)
-				socket_->async_shutdown(type, std::move(*callback));
+			{
+				auto new_type = type & ~shutdown_send;
+				if (new_type)
+					socket_->async_shutdown(new_type, std::move(*callback));
+				return;
+			}
+			socket_->async_shutdown(type, std::move(*callback));
 		});
 		return;
 	}
@@ -470,7 +498,7 @@ void vmess_tcp_socket::recv_data(error_code &err)
 		return;
 	}
 	size_t size = decode_size();
-	if (size > MAX_BLOCK_SIZE)
+	if (size == 0 || size > MAX_BLOCK_SIZE)
 	{
 		reset_recv();
 		socket_->shutdown(shutdown_receive, err);
@@ -531,7 +559,7 @@ void vmess_tcp_socket::async_recv_data(null_callback &&complete_handler)
 
 void vmess_tcp_socket::async_recv_data_body(size_t size, const std::shared_ptr<null_callback> &callback)
 {
-	if (size > MAX_BLOCK_SIZE)
+	if (size == 0 || size > MAX_BLOCK_SIZE)
 	{
 		reset_recv();
 		socket_->async_shutdown(shutdown_receive, [callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
