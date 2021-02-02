@@ -20,6 +20,8 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 #ifndef LIBPRXSOCKET_H_CRYPTO_BASE
 #define LIBPRXSOCKET_H_CRYPTO_BASE
 
+#include "buffer.h"
+
 #ifndef _LIBPRXSOCKET_BUILD
 #include <vector>
 #endif
@@ -41,6 +43,7 @@ namespace prxsocket
 		virtual void set_key_iv(const char *key, const char *iv) = 0;
 
 		virtual void encrypt(std::vector<char> &dst, const char *src, size_t src_size) = 0;
+		virtual void encrypt(std::vector<char> &dst, const_buffer_sequence &src, size_t src_size) = 0;
 	};
 
 	class decryptor
@@ -57,6 +60,8 @@ namespace prxsocket
 		virtual void set_key_iv(const char *key, const char *iv) = 0;
 
 		virtual void decrypt(std::vector<char> &dst, const char *src, size_t src_size) = 0;
+		virtual size_t decrypt(mutable_buffer dst, std::vector<char> &dst_last, const char *src, size_t src_size) = 0;
+		virtual void decrypt(mutable_buffer_sequence &dst, std::vector<char> &dst_last, const char *src, size_t src_size) = 0;
 	};
 
 }
