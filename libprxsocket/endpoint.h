@@ -41,6 +41,7 @@ namespace prxsocket
 		size_t from_socks5(const char *data);
 		void to_socks5(std::string &ret) const;
 		std::string to_string() const;
+		std::string to_uri_string() const;
 
 		bool operator==(const endpoint &b) const { return port_ == b.port_ && addr_ == b.addr_; }
 		bool operator!=(const endpoint &b) const { return port_ != b.port_ || addr_ != b.addr_; }

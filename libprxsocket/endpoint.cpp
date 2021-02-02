@@ -44,3 +44,10 @@ std::string endpoint::to_string() const
 		return std::string();
 	return addr_.to_string() + ':' + std::to_string(port_);
 }
+
+std::string endpoint::to_uri_string() const
+{
+	if (addr_.type() == address::UNDEFINED)
+		return std::string();
+	return addr_.to_uri_string() + ':' + std::to_string(port_);
+}

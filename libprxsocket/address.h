@@ -59,6 +59,7 @@ namespace prxsocket
 		bool is_any() const { return data_.u32 == 0ul; }
 
 		std::string to_string() const;
+		std::string to_uri_string() const { return to_string(); }
 
 		bool operator==(const address_v4 &b) const { return data_.u32 == b.data_.u32; }
 		bool operator!=(const address_v4 &b) const { return data_.u32 != b.data_.u32; }
@@ -71,7 +72,7 @@ namespace prxsocket
 	private:
 		union addr_v6_data
 		{
-			addr_v6_data() { memset(u8, 0, sizeof(u8)); }
+			addr_v6_data() :u8{} {}
 
 			char c8[ADDR_SIZE];
 			uint8_t u8[ADDR_SIZE];
@@ -87,6 +88,7 @@ namespace prxsocket
 		bool is_any() const;
 
 		std::string to_string() const;
+		std::string to_uri_string() const;
 
 		bool operator==(const address_v6 &b) const { return memcmp(data_.u8, b.data_.u8, sizeof(addr_v6_data)) == 0; }
 		bool operator!=(const address_v6 &b) const { return memcmp(data_.u8, b.data_.u8, sizeof(addr_v6_data)) != 0; }
@@ -102,6 +104,7 @@ namespace prxsocket
 		bool is_any() const { return false; }
 
 		std::string to_string() const { return data_; }
+		std::string to_uri_string() const;
 
 		bool operator==(const address_str &b) const { return data_ == b.data_; }
 		bool operator!=(const address_str &b) const { return data_ != b.data_; }
@@ -137,6 +140,7 @@ namespace prxsocket
 		size_t from_socks5(const char *data);
 		void to_socks5(std::string &ret) const;
 		std::string to_string() const;
+		std::string to_uri_string() const;
 
 		bool operator==(const address &b) const;
 		bool operator!=(const address &b) const;
