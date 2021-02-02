@@ -119,7 +119,7 @@ void vmess_tcp_socket::async_connect(const endpoint &ep, null_callback &&complet
 	});
 }
 
-void vmess_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
+void vmess_tcp_socket::send(const_buffer buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	transferred = 0;
@@ -148,7 +148,7 @@ void vmess_tcp_socket::send(const const_buffer &buffer, size_t &transferred, err
 	transferred = transferring;
 }
 
-void vmess_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
+void vmess_tcp_socket::async_send(const_buffer buffer, transfer_callback &&complete_handler)
 {
 	if (buffer.size() == 0)
 	{
@@ -183,7 +183,7 @@ void vmess_tcp_socket::async_send(const const_buffer &buffer, transfer_callback 
 	});
 }
 
-void vmess_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
+void vmess_tcp_socket::recv(mutable_buffer buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	transferred = 0;
@@ -196,7 +196,7 @@ void vmess_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, e
 	transferred = read_data(buffer.data(), buffer.size());
 }
 
-void vmess_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
+void vmess_tcp_socket::async_recv(mutable_buffer buffer, transfer_callback &&complete_handler)
 {
 	if (read_empty())
 	{
@@ -741,7 +741,7 @@ void vmess_tcp_socket::encode_header(std::vector<char> &buf)
 	response_count_ = 0;
 }
 
-size_t vmess_tcp_socket::encode(const const_buffer &buffer)
+size_t vmess_tcp_socket::encode(const_buffer buffer)
 {
 	size_t transferring = (uint16_t)std::min(buffer.size(), MAX_BLOCK_SIZE - 64);
 

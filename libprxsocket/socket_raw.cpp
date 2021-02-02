@@ -371,7 +371,7 @@ void raw_tcp_socket::async_connect_addr_str(const std::string &addr, port_type p
 	});
 }
 
-void raw_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
+void raw_tcp_socket::send(const_buffer buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	transferred = socket_.send(asio::buffer(buffer.data(), buffer.size()), 0, ec);
@@ -382,7 +382,7 @@ void raw_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error
 	}
 }
 
-void raw_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
+void raw_tcp_socket::async_send(const_buffer buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 	socket_.async_send(asio::buffer(buffer.data(), buffer.size()),
@@ -400,7 +400,7 @@ void raw_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&
 	});
 }
 
-void raw_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
+void raw_tcp_socket::recv(mutable_buffer buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	transferred = socket_.receive(asio::buffer(buffer.data(), buffer.size()), 0, ec);
@@ -411,7 +411,7 @@ void raw_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, err
 	}
 }
 
-void raw_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
+void raw_tcp_socket::async_recv(mutable_buffer buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 	socket_.async_receive(asio::buffer(buffer.data(), buffer.size()),
@@ -429,7 +429,7 @@ void raw_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback 
 	});
 }
 
-void prxsocket::raw_tcp_socket::read(const mutable_buffer &buffer, error_code &err)
+void prxsocket::raw_tcp_socket::read(mutable_buffer buffer, error_code &err)
 {
 	err = 0;
 	asio::read(socket_, asio::buffer(buffer.data(), buffer.size()), ec);
@@ -440,7 +440,7 @@ void prxsocket::raw_tcp_socket::read(const mutable_buffer &buffer, error_code &e
 	}
 }
 
-void prxsocket::raw_tcp_socket::async_read(const mutable_buffer &buffer, null_callback &&complete_handler)
+void prxsocket::raw_tcp_socket::async_read(mutable_buffer buffer, null_callback &&complete_handler)
 {
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 	asio::async_read(socket_, asio::buffer(buffer.data(), buffer.size()),
@@ -458,7 +458,7 @@ void prxsocket::raw_tcp_socket::async_read(const mutable_buffer &buffer, null_ca
 	});
 }
 
-void prxsocket::raw_tcp_socket::write(const const_buffer &buffer, error_code &err)
+void prxsocket::raw_tcp_socket::write(const_buffer buffer, error_code &err)
 {
 	err = 0;
 	asio::write(socket_, asio::buffer(buffer.data(), buffer.size()), ec);
@@ -469,7 +469,7 @@ void prxsocket::raw_tcp_socket::write(const const_buffer &buffer, error_code &er
 	}
 }
 
-void prxsocket::raw_tcp_socket::async_write(const const_buffer &buffer, null_callback &&complete_handler)
+void prxsocket::raw_tcp_socket::async_write(const_buffer buffer, null_callback &&complete_handler)
 {
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 	asio::async_write(socket_, asio::buffer(buffer.data(), buffer.size()),
@@ -693,7 +693,7 @@ void raw_udp_socket::async_bind(const endpoint &ep, null_callback &&complete_han
 	complete_handler(err);
 }
 
-void raw_udp_socket::send_to(const endpoint &ep, const const_buffer &buffer, error_code &err)
+void raw_udp_socket::send_to(const endpoint &ep, const_buffer buffer, error_code &err)
 {
 	err = 0;
 	asio::ip::udp::endpoint native_ep;
@@ -708,7 +708,7 @@ void raw_udp_socket::send_to(const endpoint &ep, const const_buffer &buffer, err
 		err = ERR_OPERATION_FAILURE;
 }
 
-void raw_udp_socket::async_send_to(const endpoint &ep, const const_buffer &buffer, null_callback &&complete_handler)
+void raw_udp_socket::async_send_to(const endpoint &ep, const_buffer buffer, null_callback &&complete_handler)
 {
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 	async_to_udp_ep(ep, [this, buffer, callback](error_code err, const asio::ip::udp::endpoint &native_ep)
@@ -729,7 +729,7 @@ void raw_udp_socket::async_send_to(const endpoint &ep, const const_buffer &buffe
 	});
 }
 
-void raw_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_t &transferred, error_code &err)
+void raw_udp_socket::recv_from(endpoint &ep, mutable_buffer buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	asio::ip::udp::endpoint native_ep;
@@ -742,7 +742,7 @@ void raw_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_
 	raw_ep_to_ep(native_ep, ep);
 }
 
-void raw_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buffer, transfer_callback &&complete_handler)
+void raw_udp_socket::async_recv_from(endpoint &ep, mutable_buffer buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 	socket_.async_receive_from(asio::buffer(buffer.data(), buffer.size()), recv_ep_,

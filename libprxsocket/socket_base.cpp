@@ -22,7 +22,7 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 
 using namespace prxsocket;
 
-void prx_tcp_socket::read(const mutable_buffer &buffer, error_code &ec)
+void prx_tcp_socket::read(mutable_buffer buffer, error_code &ec)
 {
 	char *data = buffer.data();
 	size_t size = buffer.size();
@@ -39,7 +39,7 @@ void prx_tcp_socket::read(const mutable_buffer &buffer, error_code &ec)
 	}
 }
 
-static void do_async_read(prx_tcp_socket &socket, const mutable_buffer &buffer, const std::shared_ptr<null_callback> &callback)
+static void do_async_read(prx_tcp_socket &socket, mutable_buffer buffer, const std::shared_ptr<null_callback> &callback)
 {
 	socket.async_recv(buffer, [&socket, buffer, callback](error_code err, size_t transferred) {
 		if (err)
@@ -56,12 +56,12 @@ static void do_async_read(prx_tcp_socket &socket, const mutable_buffer &buffer, 
 	});
 }
 
-void prx_tcp_socket::async_read(const mutable_buffer &buffer, null_callback &&complete_handler)
+void prx_tcp_socket::async_read(mutable_buffer buffer, null_callback &&complete_handler)
 {
 	do_async_read(*this, buffer, std::make_shared<null_callback>(std::move(complete_handler)));
 }
 
-void prx_tcp_socket::write(const const_buffer &buffer, error_code &ec)
+void prx_tcp_socket::write(const_buffer buffer, error_code &ec)
 {
 	const char *data = buffer.data();
 	size_t size = buffer.size();
@@ -79,7 +79,7 @@ void prx_tcp_socket::write(const const_buffer &buffer, error_code &ec)
 	return;
 }
 
-static void do_async_write(prx_tcp_socket &socket, const const_buffer &buffer, const std::shared_ptr<null_callback> &callback)
+static void do_async_write(prx_tcp_socket &socket, const_buffer buffer, const std::shared_ptr<null_callback> &callback)
 {
 	socket.async_send(buffer, [&socket, buffer, callback](error_code err, size_t transferred) {
 		if (err)
@@ -96,7 +96,7 @@ static void do_async_write(prx_tcp_socket &socket, const const_buffer &buffer, c
 	});
 }
 
-void prx_tcp_socket::async_write(const const_buffer &buffer, null_callback &&complete_handler)
+void prx_tcp_socket::async_write(const_buffer buffer, null_callback &&complete_handler)
 {
 	do_async_write(*this, buffer, std::make_shared<null_callback>(std::move(complete_handler)));
 }
@@ -143,28 +143,28 @@ void prx_tcp_socket::connect(const endpoint &ep)
 	check_ec(ec);
 }
 
-void prx_tcp_socket::send(const const_buffer &buffer, size_t &transferred)
+void prx_tcp_socket::send(const_buffer buffer, size_t &transferred)
 {
 	error_code ec;
 	send(buffer, transferred, ec);
 	check_ec(ec);
 }
 
-void prx_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred)
+void prx_tcp_socket::recv(mutable_buffer buffer, size_t &transferred)
 {
 	error_code ec;
 	recv(buffer, transferred, ec);
 	check_ec(ec);
 }
 
-void prx_tcp_socket::read(const mutable_buffer &buffer)
+void prx_tcp_socket::read(mutable_buffer buffer)
 {
 	error_code ec;
 	read(buffer, ec);
 	check_ec(ec);
 }
 
-void prx_tcp_socket::write(const const_buffer &buffer)
+void prx_tcp_socket::write(const_buffer buffer)
 {
 	error_code ec;
 	write(buffer, ec);
@@ -220,7 +220,7 @@ void prx_udp_socket::bind(const endpoint &ep)
 	check_ec(ec);
 }
 
-void prx_udp_socket::send_to(const endpoint &ep, const const_buffer &buffer)
+void prx_udp_socket::send_to(const endpoint &ep, const_buffer buffer)
 {
 	error_code ec;
 	send_to(ep, buffer, ec);
@@ -234,7 +234,7 @@ void prx_udp_socket::send_to(const endpoint &ep, const_buffer_sequence &&buffer)
 	check_ec(ec);
 }
 
-void prx_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_t &transferred)
+void prx_udp_socket::recv_from(endpoint &ep, mutable_buffer buffer, size_t &transferred)
 {
 	error_code ec;
 	recv_from(ep, buffer, transferred, ec);

@@ -47,7 +47,7 @@ ssr_http_simple_tcp_socket::ssr_http_simple_tcp_socket(std::unique_ptr<prx_tcp_s
 	}
 }
 
-void ssr_http_simple_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
+void ssr_http_simple_tcp_socket::send(const_buffer buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	if (!header_sent_)
@@ -70,7 +70,7 @@ void ssr_http_simple_tcp_socket::send(const const_buffer &buffer, size_t &transf
 		reset_send();
 }
 
-void ssr_http_simple_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
+void ssr_http_simple_tcp_socket::async_send(const_buffer buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 	if (!header_sent_)
@@ -104,7 +104,7 @@ void ssr_http_simple_tcp_socket::async_send(const const_buffer &buffer, transfer
 	});
 }
 
-void ssr_http_simple_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
+void ssr_http_simple_tcp_socket::recv(mutable_buffer buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	if (!header_received_)
@@ -125,7 +125,7 @@ void ssr_http_simple_tcp_socket::recv(const mutable_buffer &buffer, size_t &tran
 		reset_recv();
 }
 
-void ssr_http_simple_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
+void ssr_http_simple_tcp_socket::async_recv(mutable_buffer buffer, transfer_callback &&complete_handler)
 {
 	if (!header_received_)
 	{
@@ -315,7 +315,7 @@ void ssr_http_simple_tcp_socket::async_close(null_callback &&complete_handler)
 	socket_->async_close(std::move(complete_handler));
 }
 
-size_t ssr_http_simple_tcp_socket::make_header(std::string &dst, const const_buffer &payload)
+size_t ssr_http_simple_tcp_socket::make_header(std::string &dst, const_buffer payload)
 {
 	static constexpr const char hex_table[] = "0123456789ABCDEF";
 	static constexpr const char *user_agents[] = {

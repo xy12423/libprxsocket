@@ -46,10 +46,10 @@ namespace prxsocket
 			}
 			virtual ~ss_crypto_tcp_socket() override {}
 
-			virtual void send(const const_buffer &buffer, size_t &transferred, error_code &ec) override;
-			virtual void async_send(const const_buffer &buffer, transfer_callback &&complete_handler) override;
-			virtual void recv(const mutable_buffer &buffer, size_t &transferred, error_code &ec) override;
-			virtual void async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler) override;
+			virtual void send(const_buffer buffer, size_t &transferred, error_code &ec) override;
+			virtual void async_send(const_buffer buffer, transfer_callback &&complete_handler) override;
+			virtual void recv(mutable_buffer buffer, size_t &transferred, error_code &ec) override;
+			virtual void async_recv(mutable_buffer buffer, transfer_callback &&complete_handler) override;
 			virtual void read(mutable_buffer_sequence &&buffer, error_code &ec) override;
 			virtual void async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 			virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
@@ -72,12 +72,12 @@ namespace prxsocket
 			void async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
 			void async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
 
-			void send_with_iv(const const_buffer &buffer, size_t &transferred, error_code &ec);
-			void async_send_with_iv(const const_buffer &buffer, transfer_callback &&complete_handler);
+			void send_with_iv(const_buffer buffer, size_t &transferred, error_code &ec);
+			void async_send_with_iv(const_buffer buffer, transfer_callback &&complete_handler);
 			void write_with_iv(const_buffer_sequence &&buffer, error_code &ec);
 			void async_write_with_iv(const_buffer_sequence &&buffer, null_callback &&complete_handler);
 
-			size_t prepare_send(const const_buffer &buffer);
+			size_t prepare_send(const_buffer buffer);
 			void prepare_send(const_buffer_sequence &buffer);
 			void continue_async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
 
@@ -113,10 +113,10 @@ namespace prxsocket
 			}
 			virtual ~ss_crypto_udp_socket() override {}
 
-			virtual void send_to(const endpoint &endpoint, const const_buffer &buffer, error_code &ec) override;
-			virtual void async_send_to(const endpoint &endpoint, const const_buffer &buffer, null_callback &&complete_handler) override;
-			virtual void recv_from(endpoint &endpoint, const mutable_buffer &buffer, size_t &transferred, error_code &ec) override;
-			virtual void async_recv_from(endpoint &endpoint, const mutable_buffer &buffer, transfer_callback &&complete_handler) override;
+			virtual void send_to(const endpoint &endpoint, const_buffer buffer, error_code &ec) override;
+			virtual void async_send_to(const endpoint &endpoint, const_buffer buffer, null_callback &&complete_handler) override;
+			virtual void recv_from(endpoint &endpoint, mutable_buffer buffer, size_t &transferred, error_code &ec) override;
+			virtual void async_recv_from(endpoint &endpoint, mutable_buffer buffer, transfer_callback &&complete_handler) override;
 			virtual void send_to(const endpoint &endpoint, const_buffer_sequence &&buffer, error_code &ec) override;
 			virtual void async_send_to(const endpoint &endpoint, const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 			virtual void recv_from(endpoint &endpoint, mutable_buffer_sequence &&buffer, size_t &transferred, error_code &ec) override;

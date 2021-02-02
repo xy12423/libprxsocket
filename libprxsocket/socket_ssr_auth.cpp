@@ -125,7 +125,7 @@ std::pair<uint32_t, uint32_t> ssr_auth_aes128_sha1_shared_server_data::new_id_pa
 	return std::pair<uint32_t, uint32_t>(boost::endian::native_to_little(client_id), boost::endian::native_to_little(++connection_id));
 }
 
-void ssr_auth_aes128_sha1_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
+void ssr_auth_aes128_sha1_tcp_socket::send(const_buffer buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	transferred = 0;
@@ -155,7 +155,7 @@ void ssr_auth_aes128_sha1_tcp_socket::send(const const_buffer &buffer, size_t &t
 	transferred = transferring;
 }
 
-void ssr_auth_aes128_sha1_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
+void ssr_auth_aes128_sha1_tcp_socket::async_send(const_buffer buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 
@@ -188,7 +188,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_send(const const_buffer &buffer, tra
 	});
 }
 
-void ssr_auth_aes128_sha1_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
+void ssr_auth_aes128_sha1_tcp_socket::recv(mutable_buffer buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	transferred = 0;
@@ -201,7 +201,7 @@ void ssr_auth_aes128_sha1_tcp_socket::recv(const mutable_buffer &buffer, size_t 
 	transferred = read_data(buffer.data(), buffer.size());
 }
 
-void ssr_auth_aes128_sha1_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
+void ssr_auth_aes128_sha1_tcp_socket::async_recv(mutable_buffer buffer, transfer_callback &&complete_handler)
 {
 	if (read_empty())
 	{
@@ -559,7 +559,7 @@ void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data(const std::function<void
 	++send_id_;
 }
 
-size_t ssr_auth_aes128_sha1_tcp_socket::prepare_send(const const_buffer &buffer)
+size_t ssr_auth_aes128_sha1_tcp_socket::prepare_send(const_buffer buffer)
 {
 	size_t transferring;
 	auto update_func = [&](CryptoPP::HMAC<CryptoPP::SHA1> &hasher) { hasher.Update((CryptoPP::byte *)buffer.data(), transferring); };

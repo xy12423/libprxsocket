@@ -23,7 +23,7 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 using namespace prxsocket;
 using namespace prxsocket::ss;
 
-void ss_crypto_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
+void ss_crypto_tcp_socket::send(const_buffer buffer, size_t &transferred, error_code &err)
 {
 	if (!iv_sent_)
 		return send_with_iv(buffer, transferred, err);
@@ -52,7 +52,7 @@ void ss_crypto_tcp_socket::send(const const_buffer &buffer, size_t &transferred,
 	transferred = transferring;
 }
 
-void ss_crypto_tcp_socket::send_with_iv(const const_buffer &buffer, size_t &transferred, error_code &err)
+void ss_crypto_tcp_socket::send_with_iv(const_buffer buffer, size_t &transferred, error_code &err)
 {
 	assert(!iv_sent_);
 	iv_sent_ = true;
@@ -95,7 +95,7 @@ void ss_crypto_tcp_socket::send_with_iv(const const_buffer &buffer, size_t &tran
 	transferred = transferring;
 }
 
-void ss_crypto_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
+void ss_crypto_tcp_socket::async_send(const_buffer buffer, transfer_callback &&complete_handler)
 {
 	if (!iv_sent_)
 		return async_send_with_iv(buffer, std::move(complete_handler));
@@ -126,7 +126,7 @@ void ss_crypto_tcp_socket::async_send(const const_buffer &buffer, transfer_callb
 	});
 }
 
-void ss_crypto_tcp_socket::async_send_with_iv(const const_buffer &buffer, transfer_callback &&complete_handler)
+void ss_crypto_tcp_socket::async_send_with_iv(const_buffer buffer, transfer_callback &&complete_handler)
 {
 	assert(!iv_sent_);
 	iv_sent_ = true;
@@ -175,7 +175,7 @@ void ss_crypto_tcp_socket::async_send_with_iv(const const_buffer &buffer, transf
 	});
 }
 
-void ss_crypto_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
+void ss_crypto_tcp_socket::recv(mutable_buffer buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	transferred = 0;
@@ -188,7 +188,7 @@ void ss_crypto_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferre
 	transferred = read_data(buffer.data(), buffer.size());
 }
 
-void ss_crypto_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
+void ss_crypto_tcp_socket::async_recv(mutable_buffer buffer, transfer_callback &&complete_handler)
 {
 	if (dec_buf_.empty())
 	{
@@ -479,7 +479,7 @@ void ss_crypto_tcp_socket::async_close(null_callback &&complete_handler)
 	socket_->async_close(std::move(complete_handler));
 }
 
-size_t ss_crypto_tcp_socket::prepare_send(const const_buffer &buffer)
+size_t ss_crypto_tcp_socket::prepare_send(const_buffer buffer)
 {
 	size_t transferring = transfer_size(buffer.size());
 	send_buf_.clear();
@@ -596,7 +596,7 @@ size_t ss_crypto_tcp_socket::read_data(char *dst, size_t dst_size)
 	return size_cpy;
 }
 
-void ss_crypto_udp_socket::send_to(const endpoint &ep, const const_buffer &buffer, error_code &err)
+void ss_crypto_udp_socket::send_to(const endpoint &ep, const_buffer buffer, error_code &err)
 {
 	err = 0;
 
@@ -614,7 +614,7 @@ void ss_crypto_udp_socket::send_to(const endpoint &ep, const const_buffer &buffe
 		reset();
 }
 
-void ss_crypto_udp_socket::async_send_to(const endpoint &ep, const const_buffer &buffer, null_callback &&complete_handler)
+void ss_crypto_udp_socket::async_send_to(const endpoint &ep, const_buffer buffer, null_callback &&complete_handler)
 {
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 
@@ -637,7 +637,7 @@ void ss_crypto_udp_socket::async_send_to(const endpoint &ep, const const_buffer 
 	});
 }
 
-void ss_crypto_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_t &transferred, error_code &err)
+void ss_crypto_udp_socket::recv_from(endpoint &ep, mutable_buffer buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	transferred = 0;
@@ -665,7 +665,7 @@ void ss_crypto_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer,
 	}
 }
 
-void ss_crypto_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buffer, transfer_callback &&complete_handler)
+void ss_crypto_udp_socket::async_recv_from(endpoint &ep, mutable_buffer buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 

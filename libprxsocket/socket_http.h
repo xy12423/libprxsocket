@@ -52,10 +52,10 @@ namespace prxsocket
 		virtual void connect(const endpoint &endpoint, error_code &ec) override;
 		virtual void async_connect(const endpoint &endpoint, null_callback &&complete_handler) override;
 
-		virtual void send(const const_buffer &buffer, size_t &transferred, error_code &ec) override;
-		virtual void async_send(const const_buffer &buffer, transfer_callback &&complete_handler) override;
-		virtual void recv(const mutable_buffer &buffer, size_t &transferred, error_code &ec) override;
-		virtual void async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler) override;
+		virtual void send(const_buffer buffer, size_t &transferred, error_code &ec) override;
+		virtual void async_send(const_buffer buffer, transfer_callback &&complete_handler) override;
+		virtual void recv(mutable_buffer buffer, size_t &transferred, error_code &ec) override;
+		virtual void async_recv(mutable_buffer buffer, transfer_callback &&complete_handler) override;
 		virtual void read(mutable_buffer_sequence &&buffer, error_code &ec) override;
 		virtual void async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 		virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;

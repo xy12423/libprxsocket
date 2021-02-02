@@ -112,12 +112,12 @@ void socks5_tcp_socket::async_connect(const endpoint &ep, null_callback &&comple
 	});
 }
 
-void socks5_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
+void socks5_tcp_socket::send(const_buffer buffer, size_t &transferred, error_code &err)
 {
 	socks5_base::send(buffer, transferred, err);
 }
 
-void socks5_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
+void socks5_tcp_socket::async_send(const_buffer buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 	socks5_base::async_send(buffer,
@@ -127,12 +127,12 @@ void socks5_tcp_socket::async_send(const const_buffer &buffer, transfer_callback
 	});
 }
 
-void socks5_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
+void socks5_tcp_socket::recv(mutable_buffer buffer, size_t &transferred, error_code &err)
 {
 	socks5_base::recv(buffer, transferred, err);
 }
 
-void socks5_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
+void socks5_tcp_socket::async_recv(mutable_buffer buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 	socks5_base::async_recv(buffer,
@@ -409,17 +409,17 @@ void socks5_udp_socket::async_open_continue(const endpoint &ep, const std::share
 	});
 }
 
-void socks5_udp_socket::send_to(const endpoint &ep, const const_buffer &buffer, error_code &err)
+void socks5_udp_socket::send_to(const endpoint &ep, const_buffer buffer, error_code &err)
 {
 	return send_to(ep, const_buffer_sequence(buffer), err);
 }
 
-void socks5_udp_socket::async_send_to(const endpoint &ep, const const_buffer &buffer, null_callback &&complete_handler)
+void socks5_udp_socket::async_send_to(const endpoint &ep, const_buffer buffer, null_callback &&complete_handler)
 {
 	return async_send_to(ep, const_buffer_sequence(buffer), std::move(complete_handler));
 }
 
-void socks5_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, size_t &transferred, error_code &err)
+void socks5_udp_socket::recv_from(endpoint &ep, mutable_buffer buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	transferred = 0;
@@ -481,7 +481,7 @@ void socks5_udp_socket::recv_from(endpoint &ep, const mutable_buffer &buffer, si
 	err = parse_udp(udp_recv_size, ep, buffer, transferred);
 }
 
-void socks5_udp_socket::async_recv_from(endpoint &ep, const mutable_buffer &buffer, transfer_callback &&complete_handler)
+void socks5_udp_socket::async_recv_from(endpoint &ep, mutable_buffer buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 
@@ -823,7 +823,7 @@ void socks5_udp_socket::async_skip(size_t size, const std::shared_ptr<transfer_c
 	});
 }
 
-error_code socks5_udp_socket::parse_udp(size_t udp_recv_size, endpoint &ep, const mutable_buffer &buffer, size_t &transferred)
+error_code socks5_udp_socket::parse_udp(size_t udp_recv_size, endpoint &ep, mutable_buffer buffer, size_t &transferred)
 {
 	const char *buf;
 	error_code err = socks5_base::parse_udp(udp_recv_buf_.get(), udp_recv_size, ep, buf, transferred);

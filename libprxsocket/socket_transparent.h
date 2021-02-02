@@ -50,10 +50,10 @@ namespace prxsocket
 		virtual void connect(const endpoint &endpoint, error_code &ec) override { return socket_->connect(endpoint, ec); }
 		virtual void async_connect(const endpoint &endpoint, null_callback &&complete_handler) override { socket_->async_connect(endpoint, std::move(complete_handler)); }
 
-		virtual void send(const const_buffer &buffer, size_t &transferred, error_code &ec) override { return socket_->send(buffer, transferred, ec); }
-		virtual void async_send(const const_buffer &buffer, transfer_callback &&complete_handler) override { socket_->async_send(buffer, std::move(complete_handler)); }
-		virtual void recv(const mutable_buffer &buffer, size_t &transferred, error_code &ec) override { return socket_->recv(buffer, transferred, ec); }
-		virtual void async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler) override { socket_->async_recv(buffer, std::move(complete_handler)); }
+		virtual void send(const_buffer buffer, size_t &transferred, error_code &ec) override { return socket_->send(buffer, transferred, ec); }
+		virtual void async_send(const_buffer buffer, transfer_callback &&complete_handler) override { socket_->async_send(buffer, std::move(complete_handler)); }
+		virtual void recv(mutable_buffer buffer, size_t &transferred, error_code &ec) override { return socket_->recv(buffer, transferred, ec); }
+		virtual void async_recv(mutable_buffer buffer, transfer_callback &&complete_handler) override { socket_->async_recv(buffer, std::move(complete_handler)); }
 		virtual void read(mutable_buffer_sequence &&buffer, error_code &ec) override { return socket_->read(std::move(buffer), ec); }
 		virtual void async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler) override { socket_->async_read(std::move(buffer), std::move(complete_handler)); }
 		virtual void write(const_buffer_sequence &&buffer, error_code &ec) override { return socket_->write(std::move(buffer), ec); }
@@ -88,10 +88,10 @@ namespace prxsocket
 		virtual void bind(const endpoint &endpoint, error_code &ec) override { return udp_socket_->bind(endpoint, ec); }
 		virtual void async_bind(const endpoint &endpoint, null_callback &&complete_handler) override { udp_socket_->async_bind(endpoint, std::move(complete_handler)); }
 
-		virtual void send_to(const endpoint &endpoint, const const_buffer &buffer, error_code &ec) override { return udp_socket_->send_to(endpoint, buffer, ec); }
-		virtual void async_send_to(const endpoint &endpoint, const const_buffer &buffer, null_callback &&complete_handler) override { udp_socket_->async_send_to(endpoint, buffer, std::move(complete_handler)); }
-		virtual void recv_from(endpoint &endpoint, const mutable_buffer &buffer, size_t &transferred, error_code &ec) override { return udp_socket_->recv_from(endpoint, buffer, transferred, ec); }
-		virtual void async_recv_from(endpoint &endpoint, const mutable_buffer &buffer, transfer_callback &&complete_handler) override { udp_socket_->async_recv_from(endpoint, buffer, std::move(complete_handler)); }
+		virtual void send_to(const endpoint &endpoint, const_buffer buffer, error_code &ec) override { return udp_socket_->send_to(endpoint, buffer, ec); }
+		virtual void async_send_to(const endpoint &endpoint, const_buffer buffer, null_callback &&complete_handler) override { udp_socket_->async_send_to(endpoint, buffer, std::move(complete_handler)); }
+		virtual void recv_from(endpoint &endpoint, mutable_buffer buffer, size_t &transferred, error_code &ec) override { return udp_socket_->recv_from(endpoint, buffer, transferred, ec); }
+		virtual void async_recv_from(endpoint &endpoint, mutable_buffer buffer, transfer_callback &&complete_handler) override { udp_socket_->async_recv_from(endpoint, buffer, std::move(complete_handler)); }
 		virtual void send_to(const endpoint &endpoint, const_buffer_sequence &&buffer, error_code &ec) override { return udp_socket_->send_to(endpoint, std::move(buffer), ec); }
 		virtual void async_send_to(const endpoint &endpoint, const_buffer_sequence &&buffer, null_callback &&complete_handler) override { udp_socket_->async_send_to(endpoint, std::move(buffer), std::move(complete_handler)); }
 		virtual void recv_from(endpoint &endpoint, mutable_buffer_sequence &&buffer, size_t &transferred, error_code &ec) override { return udp_socket_->recv_from(endpoint, std::move(buffer), transferred, ec); }

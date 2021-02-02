@@ -58,10 +58,10 @@ namespace prxsocket
 			}
 			virtual ~ssr_auth_aes128_sha1_tcp_socket() override {}
 
-			virtual void send(const const_buffer &buffer, size_t &transferred, error_code &ec) override;
-			virtual void async_send(const const_buffer &buffer, transfer_callback &&complete_handler) override;
-			virtual void recv(const mutable_buffer &buffer, size_t &transferred, error_code &ec) override;
-			virtual void async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler) override;
+			virtual void send(const_buffer buffer, size_t &transferred, error_code &ec) override;
+			virtual void async_send(const_buffer buffer, transfer_callback &&complete_handler) override;
+			virtual void recv(mutable_buffer buffer, size_t &transferred, error_code &ec) override;
+			virtual void async_recv(mutable_buffer buffer, transfer_callback &&complete_handler) override;
 			virtual void read(mutable_buffer_sequence &&buffer, error_code &ec) override;
 			virtual void async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler) override;
 			virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
@@ -81,7 +81,7 @@ namespace prxsocket
 
 			void prepare_send_data_auth(const std::function<void(CryptoPP::HMAC<CryptoPP::SHA1> &hasher)> &src_iter, size_t src_size);
 			void prepare_send_data(const std::function<void(CryptoPP::HMAC<CryptoPP::SHA1> &hasher)> &src_iter, size_t src_size);
-			size_t prepare_send(const const_buffer &buffer);
+			size_t prepare_send(const_buffer buffer);
 			const_buffer_sequence prepare_send(const_buffer_sequence &buffer);
 
 			void recv_data(error_code &ec);

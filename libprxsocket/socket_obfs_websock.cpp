@@ -28,18 +28,30 @@ using namespace CryptoPP;
 namespace
 {
 
+	struct base64_helper
+	{
+		static constexpr char map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+		static constexpr char pad = '=';
+		uint8_t rev_map[256];
+
+		constexpr base64_helper()
+			:rev_map{}
+		{
+			for (uint8_t i = 0; i < 64; ++i)
+				rev_map[(uint8_t)map[i]] = i;
+		}
+	};
+	constexpr base64_helper b64;
+
 	void base64(std::string &dst, const char *data, size_t size)
 	{
-		static constexpr char base64_map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-		static constexpr char base64_pad = '=';
-
 		const char *data_end = data + size - 3;
 		for (; data <= data_end; data += 3)
 		{
-			dst.push_back(base64_map[(uint8_t)(data[0]) >> 2]);
-			dst.push_back(base64_map[(((uint8_t)(data[0]) << 4) | ((uint8_t)(data[1]) >> 4)) & 0x3F]);
-			dst.push_back(base64_map[(((uint8_t)(data[1]) << 2) | ((uint8_t)(data[2]) >> 6)) & 0x3F]);
-			dst.push_back(base64_map[(uint8_t)(data[2]) & 0x3F]);
+			dst.push_back(b64.map[(uint8_t)(data[0]) >> 2]);
+			dst.push_back(b64.map[(((uint8_t)(data[0]) << 4) | ((uint8_t)(data[1]) >> 4)) & 0x3F]);
+			dst.push_back(b64.map[(((uint8_t)(data[1]) << 2) | ((uint8_t)(data[2]) >> 6)) & 0x3F]);
+			dst.push_back(b64.map[(uint8_t)(data[2]) & 0x3F]);
 		}
 
 		if (data != data_end)
@@ -48,16 +60,16 @@ namespace
 			switch (data_end - data)
 			{
 			case 1:
-				dst.push_back(base64_map[(uint8_t)(data[0]) >> 2]);
-				dst.push_back(base64_map[((uint8_t)(data[0]) << 4) & 0x3F]);
-				dst.push_back(base64_pad);
-				dst.push_back(base64_pad);
+				dst.push_back(b64.map[(uint8_t)(data[0]) >> 2]);
+				dst.push_back(b64.map[((uint8_t)(data[0]) << 4) & 0x3F]);
+				dst.push_back(b64.pad);
+				dst.push_back(b64.pad);
 				break;
 			case 2:
-				dst.push_back(base64_map[(uint8_t)(data[0]) >> 2]);
-				dst.push_back(base64_map[((uint8_t)(data[0]) << 4 | (uint8_t)(data[1]) >> 4) & 0x3F]);
-				dst.push_back(base64_map[((uint8_t)(data[1]) << 2) & 0x3F]);
-				dst.push_back(base64_pad);
+				dst.push_back(b64.map[(uint8_t)(data[0]) >> 2]);
+				dst.push_back(b64.map[((uint8_t)(data[0]) << 4 | (uint8_t)(data[1]) >> 4) & 0x3F]);
+				dst.push_back(b64.map[((uint8_t)(data[1]) << 2) & 0x3F]);
+				dst.push_back(b64.pad);
 				break;
 			}
 		}
@@ -75,26 +87,6 @@ namespace
 
 	void base64_rev(std::string &dst, const char *data, size_t size)
 	{
-		static constexpr uint8_t base64_rev_map[] = {
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //00-15
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //16-31
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 62,0, 0, 0, 63,//32-47
-			52,53,54,55,56,57,58,59,60,61,0, 0, 0, 0, 0, 0, //48-63
-			0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13,14,//64-79
-			15,16,17,18,19,20,21,22,23,24,25,0, 0, 0, 0, 0, //80-95
-			0, 26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,//96-111
-			41,42,43,44,45,46,47,48,49,50,51,0, 0, 0, 0, 0, //112-127
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //128-255
-		};
-		static constexpr char base64_pad = '=';
-
 		if (size % 4 != 0)
 			throw(std::runtime_error("Invalid base64"));
 		if (size == 0)
@@ -104,14 +96,14 @@ namespace
 		const char *data_end = data + size;
 		for (; data < data_end; data += 4)
 		{
-			dst.push_back((base64_rev_map[(uint8_t)data[0]] << 2) | (base64_rev_map[(uint8_t)data[1]] >> 4));
-			dst.push_back((base64_rev_map[(uint8_t)data[1]] << 4) | (base64_rev_map[(uint8_t)data[2]] >> 2));
-			dst.push_back((base64_rev_map[(uint8_t)data[2]] << 6) | base64_rev_map[(uint8_t)data[3]]);
+			dst.push_back((b64.rev_map[(uint8_t)data[0]] << 2) | (b64.rev_map[(uint8_t)data[1]] >> 4));
+			dst.push_back((b64.rev_map[(uint8_t)data[1]] << 4) | (b64.rev_map[(uint8_t)data[2]] >> 2));
+			dst.push_back((b64.rev_map[(uint8_t)data[2]] << 6) | b64.rev_map[(uint8_t)data[3]]);
 		}
-		if (data[-1] == base64_pad)
+		if (data[-1] == b64.pad)
 		{
 			dst.pop_back();
-			if (data[-2] == base64_pad)
+			if (data[-2] == b64.pad)
 				dst.pop_back();
 		}
 	}
@@ -350,7 +342,7 @@ void obfs_websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<null_cal
 	});
 }
 
-void obfs_websock_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
+void obfs_websock_tcp_socket::send(const_buffer buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	transferred = 0;
@@ -375,7 +367,7 @@ void obfs_websock_tcp_socket::send(const const_buffer &buffer, size_t &transferr
 	transferred = transferring;
 }
 
-void obfs_websock_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
+void obfs_websock_tcp_socket::async_send(const_buffer buffer, transfer_callback &&complete_handler)
 {
 	size_t transferring = transfer_size(buffer.size());
 
@@ -403,7 +395,7 @@ void obfs_websock_tcp_socket::async_send(const const_buffer &buffer, transfer_ca
 	});
 }
 
-void obfs_websock_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
+void obfs_websock_tcp_socket::recv(mutable_buffer buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	transferred = 0;
@@ -416,7 +408,7 @@ void obfs_websock_tcp_socket::recv(const mutable_buffer &buffer, size_t &transfe
 	transferred = read_data(buffer.data(), buffer.size());
 }
 
-void obfs_websock_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
+void obfs_websock_tcp_socket::async_recv(mutable_buffer buffer, transfer_callback &&complete_handler)
 {
 	if (dec_buf_.empty())
 	{

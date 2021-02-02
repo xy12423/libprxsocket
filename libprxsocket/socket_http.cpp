@@ -31,9 +31,7 @@ void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 
 	try
 	{
-		std::string host = ep.addr().to_string();
-		host.push_back(':');
-		host.append(std::to_string(ep.port()));
+		std::string host = ep.to_uri_string();
 		std::string http_req;
 		http_req.append("CONNECT ");
 		http_req.append(host);
@@ -100,9 +98,7 @@ void http_tcp_socket::send_http_req(const std::shared_ptr<null_callback> &callba
 	std::shared_ptr<std::string> http_req = std::make_shared<std::string>();
 	try
 	{
-		std::string host = remote_ep_.addr().to_string();
-		host.push_back(':');
-		host.append(std::to_string(remote_ep_.port()));
+		std::string host = remote_ep_.to_uri_string();
 
 		http_req->append("CONNECT ");
 		http_req->append(host);
@@ -170,14 +166,14 @@ void http_tcp_socket::recv_http_resp(const std::shared_ptr<null_callback> &callb
 	});
 }
 
-void http_tcp_socket::send(const const_buffer &buffer, size_t &transferred, error_code &err)
+void http_tcp_socket::send(const_buffer buffer, size_t &transferred, error_code &err)
 {
 	socket_->send(buffer, transferred, err);
 	if (err)
 		reset_send();
 }
 
-void http_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &&complete_handler)
+void http_tcp_socket::async_send(const_buffer buffer, transfer_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 	socket_->async_send(buffer,
@@ -193,7 +189,7 @@ void http_tcp_socket::async_send(const const_buffer &buffer, transfer_callback &
 	});
 }
 
-void http_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, error_code &err)
+void http_tcp_socket::recv(mutable_buffer buffer, size_t &transferred, error_code &err)
 {
 	err = 0;
 	if (recv_buf_ptr_ < recv_buf_ptr_end_)
@@ -208,7 +204,7 @@ void http_tcp_socket::recv(const mutable_buffer &buffer, size_t &transferred, er
 		reset_recv();
 }
 
-void http_tcp_socket::async_recv(const mutable_buffer &buffer, transfer_callback &&complete_handler)
+void http_tcp_socket::async_recv(mutable_buffer buffer, transfer_callback &&complete_handler)
 {
 	if (recv_buf_ptr_ < recv_buf_ptr_end_)
 	{
