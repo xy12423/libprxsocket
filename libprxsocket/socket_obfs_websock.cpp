@@ -161,14 +161,48 @@ void obfs_websock_tcp_socket::encode(std::string &dst, const char *src, size_t s
 		dst.append((char *)&buf_size_be, sizeof(buf_size_be));
 	}
 
-	byte mask[4];
-	int maskp = 0;
-	random_generator::random_bytes(mask, 4);
-	dst.append((const char*)mask, 4);
-	for (const char *data = buf.data(), *data_end = buf.data() + buf.size(); data < data_end; ++data)
+	if constexpr (sizeof(uint32_t) == 4 * sizeof(char))
 	{
-		dst.push_back((const unsigned char)*data ^ mask[maskp]);
-		maskp = (maskp + 1) % 4;
+		union {
+			uint32_t u32;
+			uint8_t u8[4];
+			char c8[4];
+		} mask{};
+		random_generator::random_bytes(mask.u8, 4);
+		dst.append(mask.c8, 4);
+
+		const char *data = buf.data(), *data_end = buf.data() + buf.size();
+		for (; data < data_end && (uintptr_t)data % 8 != 0; ++data)
+		{
+			dst.push_back((const unsigned char)*data ^ mask.u8[0]);
+			uint32_t tmp1 = boost::endian::little_to_native(mask.u32);
+			uint32_t tmp2 = (tmp1 >> 8) | (tmp1 << 24);
+			mask.u32 = boost::endian::native_to_little(tmp2);
+		}
+		for (; data < data_end - 8; data += 4)
+		{
+			uint32_t tmp = *(const uint32_t *)data ^ mask.u32;
+			dst.append((const char *)&tmp, sizeof(tmp));
+		}
+		for (; data < data_end; ++data)
+		{
+			dst.push_back((const unsigned char)*data ^ mask.u8[0]);
+			uint32_t tmp1 = boost::endian::little_to_native(mask.u32);
+			uint32_t tmp2 = (tmp1 >> 8) | (tmp1 << 24);
+			mask.u32 = boost::endian::native_to_little(tmp2);
+		}
+	}
+	else
+	{
+		byte mask[4];
+		int maskp = 0;
+		random_generator::random_bytes(mask, 4);
+		dst.append((const char *)mask, 4);
+		for (const char *data = buf.data(), *data_end = buf.data() + buf.size(); data < data_end; ++data)
+		{
+			dst.push_back((const unsigned char)*data ^ mask[maskp]);
+			maskp = (maskp + 1) % 4;
+		}
 	}
 }
 
@@ -179,15 +213,48 @@ void obfs_websock_tcp_socket::decode(std::string &dst, const char *src, size_t s
 	buf.reserve(size - 4);
 	const char *src_end = src + size;
 
-	byte mask[4];
-	int maskp = 0;
-	for (int i = 0; i < 4; ++i, ++src)
-		mask[i] = *src;
-
-	for (; src < src_end; ++src)
+	if constexpr (sizeof(uint32_t) == 4 * sizeof(char))
 	{
-		buf.push_back((const unsigned char)*src ^ mask[maskp]);
-		maskp = (maskp + 1) % 4;
+		union {
+			uint32_t u32;
+			uint8_t u8[4];
+			char c8[4];
+		} mask{};
+		for (int i = 0; i < 4; ++i, ++src)
+			mask.c8[i] = *src;
+
+		for (; src < src_end && (uintptr_t)src % 8 != 0; ++src)
+		{
+			buf.push_back((const unsigned char)*src ^ mask.u8[0]);
+			uint32_t tmp1 = boost::endian::little_to_native(mask.u32);
+			uint32_t tmp2 = (tmp1 >> 8) | (tmp1 << 24);
+			mask.u32 = boost::endian::native_to_little(tmp2);
+		}
+		for (; src < src_end - 8; src += 4)
+		{
+			uint32_t tmp = *(const uint32_t *)(const void *)src ^ mask.u32;
+			buf.insert(buf.end(), (const char *)&tmp, (const char *)&tmp + sizeof(tmp));
+		}
+		for (; src < src_end; ++src)
+		{
+			buf.push_back((const unsigned char)*src ^ mask.u8[0]);
+			uint32_t tmp1 = boost::endian::little_to_native(mask.u32);
+			uint32_t tmp2 = (tmp1 >> 8) | (tmp1 << 24);
+			mask.u32 = boost::endian::native_to_little(tmp2);
+		}
+	}
+	else
+	{
+		byte mask[4];
+		int maskp = 0;
+		for (int i = 0; i < 4; ++i, ++src)
+			mask[i] = *src;
+
+		for (; src < src_end; ++src)
+		{
+			buf.push_back((const unsigned char)*src ^ mask[maskp]);
+			maskp = (maskp + 1) % 4;
+		}
 	}
 
 	dst.clear();
