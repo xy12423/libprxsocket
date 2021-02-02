@@ -297,10 +297,10 @@ namespace prxsocket
 			virtual void async_close(null_callback &&complete_handler) override;
 		private:
 			void reset_send() { header_sent_ = false; }
-			void reset_recv() { header_received_ = false; dec_buf_.clear(); dec_ptr_ = 0; }
+			void reset_recv() { header_received_ = false; dec_buf_.clear(); dec_ptr_ = 0; dec_pre_buf_type_ = DEC_PRE_BUF_NONE; dec_pre_buf_multiple_.clear(); }
 			void reset() { reset_send(); reset_recv(); }
 
-			void async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
+			void async_read(const std::shared_ptr<null_callback> &callback);
 			void async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
 
 			void wait_header(error_code &ec);
@@ -339,6 +339,9 @@ namespace prxsocket
 			std::unique_ptr<char[]> recv_buf_;
 			std::vector<char> dec_buf_;
 			size_t dec_ptr_ = 0;
+			enum { DEC_PRE_BUF_NONE, DEC_PRE_BUF_SINGLE, DEC_PRE_BUF_MULTIPLE } dec_pre_buf_type_ = DEC_PRE_BUF_NONE;
+			mutable_buffer dec_pre_buf_single_;
+			mutable_buffer_sequence dec_pre_buf_multiple_;
 		};
 
 	}

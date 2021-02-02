@@ -242,7 +242,7 @@ void ssr_http_simple_tcp_socket::write(const_buffer_sequence &&buffer, error_cod
 			return;
 		}
 		header_sent_ = true;
-		buffer.consume(transferring);
+		buffer.consume_front(transferring);
 	}
 	socket_->write(std::move(buffer), err);
 	if (err)
@@ -256,7 +256,7 @@ void ssr_http_simple_tcp_socket::async_write(const_buffer_sequence &&buffer, nul
 	{
 		std::shared_ptr<std::string> header = std::make_shared<std::string>();
 		size_t transferring = make_header(*header, buffer.empty() ? const_buffer(nullptr, 0) : buffer.front());
-		buffer.consume(transferring);
+		buffer.consume_front(transferring);
 		std::shared_ptr<const_buffer_sequence> buffer_ptr = std::make_shared<const_buffer_sequence>(std::move(buffer));
 		socket_->async_write(const_buffer(*header),
 			[this, header, buffer_ptr, callback](error_code err)

@@ -66,10 +66,10 @@ namespace prxsocket
 			void init_enc() { if (!iv_init_) { enc_->set_key(key_.data()); iv_init_ = true; } }
 		private:
 			void reset_send() { iv_init_ = iv_sent_ = false; }
-			void reset_recv() { iv_received_ = false; dec_buf_.clear(); dec_ptr_ = 0; }
+			void reset_recv() { iv_received_ = false; dec_buf_.clear(); dec_ptr_ = 0; dec_pre_buf_type_ = DEC_PRE_BUF_NONE; dec_pre_buf_multiple_.clear(); }
 			void reset() { reset_send(); reset_recv(); }
 
-			void async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
+			void async_read(const std::shared_ptr<null_callback> &callback);
 			void async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
 
 			void send_with_iv(const_buffer buffer, size_t &transferred, error_code &ec);
@@ -93,10 +93,14 @@ namespace prxsocket
 
 			std::vector<char> send_buf_;
 			bool iv_init_ = false, iv_sent_ = false;
+
 			std::unique_ptr<char[]> recv_buf_;
 			bool iv_received_ = false;
 			std::vector<char> dec_buf_;
 			size_t dec_ptr_ = 0;
+			enum { DEC_PRE_BUF_NONE, DEC_PRE_BUF_SINGLE, DEC_PRE_BUF_MULTIPLE } dec_pre_buf_type_ = DEC_PRE_BUF_NONE;
+			mutable_buffer dec_pre_buf_single_;
+			mutable_buffer_sequence dec_pre_buf_multiple_;
 		};
 
 		class ss_crypto_udp_socket final : public transparent_udp_socket
@@ -129,8 +133,9 @@ namespace prxsocket
 			void reset() {}
 
 			void encode(std::vector<char> &dst, const char *src, size_t src_size);
-			//Returns thread_local buffer. Use with caution.
-			std::vector<char> &decode(const char *src, size_t src_size);
+			void encode(std::vector<char> &dst, const_buffer_sequence &src);
+			size_t decode(mutable_buffer dst, const char *src, size_t src_size);
+			void decode(mutable_buffer_sequence &dst, const char *src, size_t src_size);
 
 			std::vector<char> key_;
 			std::unique_ptr<encryptor> enc_;

@@ -234,7 +234,7 @@ void ssr_auth_aes128_sha1_tcp_socket::read(mutable_buffer_sequence &&buffer, err
 				return;
 		}
 		size_t transferred = read_data(buffer.front().data(), buffer.front().size());
-		buffer.consume(transferred);
+		buffer.consume_front(transferred);
 	}
 }
 
@@ -258,7 +258,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_read(mutable_buffer_sequence &&buffe
 			return;
 		}
 		size_t transferred = read_data(buffer.front().data(), buffer.front().size());
-		buffer.consume(transferred);
+		buffer.consume_front(transferred);
 	}
 	complete_handler(0);
 }
@@ -281,7 +281,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_read(const std::shared_ptr<mutable_b
 			return;
 		}
 		size_t transferred = read_data(buffer->front().data(), buffer->front().size());
-		buffer->consume(transferred);
+		buffer->consume_front(transferred);
 	}
 	(*callback)(0);
 }
@@ -598,17 +598,7 @@ const_buffer_sequence ssr_auth_aes128_sha1_tcp_socket::prepare_send(const_buffer
 	}
 	else
 	{
-		while (!buffer.empty() && seq.size_total() + buffer.front().size() <= prepare_pack_size)
-		{
-			seq.push_back(buffer.front());
-			buffer.pop_front();
-		}
-		if (!buffer.empty() && seq.size_total() < prepare_pack_size)
-		{
-			size_t extra = prepare_pack_size - seq.size_total();
-			seq.push_back(const_buffer(buffer.front().data(), extra));
-			buffer.consume(extra);
-		}
+		buffer.truncate(seq, prepare_pack_size);
 	}
 
 	if (!auth_sent_)

@@ -189,9 +189,12 @@ void vmess_tcp_socket::recv(mutable_buffer buffer, size_t &transferred, error_co
 	transferred = 0;
 	if (read_empty())
 	{
+		dec_pre_buf_type_ = DEC_PRE_BUF_SINGLE;
+		dec_pre_buf_single_ = buffer;
 		recv_data(err);
-		if (err)
-			return;
+		if (!err)
+			transferred = buffer.size() - dec_pre_buf_single_.size();
+		return;
 	}
 	transferred = read_data(buffer.data(), buffer.size());
 }
@@ -200,16 +203,15 @@ void vmess_tcp_socket::async_recv(mutable_buffer buffer, transfer_callback &&com
 {
 	if (read_empty())
 	{
+		dec_pre_buf_type_ = DEC_PRE_BUF_SINGLE;
+		dec_pre_buf_single_ = buffer;
 		std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 		async_recv_data([this, buffer, callback](error_code err)
 		{
 			if (err)
-			{
 				(*callback)(err, 0);
-				return;
-			}
-			size_t transferred = read_data(buffer.data(), buffer.size());
-			(*callback)(0, transferred);
+			else
+				(*callback)(err, buffer.size() - dec_pre_buf_single_.size());
 		});
 		return;
 	}
@@ -224,12 +226,18 @@ void vmess_tcp_socket::read(mutable_buffer_sequence &&buffer, error_code &err)
 	{
 		if (read_empty())
 		{
-			recv_data(err);
-			if (err)
-				return;
+			dec_pre_buf_multiple_ = std::move(buffer);
+			do
+			{
+				dec_pre_buf_type_ = DEC_PRE_BUF_MULTIPLE;
+				recv_data(err);
+				if (err)
+					return;
+			} while (!dec_pre_buf_multiple_.empty());
+			return;
 		}
 		size_t transferred = read_data(buffer.front().data(), buffer.front().size());
-		buffer.consume(transferred);
+		buffer.consume_front(transferred);
 	}
 }
 
@@ -239,46 +247,34 @@ void vmess_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callbac
 	{
 		if (read_empty())
 		{
-			std::shared_ptr<mutable_buffer_sequence> buffer_ptr = std::make_shared<mutable_buffer_sequence>(std::move(buffer));
+			dec_pre_buf_multiple_ = std::move(buffer);
 			std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-			async_recv_data([this, buffer_ptr, callback](error_code err)
-			{
-				if (err)
-				{
-					(*callback)(err);
-					return;
-				}
-				async_read(buffer_ptr, callback);
-			});
+			async_read(callback);
 			return;
 		}
 		size_t transferred = read_data(buffer.front().data(), buffer.front().size());
-		buffer.consume(transferred);
+		buffer.consume_front(transferred);
 	}
 	complete_handler(0);
 }
 
-void vmess_tcp_socket::async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback)
+void vmess_tcp_socket::async_read(const std::shared_ptr<null_callback> &callback)
 {
-	while (!buffer->empty())
+	dec_pre_buf_type_ = DEC_PRE_BUF_MULTIPLE;
+	async_recv_data([this, callback](error_code err)
 	{
-		if (read_empty())
+		if (err)
 		{
-			async_recv_data([this, buffer, callback](error_code err)
-			{
-				if (err)
-				{
-					(*callback)(err);
-					return;
-				}
-				async_read(buffer, callback);
-			});
+			(*callback)(err);
 			return;
 		}
-		size_t transferred = read_data(buffer->front().data(), buffer->front().size());
-		buffer->consume(transferred);
-	}
-	(*callback)(0);
+		if (dec_pre_buf_multiple_.empty())
+		{
+			(*callback)(0);
+			return;
+		}
+		async_read(callback);
+	});
 }
 
 void vmess_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
@@ -764,11 +760,21 @@ size_t vmess_tcp_socket::encode(const_buffer buffer)
 
 void vmess_tcp_socket::encode(const_buffer_sequence &buffer)
 {
-	thread_local std::vector<char> enc_buf;
 	size_t transferring = std::min(buffer.size_total(), MAX_BLOCK_SIZE - 64);
-	enc_buf.resize(transferring);
-	buffer.gather(enc_buf.data(), enc_buf.size());
-	encode(const_buffer(enc_buf));
+
+	uint16_t count_be = boost::endian::native_to_big(request_count_);
+	++request_count_;
+	memcpy(request_iv_, &count_be, sizeof(count_be));
+	enc_->set_key_iv((const char *)request_body_key_, (const char *)request_iv_);
+	send_buf_.resize(sizeof(uint16_t)); //Reserve space for L
+	enc_->encrypt(send_buf_, buffer, transferring);
+
+	assert(send_buf_.size() - 2 <= MAX_BLOCK_SIZE);
+	uint16_t size = (uint16_t)(send_buf_.size() - 2);
+	uint16_t mask_be;
+	request_mask_.ShakeContinue(&mask_be, sizeof(mask_be));
+	uint16_t size_masked_be = boost::endian::native_to_big(size) ^ mask_be;
+	memcpy(send_buf_.data(), &size_masked_be, sizeof(uint16_t));
 }
 
 void vmess_tcp_socket::decode_header()
@@ -804,5 +810,25 @@ void vmess_tcp_socket::decode(size_t size)
 	++response_count_;
 	memcpy(response_iv_, &count_be, sizeof(count_be));
 	dec_->set_key_iv((const char *)response_body_key_, (const char *)response_iv_);
-	dec_->decrypt(dec_buf_, recv_buf_.get(), size);
+
+	switch (dec_pre_buf_type_)
+	{
+	case DEC_PRE_BUF_SINGLE:
+	{
+		size_t pre_buf_used = dec_->decrypt(dec_pre_buf_single_, dec_buf_, recv_buf_.get(), size);
+		dec_pre_buf_single_ = mutable_buffer(dec_pre_buf_single_.data() + pre_buf_used, dec_pre_buf_single_.size() - pre_buf_used);
+		break;
+	}
+	case DEC_PRE_BUF_MULTIPLE:
+	{
+		dec_->decrypt(dec_pre_buf_multiple_, dec_buf_, recv_buf_.get(), size);
+		break;
+	}
+	default:
+	{
+		dec_->decrypt(dec_buf_, recv_buf_.get(), size);
+		break;
+	}
+	}
+	dec_pre_buf_type_ = DEC_PRE_BUF_NONE;
 }

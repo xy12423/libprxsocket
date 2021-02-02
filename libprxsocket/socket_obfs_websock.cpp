@@ -441,7 +441,7 @@ void obfs_websock_tcp_socket::read(mutable_buffer_sequence &&buffer, error_code 
 				return;
 		}
 		size_t transferred = read_data(buffer.front().data(), buffer.front().size());
-		buffer.consume(transferred);
+		buffer.consume_front(transferred);
 	}
 }
 
@@ -465,7 +465,7 @@ void obfs_websock_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_
 			return;
 		}
 		size_t transferred = read_data(buffer.front().data(), buffer.front().size());
-		buffer.consume(transferred);
+		buffer.consume_front(transferred);
 	}
 	complete_handler(0);
 }
@@ -488,7 +488,7 @@ void obfs_websock_tcp_socket::async_read(const std::shared_ptr<mutable_buffer_se
 			return;
 		}
 		size_t transferred = read_data(buffer->front().data(), buffer->front().size());
-		buffer->consume(transferred);
+		buffer->consume_front(transferred);
 	}
 	(*callback)(0);
 }

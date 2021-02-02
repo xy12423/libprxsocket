@@ -181,9 +181,12 @@ void ss_crypto_tcp_socket::recv(mutable_buffer buffer, size_t &transferred, erro
 	transferred = 0;
 	if (dec_buf_.empty())
 	{
+		dec_pre_buf_type_ = DEC_PRE_BUF_SINGLE;
+		dec_pre_buf_single_ = buffer;
 		recv_data(err);
-		if (err)
-			return;
+		if (!err)
+			transferred = buffer.size() - dec_pre_buf_single_.size();
+		return;
 	}
 	transferred = read_data(buffer.data(), buffer.size());
 }
@@ -192,16 +195,15 @@ void ss_crypto_tcp_socket::async_recv(mutable_buffer buffer, transfer_callback &
 {
 	if (dec_buf_.empty())
 	{
+		dec_pre_buf_type_ = DEC_PRE_BUF_SINGLE;
+		dec_pre_buf_single_ = buffer;
 		std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 		async_recv_data([this, buffer, callback](error_code err)
 		{
 			if (err)
-			{
 				(*callback)(err, 0);
-				return;
-			}
-			size_t transferred = read_data(buffer.data(), buffer.size());
-			(*callback)(0, transferred);
+			else
+				(*callback)(err, buffer.size() - dec_pre_buf_single_.size());
 		});
 		return;
 	}
@@ -216,12 +218,18 @@ void ss_crypto_tcp_socket::read(mutable_buffer_sequence &&buffer, error_code &er
 	{
 		if (dec_buf_.empty())
 		{
-			recv_data(err);
-			if (err)
-				return;
+			dec_pre_buf_multiple_ = std::move(buffer);
+			do
+			{
+				dec_pre_buf_type_ = DEC_PRE_BUF_MULTIPLE;
+				recv_data(err);
+				if (err)
+					return;
+			} while (!dec_pre_buf_multiple_.empty());
+			return;
 		}
 		size_t transferred = read_data(buffer.front().data(), buffer.front().size());
-		buffer.consume(transferred);
+		buffer.consume_front(transferred);
 	}
 }
 
@@ -231,46 +239,34 @@ void ss_crypto_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_cal
 	{
 		if (dec_buf_.empty())
 		{
-			std::shared_ptr<mutable_buffer_sequence> buffer_ptr = std::make_shared<mutable_buffer_sequence>(std::move(buffer));
+			dec_pre_buf_multiple_ = std::move(buffer);
 			std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-			async_recv_data([this, buffer_ptr, callback](error_code err)
-			{
-				if (err)
-				{
-					(*callback)(err);
-					return;
-				}
-				async_read(buffer_ptr, callback);
-			});
+			async_read(callback);
 			return;
 		}
 		size_t transferred = read_data(buffer.front().data(), buffer.front().size());
-		buffer.consume(transferred);
+		buffer.consume_front(transferred);
 	}
 	complete_handler(0);
 }
 
-void ss_crypto_tcp_socket::async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback)
+void ss_crypto_tcp_socket::async_read(const std::shared_ptr<null_callback> &callback)
 {
-	while (!buffer->empty())
+	dec_pre_buf_type_ = DEC_PRE_BUF_MULTIPLE;
+	async_recv_data([this, callback](error_code err)
 	{
-		if (dec_buf_.empty())
+		if (err)
 		{
-			async_recv_data([this, buffer, callback](error_code err)
-			{
-				if (err)
-				{
-					(*callback)(err);
-					return;
-				}
-				async_read(buffer, callback);
-			});
+			(*callback)(err);
 			return;
 		}
-		size_t transferred = read_data(buffer->front().data(), buffer->front().size());
-		buffer->consume(transferred);
-	}
-	(*callback)(0);
+		if (dec_pre_buf_multiple_.empty())
+		{
+			(*callback)(0);
+			return;
+		}
+		async_read(callback);
+	});
 }
 
 void ss_crypto_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
@@ -489,12 +485,9 @@ size_t ss_crypto_tcp_socket::prepare_send(const_buffer buffer)
 
 void ss_crypto_tcp_socket::prepare_send(const_buffer_sequence &buffer)
 {
-	thread_local std::unique_ptr<char[]> buf = std::make_unique<char[]>(SEND_SIZE_MAX);
-
 	size_t transferring = transfer_size(buffer.size_total());
-	size_t copied = buffer.gather(buf.get(), transferring);
 	send_buf_.clear();
-	enc_->encrypt(send_buf_, buf.get(), copied);
+	enc_->encrypt(send_buf_, buffer, transferring);
 }
 
 void ss_crypto_tcp_socket::recv_data(error_code &err)
@@ -523,7 +516,25 @@ void ss_crypto_tcp_socket::recv_data(error_code &err)
 	try
 	{
 		assert(dec_buf_.empty());
-		dec_->decrypt(dec_buf_, recv_buf_.get(), transferred);
+		switch (dec_pre_buf_type_)
+		{
+		case DEC_PRE_BUF_SINGLE:
+		{
+			size_t pre_buf_used = dec_->decrypt(dec_pre_buf_single_, dec_buf_, recv_buf_.get(), transferred);
+			dec_pre_buf_single_ = mutable_buffer(dec_pre_buf_single_.data() + pre_buf_used, dec_pre_buf_single_.size() - pre_buf_used);
+			break;
+		}
+		case DEC_PRE_BUF_MULTIPLE:
+		{
+			dec_->decrypt(dec_pre_buf_multiple_, dec_buf_, recv_buf_.get(), transferred);
+			break;
+		}
+		default:
+		{
+			dec_->decrypt(dec_buf_, recv_buf_.get(), transferred);
+			break;
+		}
+		}
 	}
 	catch (const std::exception &)
 	{
@@ -531,6 +542,7 @@ void ss_crypto_tcp_socket::recv_data(error_code &err)
 		err = ERR_OPERATION_FAILURE;
 		return;
 	}
+	dec_pre_buf_type_ = DEC_PRE_BUF_NONE;
 }
 
 void ss_crypto_tcp_socket::async_recv_data(null_callback &&complete_handler)
@@ -568,7 +580,25 @@ void ss_crypto_tcp_socket::async_recv_data(null_callback &&complete_handler)
 		try
 		{
 			assert(dec_buf_.empty());
-			dec_->decrypt(dec_buf_, recv_buf_.get(), transferred);
+			switch (dec_pre_buf_type_)
+			{
+			case DEC_PRE_BUF_SINGLE:
+			{
+				size_t pre_buf_used = dec_->decrypt(dec_pre_buf_single_, dec_buf_, recv_buf_.get(), transferred);
+				dec_pre_buf_single_ = mutable_buffer(dec_pre_buf_single_.data() + pre_buf_used, dec_pre_buf_single_.size() - pre_buf_used);
+				break;
+			}
+			case DEC_PRE_BUF_MULTIPLE:
+			{
+				dec_->decrypt(dec_pre_buf_multiple_, dec_buf_, recv_buf_.get(), transferred);
+				break;
+			}
+			default:
+			{
+				dec_->decrypt(dec_buf_, recv_buf_.get(), transferred);
+				break;
+			}
+			}
 		}
 		catch (const std::exception &)
 		{
@@ -576,6 +606,7 @@ void ss_crypto_tcp_socket::async_recv_data(null_callback &&complete_handler)
 			return;
 		}
 
+		dec_pre_buf_type_ = DEC_PRE_BUF_NONE;
 		(*callback)(0);
 	});
 }
@@ -653,9 +684,7 @@ void ss_crypto_udp_socket::recv_from(endpoint &ep, mutable_buffer buffer, size_t
 
 	try
 	{
-		std::vector<char> &dec_buf = decode(udp_recv_buf_.get(), udp_recv_size);
-		transferred = std::min(buffer.size(), dec_buf.size());
-		memcpy(buffer.data(), dec_buf.data(), transferred);
+		transferred = decode(buffer, udp_recv_buf_.get(), udp_recv_size);
 	}
 	catch (const std::exception &)
 	{
@@ -683,9 +712,7 @@ void ss_crypto_udp_socket::async_recv_from(endpoint &ep, mutable_buffer buffer, 
 		size_t transferred = 0;
 		try
 		{
-			std::vector<char> &dec_buf = decode(udp_recv_buf_.get(), udp_recv_size);
-			transferred = std::min(buffer.size(), dec_buf.size());
-			memcpy(buffer.data(), dec_buf.data(), transferred);
+			transferred = decode(buffer, udp_recv_buf_.get(), udp_recv_size);
 		}
 		catch (const std::exception &)
 		{
@@ -701,12 +728,9 @@ void ss_crypto_udp_socket::send_to(const endpoint &ep, const_buffer_sequence &&b
 {
 	err = 0;
 
-	thread_local std::vector<char> enc_buf;
 	try
 	{
-		enc_buf.resize(buffers.size_total());
-		buffers.gather(enc_buf.data(), enc_buf.size());
-		encode(udp_send_buf_, enc_buf.data(), enc_buf.size());
+		encode(udp_send_buf_, buffers);
 	}
 	catch (const std::exception &)
 	{
@@ -722,12 +746,9 @@ void ss_crypto_udp_socket::async_send_to(const endpoint &ep, const_buffer_sequen
 {
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 
-	thread_local std::vector<char> enc_buf;
 	try
 	{
-		enc_buf.resize(buffers.size_total());
-		buffers.gather(enc_buf.data(), enc_buf.size());
-		encode(udp_send_buf_, enc_buf.data(), enc_buf.size());
+		encode(udp_send_buf_, buffers);
 	}
 	catch (const std::exception &)
 	{
@@ -760,8 +781,9 @@ void ss_crypto_udp_socket::recv_from(endpoint &ep, mutable_buffer_sequence &&buf
 
 	try
 	{
-		std::vector<char> &dec_buf = decode(udp_recv_buf_.get(), udp_recv_size);
-		transferred = buffers.scatter(dec_buf.data(), dec_buf.size());
+		transferred = buffers.size_total();
+		decode(buffers, udp_recv_buf_.get(), udp_recv_size);
+		transferred -= buffers.size_total();
 	}
 	catch (const std::exception &)
 	{
@@ -790,8 +812,9 @@ void ss_crypto_udp_socket::async_recv_from(endpoint &ep, mutable_buffer_sequence
 		size_t transferred = 0;
 		try
 		{
-			std::vector<char> &dec_buf = decode(udp_recv_buf_.get(), udp_recv_size);
-			transferred = buffer->scatter(dec_buf.data(), dec_buf.size());
+			transferred = buffer->size_total();
+			decode(*buffer, udp_recv_buf_.get(), udp_recv_size);
+			transferred -= buffer->size_total();
 		}
 		catch (const std::exception &)
 		{
@@ -811,15 +834,35 @@ void ss_crypto_udp_socket::encode(std::vector<char> &dst, const char *src, size_
 	enc_->encrypt(dst, src, src_size);
 }
 
-std::vector<char> &ss_crypto_udp_socket::decode(const char *src, size_t src_size)
+void ss_crypto_udp_socket::encode(std::vector<char> &dst, const_buffer_sequence &src)
+{
+	dst.clear();
+	enc_->set_key(key_.data());
+	dst.assign(enc_->iv(), enc_->iv() + enc_iv_size_);
+	enc_->encrypt(dst, src, src.size_total());
+}
+
+size_t ss_crypto_udp_socket::decode(mutable_buffer dst, const char *src, size_t src_size)
 {
 	thread_local std::vector<char> dec_buf;
 	dec_buf.clear();
 
 	size_t iv_size = dec_iv_size_;
 	if (src_size < iv_size)
-		return dec_buf;
+		return 0;
 	dec_->set_key_iv(key_.data(), src);
-	dec_->decrypt(dec_buf, src + iv_size, src_size - iv_size);
-	return dec_buf;
+	return dec_->decrypt(dst, dec_buf, src + iv_size, src_size - iv_size);
+}
+
+void ss_crypto_udp_socket::decode(mutable_buffer_sequence &dst, const char *src, size_t src_size)
+{
+	thread_local std::vector<char> dec_buf;
+	dec_buf.clear();
+
+	size_t iv_size = dec_iv_size_;
+	if (src_size < iv_size)
+		return;
+	dec_->set_key_iv(key_.data(), src);
+	dec_->decrypt(dst, dec_buf, src + iv_size, src_size - iv_size);
+	return;
 }
