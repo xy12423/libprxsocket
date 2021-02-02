@@ -31,6 +31,8 @@ namespace prxsocket
 	class const_buffer
 	{
 	public:
+		const_buffer() = default;
+		const_buffer(const const_buffer &) = default;
 		const_buffer(const char *data, size_t size) :data_(data), size_(size) {}
 		template <typename T> explicit const_buffer(const T &data) :data_(data.data()), size_(data.size()) {}
 
@@ -44,6 +46,8 @@ namespace prxsocket
 	class mutable_buffer
 	{
 	public:
+		mutable_buffer() = default;
+		mutable_buffer(const mutable_buffer &) = default;
 		mutable_buffer(char *data, size_t size) :data_(data), size_(size) {}
 		template <typename T> explicit mutable_buffer(T &data) :data_(data.data()), size_(data.size()) {}
 
