@@ -82,6 +82,21 @@ namespace prxsocket
 		void push_back(value_type &&item) { assert(item.size() > 0); size_t size = item.size(); list_.push_back(std::move(item)); size_total_ += size; }
 		void pop_front() { size_total_ -= list_.front().size(); list_.pop_front(); }
 		void pop_back() { size_total_ -= list_.back().size(); list_.pop_back(); }
+
+		void consume_front(size_t size)
+		{
+			assert(size <= list_.front().size());
+			value_type &next = list_.front();
+			if (next.size() <= size)
+			{
+				list_.pop_front();
+			}
+			else
+			{
+				next = value_type(next.data() + size, next.size() - size);
+			}
+			size_total_ -= size;
+		}
 		void consume(size_t size)
 		{
 			assert(size <= size_total_);
@@ -98,6 +113,53 @@ namespace prxsocket
 				{
 					next = value_type(next.data() + left, next.size() - left);
 					left = 0;
+					break;
+				}
+			}
+			size_total_ -= size;
+		}
+		template <typename ReturnType>
+		ReturnType truncate(size_t size)
+		{
+			assert(size <= size_total_);
+			ReturnType truncated;
+			while (!list_.empty())
+			{
+				if (truncated.size_total() + list_.front().size() <= size)
+				{
+					truncated.push_back(list_.front());
+					list_.pop_front();
+				}
+				else
+				{
+					value_type &next = list_.front();
+					size_t extra_size = size - truncated.size_total();
+					truncated.push_back(value_type(next.data(), extra_size));
+					next = value_type(next.data() + extra_size, next.size() - extra_size);
+					break;
+				}
+			}
+			size_total_ -= size;
+			return truncated;
+		}
+		template <typename ReturnType>
+		void truncate(ReturnType &truncated, size_t size)
+		{
+			assert(size <= size_total_);
+			while (!list_.empty())
+			{
+				if (truncated.size_total() + list_.front().size() <= size)
+				{
+					truncated.push_back(list_.front());
+					list_.pop_front();
+				}
+				else
+				{
+					value_type &next = list_.front();
+					size_t extra_size = size - truncated.size_total();
+					truncated.push_back(value_type(next.data(), extra_size));
+					next = value_type(next.data() + extra_size, next.size() - extra_size);
+					break;
 				}
 			}
 			size_total_ -= size;
@@ -113,6 +175,9 @@ namespace prxsocket
 		const_buffer_sequence() = default;
 		const_buffer_sequence(const const_buffer &buffer) { push_back(buffer); }
 		const_buffer_sequence(const_buffer &&buffer) { push_back(std::move(buffer)); }
+
+		const_buffer_sequence truncate(size_t size) { return buffer_sequence<const_buffer>::truncate<const_buffer_sequence>(size); }
+		void truncate(const_buffer_sequence &truncated, size_t size) { return buffer_sequence<const_buffer>::truncate<const_buffer_sequence>(truncated, size); }
 
 		size_t gather(char *dst, size_t dst_size)
 		{
@@ -133,6 +198,7 @@ namespace prxsocket
 					memcpy(dst + copied, next.data(), copying);
 					next = value_type(next.data() + copying, next.size() - copying);
 					copied = dst_size;
+					break;
 				}
 			}
 			size_total_ -= copied;
@@ -146,6 +212,9 @@ namespace prxsocket
 		mutable_buffer_sequence() = default;
 		mutable_buffer_sequence(const mutable_buffer &buffer) { push_back(buffer); }
 		mutable_buffer_sequence(mutable_buffer &&buffer) { push_back(std::move(buffer)); }
+
+		mutable_buffer_sequence truncate(size_t size) { return buffer_sequence<mutable_buffer>::truncate<mutable_buffer_sequence>(size); }
+		void truncate(mutable_buffer_sequence &truncated, size_t size) { return buffer_sequence<mutable_buffer>::truncate<mutable_buffer_sequence>(truncated, size); }
 
 		size_t scatter(const char *src, size_t src_size)
 		{
@@ -166,6 +235,7 @@ namespace prxsocket
 					memcpy(next.data(), src + copied, copying);
 					next = value_type(next.data() + copying, next.size() - copying);
 					copied = src_size;
+					break;
 				}
 			}
 			size_total_ -= copied;
