@@ -121,48 +121,49 @@ namespace prxsocket
 		template <typename ReturnType>
 		ReturnType truncate(size_t size)
 		{
-			assert(size <= size_total_);
 			ReturnType truncated;
-			while (!list_.empty())
+			while (!list_.empty() && truncated.size_total() < size)
 			{
-				if (truncated.size_total() + list_.front().size() <= size)
+				value_type &next = list_.front();
+				if (truncated.size_total() + next.size() <= size)
 				{
-					truncated.push_back(list_.front());
+					truncated.push_back(std::move(next));
 					list_.pop_front();
 				}
 				else
 				{
-					value_type &next = list_.front();
 					size_t extra_size = size - truncated.size_total();
 					truncated.push_back(value_type(next.data(), extra_size));
 					next = value_type(next.data() + extra_size, next.size() - extra_size);
 					break;
 				}
 			}
-			size_total_ -= size;
+			size_total_ -= truncated.size_total();
 			return truncated;
 		}
 		template <typename ReturnType>
 		void truncate(ReturnType &truncated, size_t size)
 		{
-			assert(size <= size_total_);
-			while (!list_.empty())
+			size_t truncated_size = 0;
+			while (!list_.empty() && truncated_size < size)
 			{
-				if (truncated.size_total() + list_.front().size() <= size)
+				value_type &next = list_.front();
+				if (truncated_size + next.size() <= size)
 				{
-					truncated.push_back(list_.front());
+					truncated_size += next.size();
+					truncated.push_back(std::move(next));
 					list_.pop_front();
 				}
 				else
 				{
-					value_type &next = list_.front();
-					size_t extra_size = size - truncated.size_total();
+					size_t extra_size = size - truncated_size;
+					truncated_size = size;
 					truncated.push_back(value_type(next.data(), extra_size));
 					next = value_type(next.data() + extra_size, next.size() - extra_size);
 					break;
 				}
 			}
-			size_total_ -= size;
+			size_total_ -= truncated_size;
 		}
 	protected:
 		Container list_;
