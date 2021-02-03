@@ -137,28 +137,33 @@ void obfs_websock_tcp_socket::encode(std::string &dst, const char *src, size_t s
 	buf.clear();
 	StringSource ss((const byte *)src, size, true, new StreamTransformationFilter(e_, new StringSinkTemplate<std::vector<char>>(buf)));
 
-	dst.clear();
+	char *dst_p;
 	if (buf.size() <= 125)
 	{
-		dst.reserve(6 + buf.size());
-		dst.push_back('\x82');
-		dst.push_back(0x80 | (uint8_t)(buf.size()));
+		dst.resize(6 + buf.size());
+		dst_p = dst.data();
+		*dst_p++ = '\x82';
+		*dst_p++ = 0x80 | (uint8_t)(buf.size());
 	}
 	else if (buf.size() <= 0xFFFF)
 	{
-		dst.reserve(8 + buf.size());
-		dst.push_back('\x82');
-		dst.push_back('\xFE');
+		dst.resize(8 + buf.size());
+		dst_p = dst.data();
+		*dst_p++ = '\x82';
+		*dst_p++ = '\xFE';
 		uint16_t buf_size_be = boost::endian::native_to_big((uint16_t)buf.size());
-		dst.append((char *)&buf_size_be, sizeof(buf_size_be));
+		memcpy(dst_p, &buf_size_be, sizeof(buf_size_be));
+		dst_p += sizeof(buf_size_be);
 	}
 	else
 	{
-		dst.reserve(14 + buf.size());
-		dst.push_back('\x82');
-		dst.push_back('\xFF');
+		dst.resize(14 + buf.size());
+		dst_p = dst.data();
+		*dst_p++ = '\x82';
+		*dst_p++ = '\xFF';
 		uint64_t buf_size_be = boost::endian::native_to_big((uint64_t)buf.size());
-		dst.append((char *)&buf_size_be, sizeof(buf_size_be));
+		memcpy(dst_p, &buf_size_be, sizeof(buf_size_be));
+		dst_p += sizeof(buf_size_be);
 	}
 
 	if constexpr (sizeof(uint32_t) == 4 * sizeof(char))
@@ -168,25 +173,26 @@ void obfs_websock_tcp_socket::encode(std::string &dst, const char *src, size_t s
 			uint8_t u8[4];
 			char c8[4];
 		} mask{};
-		random_generator::random_bytes(mask.u8, 4);
-		dst.append(mask.c8, 4);
+		random_generator::random_bytes(mask.c8, 4);
+		memcpy(dst_p, mask.c8, 4);
+		dst_p += 4;
 
 		const char *data = buf.data(), *data_end = buf.data() + buf.size();
-		for (; data < data_end && (uintptr_t)data % 8 != 0; ++data)
+		for (; data < data_end && (uintptr_t)data % 8 != 0; ++data, ++dst_p)
 		{
-			dst.push_back((const unsigned char)*data ^ mask.u8[0]);
+			*dst_p = (const unsigned char)*data ^ mask.u8[0];
 			uint32_t tmp1 = boost::endian::little_to_native(mask.u32);
 			uint32_t tmp2 = (tmp1 >> 8) | (tmp1 << 24);
 			mask.u32 = boost::endian::native_to_little(tmp2);
 		}
-		for (; data < data_end - 8; data += 4)
+		for (; data < data_end - 8; data += 4, dst_p += 4)
 		{
-			uint32_t tmp = *(const uint32_t *)data ^ mask.u32;
-			dst.append((const char *)&tmp, sizeof(tmp));
+			uint32_t tmp = *(const uint32_t *)(const void *)data ^ mask.u32;
+			memcpy(dst_p, &tmp, 4);
 		}
-		for (; data < data_end; ++data)
+		for (; data < data_end; ++data, ++dst_p)
 		{
-			dst.push_back((const unsigned char)*data ^ mask.u8[0]);
+			*dst_p = (const unsigned char)*data ^ mask.u8[0];
 			uint32_t tmp1 = boost::endian::little_to_native(mask.u32);
 			uint32_t tmp2 = (tmp1 >> 8) | (tmp1 << 24);
 			mask.u32 = boost::endian::native_to_little(tmp2);
@@ -197,10 +203,11 @@ void obfs_websock_tcp_socket::encode(std::string &dst, const char *src, size_t s
 		byte mask[4];
 		int maskp = 0;
 		random_generator::random_bytes(mask, 4);
-		dst.append((const char *)mask, 4);
-		for (const char *data = buf.data(), *data_end = buf.data() + buf.size(); data < data_end; ++data)
+		memcpy(dst_p, mask, 4);
+		dst_p += 4;
+		for (const char *data = buf.data(), *data_end = buf.data() + buf.size(); data < data_end; ++data, ++dst_p)
 		{
-			dst.push_back((const unsigned char)*data ^ mask[maskp]);
+			*dst_p = (const unsigned char)*data ^ mask[maskp];
 			maskp = (maskp + 1) % 4;
 		}
 	}
@@ -209,8 +216,7 @@ void obfs_websock_tcp_socket::encode(std::string &dst, const char *src, size_t s
 void obfs_websock_tcp_socket::decode(std::string &dst, const char *src, size_t size)
 {
 	thread_local std::vector<char> buf;
-	buf.clear();
-	buf.reserve(size - 4);
+	buf.resize(size - 4);
 	const char *src_end = src + size;
 
 	if constexpr (sizeof(uint32_t) == 4 * sizeof(char))
@@ -223,21 +229,22 @@ void obfs_websock_tcp_socket::decode(std::string &dst, const char *src, size_t s
 		for (int i = 0; i < 4; ++i, ++src)
 			mask.c8[i] = *src;
 
-		for (; src < src_end && (uintptr_t)src % 8 != 0; ++src)
+		char *buf_p = buf.data();
+		for (; src < src_end && (uintptr_t)src % 8 != 0; ++src, ++buf_p)
 		{
-			buf.push_back((const unsigned char)*src ^ mask.u8[0]);
+			*buf_p = (const unsigned char)*src ^ mask.u8[0];
 			uint32_t tmp1 = boost::endian::little_to_native(mask.u32);
 			uint32_t tmp2 = (tmp1 >> 8) | (tmp1 << 24);
 			mask.u32 = boost::endian::native_to_little(tmp2);
 		}
-		for (; src < src_end - 8; src += 4)
+		for (; src < src_end - 8; src += 4, buf_p += 4)
 		{
 			uint32_t tmp = *(const uint32_t *)(const void *)src ^ mask.u32;
-			buf.insert(buf.end(), (const char *)&tmp, (const char *)&tmp + sizeof(tmp));
+			memcpy(buf_p, &tmp, 4);
 		}
-		for (; src < src_end; ++src)
+		for (; src < src_end; ++src, ++buf_p)
 		{
-			buf.push_back((const unsigned char)*src ^ mask.u8[0]);
+			*buf_p = (const unsigned char)*src ^ mask.u8[0];
 			uint32_t tmp1 = boost::endian::little_to_native(mask.u32);
 			uint32_t tmp2 = (tmp1 >> 8) | (tmp1 << 24);
 			mask.u32 = boost::endian::native_to_little(tmp2);
@@ -250,9 +257,10 @@ void obfs_websock_tcp_socket::decode(std::string &dst, const char *src, size_t s
 		for (int i = 0; i < 4; ++i, ++src)
 			mask[i] = *src;
 
-		for (; src < src_end; ++src)
+		char *buf_p = buf.data();
+		for (; src < src_end; ++src, ++buf_p)
 		{
-			buf.push_back((const unsigned char)*src ^ mask[maskp]);
+			*buf_p = (const unsigned char)*src ^ mask[maskp];
 			maskp = (maskp + 1) % 4;
 		}
 	}
