@@ -73,10 +73,10 @@ namespace prxsocket
 			virtual void async_close(null_callback &&complete_handler) override;
 		private:
 			void reset_send() { send_id_ = 1; auth_sent_ = false; }
-			void reset_recv() { recv_id_ = 1; recv_ptr_ = recv_size_ = 0; }
+			void reset_recv() { recv_id_ = 1; recv_ptr_ = recv_size_ = 0; recv_pre_buf_type_ = RECV_PRE_BUF_NONE; recv_pre_buf_multiple_.clear(); }
 			void reset() { reset_send(); reset_recv(); }
 
-			void async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
+			void async_read(const std::shared_ptr<null_callback> &callback);
 			void async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
 
 			void prepare_send_data_auth(const std::function<void(CryptoPP::HMAC<CryptoPP::SHA1> &hasher)> &src_iter, size_t src_size);
@@ -84,10 +84,12 @@ namespace prxsocket
 			size_t prepare_send(const_buffer buffer);
 			const_buffer_sequence prepare_send(const_buffer_sequence &buffer);
 
+			bool has_non_empty_pre_buf() const;
 			void recv_data(error_code &ec);
 			void async_recv_data(null_callback &&complete_handler);
-			void async_recv_data_body(size_t total_size, const std::shared_ptr<null_callback> &callback);
-			error_code decode_recv_data(size_t total_size);
+			void async_recv_data_body(size_t total_size, size_t rnd_size, const std::shared_ptr<null_callback> &callback);
+			mutable_buffer_sequence prepare_recv_data_body_with_pre_buf(size_t rnd_size, size_t recv_size, std::pair<size_t, size_t> &recv_ptr_on_success, uint16_t &seq_param);
+			error_code decode_recv_data(size_t total_size, size_t rnd_size, mutable_buffer_sequence *recv_data = nullptr, uint16_t seq_param = 0);
 			bool read_empty();
 			size_t read_data(char *dst, size_t dst_size);
 
@@ -99,6 +101,9 @@ namespace prxsocket
 			std::vector<char> send_buf_head_, send_buf_tail_;
 			std::unique_ptr<char[]> recv_buf_;
 			size_t recv_ptr_ = 0, recv_size_ = 0;
+			enum { RECV_PRE_BUF_NONE, RECV_PRE_BUF_SINGLE, RECV_PRE_BUF_MULTIPLE } recv_pre_buf_type_ = RECV_PRE_BUF_NONE;
+			mutable_buffer recv_pre_buf_single_;
+			mutable_buffer_sequence recv_pre_buf_multiple_;
 		};
 
 	}

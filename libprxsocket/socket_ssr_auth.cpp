@@ -194,9 +194,12 @@ void ssr_auth_aes128_sha1_tcp_socket::recv(mutable_buffer buffer, size_t &transf
 	transferred = 0;
 	if (read_empty())
 	{
+		recv_pre_buf_type_ = RECV_PRE_BUF_SINGLE;
+		recv_pre_buf_single_ = buffer;
 		recv_data(err);
-		if (err)
-			return;
+		if (!err)
+			transferred = buffer.size() - recv_pre_buf_single_.size();
+		return;
 	}
 	transferred = read_data(buffer.data(), buffer.size());
 }
@@ -205,16 +208,15 @@ void ssr_auth_aes128_sha1_tcp_socket::async_recv(mutable_buffer buffer, transfer
 {
 	if (read_empty())
 	{
+		recv_pre_buf_type_ = RECV_PRE_BUF_SINGLE;
+		recv_pre_buf_single_ = buffer;
 		std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 		async_recv_data([this, buffer, callback](error_code err)
 		{
 			if (err)
-			{
 				(*callback)(err, 0);
-				return;
-			}
-			size_t transferred = read_data(buffer.data(), buffer.size());
-			(*callback)(0, transferred);
+			else
+				(*callback)(err, buffer.size() - recv_pre_buf_single_.size());
 		});
 		return;
 	}
@@ -229,9 +231,15 @@ void ssr_auth_aes128_sha1_tcp_socket::read(mutable_buffer_sequence &&buffer, err
 	{
 		if (read_empty())
 		{
-			recv_data(err);
-			if (err)
-				return;
+			recv_pre_buf_multiple_ = std::move(buffer);
+			do
+			{
+				recv_pre_buf_type_ = RECV_PRE_BUF_MULTIPLE;
+				recv_data(err);
+				if (err)
+					return;
+			} while (!recv_pre_buf_multiple_.empty());
+			return;
 		}
 		size_t transferred = read_data(buffer.front().data(), buffer.front().size());
 		buffer.consume_front(transferred);
@@ -244,17 +252,9 @@ void ssr_auth_aes128_sha1_tcp_socket::async_read(mutable_buffer_sequence &&buffe
 	{
 		if (read_empty())
 		{
-			std::shared_ptr<mutable_buffer_sequence> buffer_ptr = std::make_shared<mutable_buffer_sequence>(std::move(buffer));
+			recv_pre_buf_multiple_ = std::move(buffer);
 			std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-			async_recv_data([this, buffer_ptr, callback](error_code err)
-			{
-				if (err)
-				{
-					(*callback)(err);
-					return;
-				}
-				async_read(buffer_ptr, callback);
-			});
+			async_read(callback);
 			return;
 		}
 		size_t transferred = read_data(buffer.front().data(), buffer.front().size());
@@ -263,27 +263,23 @@ void ssr_auth_aes128_sha1_tcp_socket::async_read(mutable_buffer_sequence &&buffe
 	complete_handler(0);
 }
 
-void ssr_auth_aes128_sha1_tcp_socket::async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback)
+void ssr_auth_aes128_sha1_tcp_socket::async_read(const std::shared_ptr<null_callback> &callback)
 {
-	while (!buffer->empty())
+	recv_pre_buf_type_ = RECV_PRE_BUF_MULTIPLE;
+	async_recv_data([this, callback](error_code err)
 	{
-		if (read_empty())
+		if (err)
 		{
-			async_recv_data([this, buffer, callback](error_code err)
-			{
-				if (err)
-				{
-					(*callback)(err);
-					return;
-				}
-				async_read(buffer, callback);
-			});
+			(*callback)(err);
 			return;
 		}
-		size_t transferred = read_data(buffer->front().data(), buffer->front().size());
-		buffer->consume_front(transferred);
-	}
-	(*callback)(0);
+		if (recv_pre_buf_multiple_.empty())
+		{
+			(*callback)(0);
+			return;
+		}
+		async_read(callback);
+	});
 }
 
 void ssr_auth_aes128_sha1_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
@@ -431,6 +427,7 @@ void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data_auth(const std::function
 	memcpy(hmac_key.data(), socket_->enc().iv(), iv_size);
 	memcpy(hmac_key.data() + iv_size, socket_->key().data(), key_size);
 	hmac.SetKey((const CryptoPP::byte *)hmac_key.data(), hmac_key.size());
+	hmac.Restart();
 
 	bool uid_key_set = false;
 	uint32_t uid;
@@ -538,6 +535,7 @@ void ssr_auth_aes128_sha1_tcp_socket::prepare_send_data(const std::function<void
 	assert(send_hmac_key_.size() > 4);
 	memcpy(send_hmac_key_.data() + send_hmac_key_.size() - 4, &pack_id_le, 4);
 	hmac.SetKey((const CryptoPP::byte *)send_hmac_key_.data(), send_hmac_key_.size());
+	hmac.Restart();
 
 	send_buf_head_.resize(4); //Reserved for total_size(2 bytes) & total_size_mac(2 bytes)
 	rnd_data(send_buf_head_, src_size); //rnd_data
@@ -609,38 +607,110 @@ const_buffer_sequence ssr_auth_aes128_sha1_tcp_socket::prepare_send(const_buffer
 	return seq;
 }
 
+bool ssr_auth_aes128_sha1_tcp_socket::has_non_empty_pre_buf() const
+{
+	switch (recv_pre_buf_type_)
+	{
+	case RECV_PRE_BUF_SINGLE:
+		return recv_pre_buf_single_.size() > 0;
+	case RECV_PRE_BUF_MULTIPLE:
+		return !recv_pre_buf_multiple_.empty();
+	}
+	return false;
+}
+
 void ssr_auth_aes128_sha1_tcp_socket::recv_data(error_code &err)
 {
 	assert(read_empty());
 
-	socket_->read(mutable_buffer(recv_buf_.get(), 4), err);
+	socket_->read(mutable_buffer(recv_buf_.get(), 5), err);
 	if (err)
 	{
 		reset_recv();
 		return;
 	}
 	size_t total_size = ((uint8_t)recv_buf_[0] | ((uint8_t)recv_buf_[1] << 8));
-	if (total_size < 4 || total_size > RECV_BUF_SIZE)
+	if (total_size < 9 || total_size > RECV_BUF_SIZE)
 	{
 		shutdown(shutdown_receive, err);
 		err = ERR_BAD_ARG_REMOTE;
 		return;
 	}
-	socket_->read(mutable_buffer(recv_buf_.get() + 4, total_size - 4), err);
-	if (err)
+	size_t rnd_size = (uint8_t)recv_buf_[4];
+	if (rnd_size == 0xFF)
 	{
-		reset_recv();
+		socket_->read(mutable_buffer(recv_buf_.get() + 5, 2), err);
+		if (err)
+		{
+			reset_recv();
+			return;
+		}
+		rnd_size = ((uint8_t)recv_buf_[5] | ((uint8_t)recv_buf_[6] << 8));
+		if (rnd_size <= 128)
+		{
+			shutdown(shutdown_receive, err);
+			err = ERR_BAD_ARG_REMOTE;
+			return;
+		}
+	}
+	else
+	{
+		if (rnd_size > 128)
+		{
+			shutdown(shutdown_receive, err);
+			err = ERR_BAD_ARG_REMOTE;
+			return;
+		}
+	}
+	if (total_size < 8 + rnd_size) //fixed-size parts and rnd_size
+	{
+		shutdown(shutdown_receive, err);
+		err = ERR_BAD_ARG_REMOTE;
 		return;
 	}
+	size_t recv_size = total_size - 8 - rnd_size;
 
-	try
+	if (recv_size > 0 && has_non_empty_pre_buf())
 	{
-		err = decode_recv_data(total_size);
+		std::pair<size_t, size_t> recv_ptr_on_success;
+		uint16_t seq_param;
+		mutable_buffer_sequence recv_seq = prepare_recv_data_body_with_pre_buf(rnd_size, recv_size, recv_ptr_on_success, seq_param);
+		socket_->read(mutable_buffer_sequence(recv_seq), err);
+		if (err)
+		{
+			reset_recv();
+			return;
+		}
+		try
+		{
+			err = decode_recv_data(total_size, rnd_size, &recv_seq, seq_param);
+			recv_ptr_ = recv_ptr_on_success.first;
+			recv_size_ = recv_ptr_on_success.second;
+		}
+		catch (const std::exception &)
+		{
+			err = ERR_OPERATION_FAILURE;
+		}
 	}
-	catch (const std::exception &)
+	else
 	{
-		err = ERR_OPERATION_FAILURE;
+		size_t rnd_read = recv_buf_[4] == '\xFF' ? 3 : 1;
+		socket_->read(mutable_buffer(recv_buf_.get() + 4 + rnd_read, total_size - (4 + rnd_read)), err);
+		if (err)
+		{
+			reset_recv();
+			return;
+		}
+		try
+		{
+			err = decode_recv_data(total_size, rnd_size);
+		}
+		catch (const std::exception &)
+		{
+			err = ERR_OPERATION_FAILURE;
+		}
 	}
+
 	if (err)
 	{
 		error_code err2;
@@ -654,7 +724,7 @@ void ssr_auth_aes128_sha1_tcp_socket::async_recv_data(null_callback &&complete_h
 	assert(read_empty());
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 
-	socket_->async_read(mutable_buffer(recv_buf_.get(), 4),
+	socket_->async_read(mutable_buffer(recv_buf_.get(), 5),
 		[this, callback](error_code err)
 	{
 		if (err)
@@ -663,51 +733,186 @@ void ssr_auth_aes128_sha1_tcp_socket::async_recv_data(null_callback &&complete_h
 			(*callback)(err);
 			return;
 		}
+
 		size_t total_size = ((uint8_t)recv_buf_[0] | ((uint8_t)recv_buf_[1] << 8));
-		async_recv_data_body(total_size, callback);
+		if (total_size < 9 || total_size > RECV_BUF_SIZE)
+		{
+			async_shutdown(shutdown_receive, [callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
+			return;
+		}
+		size_t rnd_size = (uint8_t)recv_buf_[4];
+		if (rnd_size == 0xFF)
+		{
+			socket_->async_read(mutable_buffer(recv_buf_.get() + 5, 2),
+				[this, total_size, callback](error_code err)
+			{
+				if (err)
+				{
+					reset_recv();
+					(*callback)(err);
+					return;
+				}
+				size_t rnd_size = ((uint8_t)recv_buf_[5] | ((uint8_t)recv_buf_[6] << 8));
+				if (rnd_size <= 128)
+				{
+					async_shutdown(shutdown_receive, [callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
+					return;
+				}
+				async_recv_data_body(total_size, rnd_size, callback);
+			});
+		}
+		else
+		{
+			if (rnd_size > 128)
+			{
+				async_shutdown(shutdown_receive, [callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
+				return;
+			}
+			async_recv_data_body(total_size, rnd_size, callback);
+		}
 	});
 }
 
-void ssr_auth_aes128_sha1_tcp_socket::async_recv_data_body(size_t total_size, const std::shared_ptr<null_callback> &callback)
+void ssr_auth_aes128_sha1_tcp_socket::async_recv_data_body(size_t total_size, size_t rnd_size, const std::shared_ptr<null_callback> &callback)
 {
-	if (total_size < 4 || total_size > RECV_BUF_SIZE)
+	if (total_size < 8 + rnd_size) //fixed-size parts and rnd_size
 	{
 		async_shutdown(shutdown_receive, [callback](error_code) { (*callback)(ERR_BAD_ARG_REMOTE); });
 		return;
 	}
-	socket_->async_read(mutable_buffer(recv_buf_.get() + 4, total_size - 4),
-		[this, total_size, callback](error_code err)
+	size_t recv_size = total_size - 8 - rnd_size;
+
+	if (recv_size > 0 && has_non_empty_pre_buf())
 	{
-		if (err)
+		uint16_t seq_param;
+		std::pair<size_t, size_t> recv_ptr_on_success;
+		std::shared_ptr<mutable_buffer_sequence> recv_seq = std::make_shared<mutable_buffer_sequence>(prepare_recv_data_body_with_pre_buf(rnd_size, recv_size, recv_ptr_on_success, seq_param));
+		socket_->async_read(mutable_buffer_sequence(*recv_seq),
+			[this, total_size, rnd_size, recv_seq, seq_param, recv_ptr_on_success, callback](error_code err)
 		{
-			reset_recv();
-			(*callback)(err);
-			return;
-		}
+			if (err)
+			{
+				reset_recv();
+				(*callback)(err);
+				return;
+			}
 
-		try
-		{
-			err = decode_recv_data(total_size);
-		}
-		catch (const std::exception &)
-		{
-			err = ERR_OPERATION_FAILURE;
-		}
-		if (err)
-		{
-			async_shutdown(shutdown_receive, [callback, err](error_code) { (*callback)(err); });
-			return;
-		}
+			try
+			{
+				err = decode_recv_data(total_size, rnd_size, recv_seq.get(), seq_param);
+				recv_ptr_ = recv_ptr_on_success.first;
+				recv_size_ = recv_ptr_on_success.second;
+			}
+			catch (const std::exception &)
+			{
+				err = ERR_OPERATION_FAILURE;
+			}
+			if (err)
+			{
+				async_shutdown(shutdown_receive, [callback, err](error_code) { (*callback)(err); });
+				return;
+			}
 
-		(*callback)(0);
-	});
+			(*callback)(0);
+		});
+	}
+	else
+	{
+		size_t rnd_read = recv_buf_[4] == '\xFF' ? 3 : 1;
+		socket_->async_read(mutable_buffer(recv_buf_.get() + 4 + rnd_read, total_size - (4 + rnd_read)),
+			[this, total_size, rnd_size, callback](error_code err)
+		{
+			if (err)
+			{
+				reset_recv();
+				(*callback)(err);
+				return;
+			}
+
+			try
+			{
+				err = decode_recv_data(total_size, rnd_size);
+			}
+			catch (const std::exception &)
+			{
+				err = ERR_OPERATION_FAILURE;
+			}
+			if (err)
+			{
+				async_shutdown(shutdown_receive, [callback, err](error_code) { (*callback)(err); });
+				return;
+			}
+
+			(*callback)(0);
+		});
+	}
 }
 
-error_code ssr_auth_aes128_sha1_tcp_socket::decode_recv_data(size_t total_size)
+mutable_buffer_sequence ssr_auth_aes128_sha1_tcp_socket::prepare_recv_data_body_with_pre_buf(size_t rnd_size, size_t recv_size, std::pair<size_t, size_t> &recv_ptr_on_success, uint16_t &seq_param)
 {
-	if (total_size < 9) //fixed-size parts and min rnd_size
-		return ERR_BAD_ARG_REMOTE;
+	mutable_buffer_sequence recv_seq;
+	seq_param = 0;
+	switch (recv_pre_buf_type_)
+	{
+	case RECV_PRE_BUF_SINGLE:
+		if (recv_pre_buf_single_.size() >= recv_size)
+		{
+			recv_seq.push_back(mutable_buffer(recv_pre_buf_single_.data(), recv_size));
+			recv_seq.push_back(mutable_buffer(recv_buf_.get() + 4 + rnd_size + recv_size, 4)); //complete_hmac
+			recv_pre_buf_single_ = mutable_buffer(recv_pre_buf_single_.data() + recv_size, recv_pre_buf_single_.size() - recv_size);
+			recv_ptr_on_success.first = recv_ptr_on_success.second = 0;
+		}
+		else
+		{
+			auto pair = std::make_pair<size_t, size_t>(4 + rnd_size + recv_pre_buf_single_.size(), recv_size - recv_pre_buf_single_.size());
+			recv_seq.push_back(recv_pre_buf_single_);
+			recv_seq.push_back(mutable_buffer(recv_buf_.get() + pair.first, pair.second + 4)); //with complete_hmac
+			recv_pre_buf_single_ = mutable_buffer(recv_pre_buf_single_.data() + recv_pre_buf_single_.size(), 0);
+			recv_ptr_on_success = pair;
+			seq_param |= 0x01;
+		}
+		break;
+	case RECV_PRE_BUF_MULTIPLE:
+		if (recv_pre_buf_multiple_.size_total() > recv_size)
+		{
+			recv_pre_buf_multiple_.truncate(recv_seq, recv_size);
+			recv_seq.push_back(mutable_buffer(recv_buf_.get() + 4 + rnd_size + recv_size, 4)); //complete_hmac
+			recv_ptr_on_success.first = recv_ptr_on_success.second = 0;
+		}
+		else
+		{
+			recv_seq = std::move(recv_pre_buf_multiple_);
+			recv_pre_buf_multiple_.clear();
+			if (recv_seq.size_total() < recv_size)
+			{
+				auto pair = std::make_pair<size_t, size_t>(4 + rnd_size + recv_seq.size_total(), recv_size - recv_seq.size_total());
+				recv_seq.push_back(mutable_buffer(recv_buf_.get() + pair.first, pair.second + 4)); //with complete_hmac
+				recv_ptr_on_success = pair;
+				seq_param |= 0x01;
+			}
+			else
+			{
+				recv_seq.push_back(mutable_buffer(recv_buf_.get() + 4 + rnd_size + recv_size, 4)); //complete_hmac
+				recv_ptr_on_success.first = recv_ptr_on_success.second = 0;
+			}
+		}
+		break;
+	default:
+		assert(false);
+	}
 
+	size_t rnd_read = recv_buf_[4] == '\xFF' ? 3 : 1;
+	if (rnd_size > rnd_read)
+	{
+		recv_seq.push_front(mutable_buffer(recv_buf_.get() + 4 + rnd_read, rnd_size - rnd_read)); //rnd_data
+		seq_param |= 0x02;
+	}
+	return recv_seq;
+}
+
+error_code ssr_auth_aes128_sha1_tcp_socket::decode_recv_data(size_t total_size, size_t rnd_size, mutable_buffer_sequence *recv_data, uint16_t seq_param)
+{
+	assert(total_size >= 9); //fixed-size parts and min rnd_size
 	thread_local CryptoPP::HMAC<CryptoPP::SHA1> hmac;
 	CryptoPP::byte hmac_digest[hmac.DIGESTSIZE];
 
@@ -715,33 +920,60 @@ error_code ssr_auth_aes128_sha1_tcp_socket::decode_recv_data(size_t total_size)
 	assert(recv_hmac_key_.size() > 4);
 	memcpy(recv_hmac_key_.data() + recv_hmac_key_.size() - 4, &recv_id_le, 4);
 	hmac.SetKey((const CryptoPP::byte *)recv_hmac_key_.data(), recv_hmac_key_.size());
+	hmac.Restart();
 
 	assert(((uint8_t)recv_buf_[0] | ((uint8_t)recv_buf_[1] << 8)) == total_size); //total_size
 	hmac.CalculateDigest(hmac_digest, (CryptoPP::byte *)recv_buf_.get(), 2);
 	if (memcmp(hmac_digest, recv_buf_.get() + 2, 2) != 0) //total_size_hmac
 		return ERR_BAD_ARG_REMOTE;
 
-	size_t rnd_size = (uint8_t)recv_buf_[4];
-	if (rnd_size == 0xFF)
+	if ((uint8_t)recv_buf_[4] == 0xFF)
 	{
-		rnd_size = ((uint8_t)recv_buf_[5] | ((uint8_t)recv_buf_[6] << 8));
-		if (rnd_size <= 128)
+		assert(rnd_size == ((uint8_t)recv_buf_[5] | ((uint8_t)recv_buf_[6] << 8)));
+		assert(rnd_size > 128);
+	}
+	else
+	{
+		assert(rnd_size <= 128);
+	}
+	assert(total_size >= 8 + rnd_size);
+
+	if (recv_data != nullptr)
+	{
+		auto itr = recv_data->begin(), itr_end = recv_data->end();
+		--itr_end;
+
+		size_t rnd_read = recv_buf_[4] == '\xFF' ? 3 : 1;
+		if (seq_param & 0x02)
+		{
+			hmac.Update((CryptoPP::byte *)recv_buf_.get(), 4 + rnd_read + itr->size());
+			++itr;
+		}
+		else
+		{
+			hmac.Update((CryptoPP::byte *)recv_buf_.get(), 4 + rnd_read);
+		}
+
+		for (; itr != itr_end; ++itr)
+			hmac.Update((CryptoPP::byte *)itr->data(), itr->size());
+
+		assert(itr->data() + itr->size() == recv_buf_.get() + total_size);
+		if (seq_param & 0x01)
+			hmac.Update((CryptoPP::byte *)itr->data(), itr->size() - 4);
+
+		hmac.Final(hmac_digest);
+		if (memcmp(hmac_digest, recv_buf_.get() + total_size - 4, 4) != 0) //complete_hmac
 			return ERR_BAD_ARG_REMOTE;
 	}
 	else
 	{
-		if (rnd_size > 128)
+		hmac.CalculateDigest(hmac_digest, (CryptoPP::byte *)recv_buf_.get(), total_size - 4);
+		if (memcmp(hmac_digest, recv_buf_.get() + total_size - 4, 4) != 0) //complete_hmac
 			return ERR_BAD_ARG_REMOTE;
+		recv_ptr_ = 4 + rnd_size;
+		recv_size_ = total_size - 8 - rnd_size;
 	}
-	if (total_size < 8 + rnd_size) //fixed-size parts and rnd_size
-		return ERR_BAD_ARG_REMOTE;
 
-	hmac.CalculateDigest(hmac_digest, (CryptoPP::byte *)recv_buf_.get(), total_size - 4);
-	if (memcmp(hmac_digest, recv_buf_.get() + total_size - 4, 4) != 0) //complete_hmac
-		return ERR_BAD_ARG_REMOTE;
-
-	recv_ptr_ = 4 + rnd_size;
-	recv_size_ = total_size - 8 - rnd_size;
 	++recv_id_;
 	return 0;
 }
