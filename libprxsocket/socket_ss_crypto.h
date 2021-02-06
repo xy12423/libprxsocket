@@ -30,9 +30,9 @@ namespace prxsocket
 
 		class ss_crypto_tcp_socket final : public transparent_tcp_socket
 		{
-			static constexpr size_t SEND_SIZE_PREF = 0xF80;
-			static constexpr size_t SEND_SIZE_MAX = 0x1000;
-			static constexpr size_t RECV_BUF_SIZE = 0x1000;
+			static constexpr size_t SEND_SIZE_PREF = 0x1F80;
+			static constexpr size_t SEND_SIZE_MAX = 0x2000;
+			static constexpr size_t RECV_BUF_SIZE = 0x2000;
 
 			static constexpr size_t transfer_size(size_t buffer_size) { return buffer_size > SEND_SIZE_MAX ? SEND_SIZE_PREF : buffer_size; }
 		public:

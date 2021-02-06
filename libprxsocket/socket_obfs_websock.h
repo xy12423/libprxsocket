@@ -37,9 +37,9 @@ namespace prxsocket
 		enum { STATE_INIT, STATE_OK };
 		static constexpr size_t SYM_BLOCK_SIZE = 16;
 		static constexpr size_t SHA1_SIZE = 20;
-		static constexpr size_t SEND_SIZE_PREF = 0xF00;
-		static constexpr size_t SEND_SIZE_MAX = 0xF80;
-		static constexpr size_t RECV_BUF_SIZE = 0x1000;
+		static constexpr size_t SEND_SIZE_PREF = 0x1F00;
+		static constexpr size_t SEND_SIZE_MAX = 0x1F80;
+		static constexpr size_t RECV_BUF_SIZE = 0x2000;
 
 		static constexpr size_t transfer_size(size_t buffer_size) { return buffer_size > SEND_SIZE_MAX ? SEND_SIZE_PREF : buffer_size; }
 	public:
