@@ -54,6 +54,10 @@ namespace prxsocket
 		virtual void async_send(const_buffer buffer, transfer_callback &&complete_handler) override { socket_->async_send(buffer, std::move(complete_handler)); }
 		virtual void recv(mutable_buffer buffer, size_t &transferred, error_code &ec) override { return socket_->recv(buffer, transferred, ec); }
 		virtual void async_recv(mutable_buffer buffer, transfer_callback &&complete_handler) override { socket_->async_recv(buffer, std::move(complete_handler)); }
+		virtual void read(mutable_buffer buffer, error_code &ec) override { return socket_->read(buffer, ec); }
+		virtual void async_read(mutable_buffer buffer, null_callback &&complete_handler) override { socket_->async_read(buffer, std::move(complete_handler)); }
+		virtual void write(const_buffer buffer, error_code &ec) override { return socket_->write(buffer, ec); }
+		virtual void async_write(const_buffer buffer, null_callback &&complete_handler) override { socket_->async_write(buffer, std::move(complete_handler)); }
 		virtual void read(mutable_buffer_sequence &&buffer, error_code &ec) override { return socket_->read(std::move(buffer), ec); }
 		virtual void async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler) override { socket_->async_read(std::move(buffer), std::move(complete_handler)); }
 		virtual void write(const_buffer_sequence &&buffer, error_code &ec) override { return socket_->write(std::move(buffer), ec); }

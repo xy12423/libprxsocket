@@ -20,30 +20,26 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 #ifndef LIBPRXSOCKET_H_SOCKET_SS
 #define LIBPRXSOCKET_H_SOCKET_SS
 
-#include "socket_base.h"
+#include "socket_transparent.h"
 
 namespace prxsocket
 {
 	namespace ss
 	{
 
-		class ss_tcp_socket final : public prx_tcp_socket
+		class ss_tcp_socket final : public transparent_tcp_socket
 		{
 		public:
 			ss_tcp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const endpoint &server_endpoint)
-				:socket_(std::move(base_socket)), server_ep_(server_endpoint)
+				:transparent_tcp_socket(std::move(base_socket)), server_ep_(server_endpoint)
 			{
 			}
 			virtual ~ss_tcp_socket() override {}
 
-			virtual bool is_open() override { return socket_->is_open(); }
 			virtual bool is_connected() override { return remote_ep_sent_ && socket_->is_connected(); }
 
 			virtual void local_endpoint(endpoint &ep, error_code &ec) override { ec = ERR_UNSUPPORTED; }
 			virtual void remote_endpoint(endpoint &ep, error_code &ec) override { ec = 0; if (!is_connected()) { ec = ERR_OPERATION_FAILURE; return; } ep = remote_ep_; }
-
-			virtual void open(error_code &ec) override { return socket_->open(ec); }
-			virtual void async_open(null_callback &&complete_handler) override { socket_->async_open(std::move(complete_handler)); }
 
 			virtual void bind(const endpoint &endpoint, error_code &ec) override { ec = ERR_UNSUPPORTED; }
 			virtual void async_bind(const endpoint &endpoint, null_callback &&complete_handler) override { complete_handler(ERR_UNSUPPORTED); }
@@ -51,23 +47,11 @@ namespace prxsocket
 			virtual void connect(const endpoint &endpoint, error_code &ec) override;
 			virtual void async_connect(const endpoint &endpoint, null_callback &&complete_handler) override;
 
-			virtual void send(const_buffer buffer, size_t &transferred, error_code &ec) override;
-			virtual void async_send(const_buffer buffer, transfer_callback &&complete_handler) override;
-			virtual void recv(mutable_buffer buffer, size_t &transferred, error_code &ec) override;
-			virtual void async_recv(mutable_buffer buffer, transfer_callback &&complete_handler) override;
-			virtual void read(mutable_buffer_sequence &&buffer, error_code &ec) override;
-			virtual void async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler) override;
-			virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
-			virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
-
-			virtual void shutdown(shutdown_type type, error_code &ec) override;
-			virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) override;
 			virtual void close(error_code &ec) override;
 			virtual void async_close(null_callback &&complete_handler) override;
 		private:
 			void reset() { remote_ep_sent_ = false; }
 
-			std::unique_ptr<prx_tcp_socket> socket_;
 			endpoint server_ep_, remote_ep_;
 			bool remote_ep_sent_ = false;
 		};

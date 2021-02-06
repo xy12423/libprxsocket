@@ -161,6 +161,133 @@ void ssr_http_simple_tcp_socket::async_recv(mutable_buffer buffer, transfer_call
 	});
 }
 
+void ssr_http_simple_tcp_socket::read(mutable_buffer buffer, error_code &err)
+{
+	err = 0;
+	if (!header_received_)
+	{
+		wait_header(err);
+		if (err)
+			return;
+	}
+	if (recv_buf_ptr_ < recv_buf_ptr_end_)
+	{
+		size_t transferred = std::min(buffer.size(), recv_buf_ptr_end_ - recv_buf_ptr_);
+		memcpy(buffer.data(), recv_buf_.get() + recv_buf_ptr_, transferred);
+		recv_buf_ptr_ += transferred;
+		if (buffer.size() == transferred)
+			return;
+		buffer = mutable_buffer(buffer.data() + transferred, buffer.size() - transferred);
+	}
+	socket_->read(std::move(buffer), err);
+	if (err)
+		reset_recv();
+}
+
+void ssr_http_simple_tcp_socket::async_read(mutable_buffer buffer, null_callback &&complete_handler)
+{
+	if (!header_received_)
+	{
+		std::shared_ptr<mutable_buffer_sequence> buffer_ptr = std::make_shared<mutable_buffer_sequence>(std::move(buffer));
+		std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+		async_wait_header([this, buffer_ptr, callback](error_code err)
+		{
+			if (err)
+				(*callback)(err);
+			else
+				async_read(std::move(*buffer_ptr), std::move(*callback));
+		});
+		return;
+	}
+	if (recv_buf_ptr_ < recv_buf_ptr_end_)
+	{
+		size_t transferred = std::min(buffer.size(), recv_buf_ptr_end_ - recv_buf_ptr_);
+		memcpy(buffer.data(), recv_buf_.get() + recv_buf_ptr_, transferred);
+		recv_buf_ptr_ += transferred;
+		if (buffer.size() == transferred)
+		{
+			complete_handler(0);
+			return;
+		}
+		buffer = mutable_buffer(buffer.data() + transferred, buffer.size() - transferred);
+	}
+	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+	socket_->async_read(std::move(buffer),
+		[this, callback](error_code err)
+	{
+		if (err)
+		{
+			reset_recv();
+			(*callback)(err);
+			return;
+		}
+		(*callback)(0);
+	});
+}
+
+void ssr_http_simple_tcp_socket::write(const_buffer buffer, error_code &err)
+{
+	err = 0;
+	if (!header_sent_)
+	{
+		std::string header;
+		size_t transferring = make_header(header, buffer);
+		socket_->write(const_buffer(header), err);
+		if (err)
+		{
+			reset_send();
+			return;
+		}
+		header_sent_ = true;
+		if (transferring == buffer.size())
+			return;
+		buffer = const_buffer(buffer.data() + transferring, buffer.size() - transferring);
+	}
+	socket_->write(buffer, err);
+	if (err)
+		reset_send();
+}
+
+void ssr_http_simple_tcp_socket::async_write(const_buffer buffer, null_callback &&complete_handler)
+{
+	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+	if (!header_sent_)
+	{
+		std::shared_ptr<std::string> header = std::make_shared<std::string>();
+		size_t transferring = make_header(*header, buffer);
+		buffer = const_buffer(buffer.data() + transferring, buffer.size() - transferring);
+		socket_->async_write(const_buffer(*header),
+			[this, header, buffer, callback](error_code err)
+		{
+			if (err)
+			{
+				reset_send();
+				(*callback)(err);
+				return;
+			}
+			header_sent_ = true;
+			if (buffer.size() == 0)
+			{
+				(*callback)(0);
+				return;
+			}
+			async_write(buffer, std::move(*callback));
+		});
+		return;
+	}
+	socket_->async_write(buffer,
+		[this, callback](error_code err)
+	{
+		if (err)
+		{
+			reset_send();
+			(*callback)(err);
+			return;
+		}
+		(*callback)(0);
+	});
+}
+
 void ssr_http_simple_tcp_socket::read(mutable_buffer_sequence &&buffer, error_code &err)
 {
 	err = 0;

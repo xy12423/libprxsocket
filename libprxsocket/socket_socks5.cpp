@@ -119,12 +119,7 @@ void socks5_tcp_socket::send(const_buffer buffer, size_t &transferred, error_cod
 
 void socks5_tcp_socket::async_send(const_buffer buffer, transfer_callback &&complete_handler)
 {
-	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
-	socks5_base::async_send(buffer,
-		[this, callback](error_code err, size_t transferred)
-	{
-		(*callback)(err, transferred);
-	});
+	socks5_base::async_send(buffer, std::move(complete_handler));
 }
 
 void socks5_tcp_socket::recv(mutable_buffer buffer, size_t &transferred, error_code &err)
@@ -134,12 +129,27 @@ void socks5_tcp_socket::recv(mutable_buffer buffer, size_t &transferred, error_c
 
 void socks5_tcp_socket::async_recv(mutable_buffer buffer, transfer_callback &&complete_handler)
 {
-	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
-	socks5_base::async_recv(buffer,
-		[this, callback](error_code err, size_t transferred)
-	{
-		(*callback)(err, transferred);
-	});
+	socks5_base::async_recv(buffer, std::move(complete_handler));
+}
+
+void socks5_tcp_socket::read(mutable_buffer buffer, error_code &err)
+{
+	socks5_base::read(buffer, err);
+}
+
+void socks5_tcp_socket::async_read(mutable_buffer buffer, null_callback &&complete_handler)
+{
+	socks5_base::async_read(buffer, std::move(complete_handler));
+}
+
+void socks5_tcp_socket::write(const_buffer buffer, error_code &err)
+{
+	socks5_base::write(buffer, err);
+}
+
+void socks5_tcp_socket::async_write(const_buffer buffer, null_callback &&complete_handler)
+{
+	socks5_base::async_write(buffer, std::move(complete_handler));
 }
 
 void socks5_tcp_socket::read(mutable_buffer_sequence &&buffer, error_code &err)
@@ -149,12 +159,7 @@ void socks5_tcp_socket::read(mutable_buffer_sequence &&buffer, error_code &err)
 
 void socks5_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler)
 {
-	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	socks5_base::async_read(std::move(buffer),
-		[this, callback](error_code err)
-	{
-		(*callback)(err);
-	});
+	socks5_base::async_read(std::move(buffer), std::move(complete_handler));
 }
 
 void socks5_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
@@ -164,12 +169,7 @@ void socks5_tcp_socket::write(const_buffer_sequence &&buffer, error_code &err)
 
 void socks5_tcp_socket::async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler)
 {
-	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	socks5_base::async_write(std::move(buffer),
-		[this, callback](error_code err)
-	{
-		(*callback)(err);
-	});
+	socks5_base::async_write(std::move(buffer), std::move(complete_handler));
 }
 
 void socks5_tcp_socket::shutdown(shutdown_type type, error_code &ec)

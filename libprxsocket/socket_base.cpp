@@ -39,7 +39,7 @@ void prx_tcp_socket::read(mutable_buffer buffer, error_code &ec)
 	}
 }
 
-static void do_async_read(prx_tcp_socket &socket, mutable_buffer buffer, const std::shared_ptr<null_callback> &callback)
+void prx_tcp_socket_do_async_read(prx_tcp_socket &socket, mutable_buffer buffer, const std::shared_ptr<null_callback> &callback)
 {
 	socket.async_recv(buffer, [&socket, buffer, callback](error_code err, size_t transferred) {
 		if (err)
@@ -52,13 +52,13 @@ static void do_async_read(prx_tcp_socket &socket, mutable_buffer buffer, const s
 			(*callback)(0);
 			return;
 		}
-		do_async_read(socket, mutable_buffer(buffer.data() + transferred, buffer.size() - transferred), callback);
+		prx_tcp_socket_do_async_read(socket, mutable_buffer(buffer.data() + transferred, buffer.size() - transferred), callback);
 	});
 }
 
 void prx_tcp_socket::async_read(mutable_buffer buffer, null_callback &&complete_handler)
 {
-	do_async_read(*this, buffer, std::make_shared<null_callback>(std::move(complete_handler)));
+	prx_tcp_socket_do_async_read(*this, buffer, std::make_shared<null_callback>(std::move(complete_handler)));
 }
 
 void prx_tcp_socket::write(const_buffer buffer, error_code &ec)
@@ -79,7 +79,7 @@ void prx_tcp_socket::write(const_buffer buffer, error_code &ec)
 	return;
 }
 
-static void do_async_write(prx_tcp_socket &socket, const_buffer buffer, const std::shared_ptr<null_callback> &callback)
+void prx_tcp_socket_do_async_write(prx_tcp_socket &socket, const_buffer buffer, const std::shared_ptr<null_callback> &callback)
 {
 	socket.async_send(buffer, [&socket, buffer, callback](error_code err, size_t transferred) {
 		if (err)
@@ -92,13 +92,13 @@ static void do_async_write(prx_tcp_socket &socket, const_buffer buffer, const st
 			(*callback)(0);
 			return;
 		}
-		do_async_write(socket, const_buffer(buffer.data() + transferred, buffer.size() - transferred), callback);
+		prx_tcp_socket_do_async_write(socket, const_buffer(buffer.data() + transferred, buffer.size() - transferred), callback);
 	});
 }
 
 void prx_tcp_socket::async_write(const_buffer buffer, null_callback &&complete_handler)
 {
-	do_async_write(*this, buffer, std::make_shared<null_callback>(std::move(complete_handler)));
+	prx_tcp_socket_do_async_write(*this, buffer, std::make_shared<null_callback>(std::move(complete_handler)));
 }
 
 #ifndef _LIBPRXSOCKET_STRICT
