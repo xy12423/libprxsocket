@@ -887,61 +887,65 @@ void obfs_websock_listener::accept(std::unique_ptr<prx_tcp_socket> &soc, error_c
 	soc = nullptr;
 	ec = ERR_OPERATION_FAILURE;
 
-	std::unique_ptr<prx_tcp_socket> socket;
-	acceptor_->accept(socket, ec);
-	if (ec)
-		return;
-
-	try
+	do
 	{
-		http_header header;
-		size_t recv_buf_ptr = 0, recv_buf_ptr_end = 0, size_read, size_parsed;
-		bool finished;
-		while (finished = header.parse(recv_buf_.get() + recv_buf_ptr, recv_buf_ptr_end - recv_buf_ptr, size_parsed), recv_buf_ptr += size_parsed, !finished)
+		std::unique_ptr<prx_tcp_socket> socket;
+		acceptor_->accept(socket, ec);
+		if (ec)
+			return;
+
+		try
 		{
-			if (recv_buf_ptr_end >= RECV_BUF_SIZE)
-				throw(std::runtime_error("HTTP header too long"));
-			socket->recv(mutable_buffer(recv_buf_.get() + recv_buf_ptr_end, RECV_BUF_SIZE - recv_buf_ptr_end), size_read, ec);
+			http_header header;
+			size_t recv_buf_ptr = 0, recv_buf_ptr_end = 0, size_read, size_parsed;
+			bool finished;
+			while (finished = header.parse(recv_buf_.get() + recv_buf_ptr, recv_buf_ptr_end - recv_buf_ptr, size_parsed), recv_buf_ptr += size_parsed, !finished)
+			{
+				if (recv_buf_ptr_end >= RECV_BUF_SIZE)
+					throw(std::runtime_error("HTTP header too long"));
+				socket->recv(mutable_buffer(recv_buf_.get() + recv_buf_ptr_end, RECV_BUF_SIZE - recv_buf_ptr_end), size_read, ec);
+				if (ec)
+					throw(std::runtime_error("obfs_websock_listener::accept(): recv() error"));
+				recv_buf_ptr_end += size_read;
+			}
+
+			if (header.at(http_header::NAME_REQUEST_METHOD) != "GET" || header.at("Connection") != "Upgrade" || header.at("Upgrade") != "websocket" || header.at("Sec-WebSocket-Version") != "13")
+				throw(std::runtime_error("Bad HTTP header"));
+			if (header.at(http_header::NAME_REQUEST_TARGET) != "/eq" || header.at("Sec-WebSocket-Protocol") != "str")
+				throw(std::runtime_error("Bad HTTP header"));
+
+			iv_.clear();
+			sec_accept_.clear();
+			std::string &iv_b64 = header.at("Sec-WebSocket-Key");
+			base64_rev(iv_, iv_b64.data(), iv_b64.size());
+			gen_websocket_accept(sec_accept_, iv_b64);
+
+			static constexpr char resp_1[] = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ";
+			static constexpr size_t resp_1_size = sizeof(resp_1) - 1;
+			static constexpr char resp_2[] = "\r\n\r\n";
+			static constexpr size_t resp_2_size = sizeof(resp_2) - 1;
+			std::string http_resp;
+			http_resp.reserve(resp_1_size + sec_accept_.size() + resp_2_size);
+			http_resp.append(resp_1, resp_1_size);
+			http_resp.append(sec_accept_);
+			http_resp.append(resp_2, resp_2_size);
+
+			socket->write(const_buffer(http_resp), ec);
 			if (ec)
-				throw(std::runtime_error("obfs_websock_listener::accept(): recv() error"));
-			recv_buf_ptr_end += size_read;
+				throw(std::runtime_error("obfs_websock_listener::accept(): write() error"));
+		}
+		catch (const std::exception &)
+		{
+			error_code err;
+			socket->close(err);
+			if (!ec)
+				ec = ERR_BAD_ARG_REMOTE;
+			continue;
 		}
 
-		if (header.at(http_header::NAME_REQUEST_METHOD) != "GET" || header.at("Connection") != "Upgrade" || header.at("Upgrade") != "websocket" || header.at("Sec-WebSocket-Version") != "13")
-			throw(std::runtime_error("Bad HTTP header"));
-		if (header.at(http_header::NAME_REQUEST_TARGET) != "/eq" || header.at("Sec-WebSocket-Protocol") != "str")
-			throw(std::runtime_error("Bad HTTP header"));
-
-		iv_.clear();
-		sec_accept_.clear();
-		std::string &iv_b64 = header.at("Sec-WebSocket-Key");
-		base64_rev(iv_, iv_b64.data(), iv_b64.size());
-		gen_websocket_accept(sec_accept_, iv_b64);
-
-		static constexpr char resp_1[] = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ";
-		static constexpr size_t resp_1_size = sizeof(resp_1) - 1;
-		static constexpr char resp_2[] = "\r\n\r\n";
-		static constexpr size_t resp_2_size = sizeof(resp_2) - 1;
-		std::string http_resp;
-		http_resp.reserve(resp_1_size + sec_accept_.size() + resp_2_size);
-		http_resp.append(resp_1, resp_1_size);
-		http_resp.append(sec_accept_);
-		http_resp.append(resp_2, resp_2_size);
-
-		socket->write(const_buffer(http_resp), ec);
-		if (ec)
-			throw(std::runtime_error("obfs_websock_listener::accept(): write() error"));
-	}
-	catch (const std::exception &)
-	{
-		error_code err;
-		socket->close(err);
-		if (!ec)
-			ec = ERR_BAD_ARG_REMOTE;
-		return;
-	}
-
-	soc = std::make_unique<obfs_websock_tcp_socket>(std::move(socket), key_, iv_);
+		soc = std::make_unique<obfs_websock_tcp_socket>(std::move(socket), key_, iv_);
+		assert(!ec);
+	} while (ec);
 }
 
 void obfs_websock_listener::async_accept(accept_callback &&complete_handler)
@@ -971,7 +975,7 @@ void obfs_websock_listener::recv_websocket_req(
 	{
 		if (err)
 		{
-			(*socket_accept)->async_close([socket_accept, callback, err](error_code) { (*callback)(err, nullptr); });
+			(*socket_accept)->async_close([this, socket_accept, callback](error_code) { async_accept(std::move(*callback)); });
 			return;
 		}
 
@@ -1002,7 +1006,7 @@ void obfs_websock_listener::recv_websocket_req(
 		}
 		catch (const std::exception &)
 		{
-			(*socket_accept)->async_close([socket_accept, callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, nullptr); });
+			(*socket_accept)->async_close([this, socket_accept, callback](error_code) { async_accept(std::move(*callback)); });
 			return;
 		}
 
@@ -1026,7 +1030,7 @@ void obfs_websock_listener::send_websocket_resp(const std::shared_ptr<accept_cal
 	}
 	catch (const std::exception &)
 	{
-		(*socket_accept)->async_close([socket_accept, callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, nullptr); });
+		(*socket_accept)->async_close([this, socket_accept, callback](error_code) { async_accept(std::move(*callback)); });
 		return;
 	}
 
@@ -1035,7 +1039,7 @@ void obfs_websock_listener::send_websocket_resp(const std::shared_ptr<accept_cal
 	{
 		if (err)
 		{
-			(*socket_accept)->async_close([socket_accept, callback, err](error_code) { (*callback)(err, nullptr); });
+			(*socket_accept)->async_close([this, socket_accept, callback](error_code) { async_accept(std::move(*callback)); });
 			return;
 		}
 
