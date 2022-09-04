@@ -130,9 +130,21 @@ namespace prxsocket
 	private:
 		static constexpr size_t SYM_BLOCK_SIZE = 16;
 		static constexpr size_t RECV_BUF_SIZE = 0x400;
+
+		struct accept_session {
+			accept_session(std::unique_ptr<prx_tcp_socket> &&socket);
+
+			std::unique_ptr<prx_tcp_socket> socket_accept;
+
+			std::unique_ptr<char[]> recv_buf;
+			size_t recv_buf_ptr, recv_buf_ptr_end;
+
+			http_helper::http_header header;
+			std::string iv, sec_accept;
+		};
 	public:
 		obfs_websock_listener(std::unique_ptr<prx_listener> &&_acceptor, const std::string &_key)
-			:acceptor_(std::move(_acceptor)), recv_buf_(std::make_unique<char[]>(RECV_BUF_SIZE)),
+			:acceptor_(std::move(_acceptor)),
 			key_(_key)
 		{
 		}
@@ -160,16 +172,13 @@ namespace prxsocket
 	private:
 		void recv_websocket_req(
 			const std::shared_ptr<accept_callback> &callback,
-			const std::shared_ptr<std::unique_ptr<prx_tcp_socket>> &socket_accept,
-			const std::shared_ptr<http_helper::http_header> &header,
-			size_t recv_buf_ptr = 0, size_t recv_buf_ptr_end = 0
+			const std::shared_ptr<accept_session> &accept_session
 		);
-		void send_websocket_resp(const std::shared_ptr<accept_callback> &callback, const std::shared_ptr<std::unique_ptr<prx_tcp_socket>> &socket_accept);
+		void send_websocket_resp(const std::shared_ptr<accept_callback> &callback, const std::shared_ptr<accept_session> &accept_session);
 
 		std::unique_ptr<prx_listener> acceptor_;
-		std::unique_ptr<char[]> recv_buf_;
 
-		std::string key_, iv_, sec_accept_;
+		std::string key_;
 	};
 
 }
