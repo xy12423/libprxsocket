@@ -22,25 +22,79 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 
 #ifndef _LIBPRXSOCKET_BUILD
 #include <cassert>
+#include <algorithm>
 #include <deque>
+#include <vector>
+#include <limits>
+#include <memory>
+#include <utility>
+
+#include <boost/compressed_pair.hpp>
+#include <boost/smart_ptr/intrusive_ref_counter.hpp>
+#include <boost/smart_ptr/intrusive_ptr.hpp>
 #endif
 
 namespace prxsocket
 {
+	using byte = std::byte;
+
+	class buffer_data_store : public boost::intrusive_ref_counter<buffer_data_store, boost::thread_safe_counter>
+	{
+	public:
+		buffer_data_store(const buffer_data_store &) = delete;
+		buffer_data_store(buffer_data_store &&) = delete;
+		buffer_data_store &operator=(const buffer_data_store &) = delete;
+		buffer_data_store &operator=(buffer_data_store &&) = delete;
+		virtual ~buffer_data_store() = default;
+	};
+	using buffer_data_store_holder = boost::intrusive_ptr<buffer_data_store>;
+
+	template <class T, class Deleter = std::default_delete<T>>
+	class buffer_data_store_pointer : public buffer_data_store
+	{
+	public:
+		buffer_data_store_pointer(T *ptr) :pair_(ptr) {}
+		buffer_data_store_pointer(Deleter deleter, T *ptr) :pair_(std::move(deleter), ptr) {}
+	private:
+		virtual ~buffer_data_store_pointer() override { pair_.first()(pair_.second()); }
+		boost::compressed_pair<Deleter, T *> pair_;
+	};
+	template <class T>
+	class buffer_data_store_inplace : public buffer_data_store
+	{
+	public:
+		template <typename... TArgs> buffer_data_store_inplace(TArgs &&...args) :obj_(std::forward<TArgs>(args)...) {}
+		T &get() { return obj_; }
+		const T &get() const { return obj_; }
+	private:
+		virtual ~buffer_data_store_inplace() override {};
+		T obj_;
+	};
+	using buffer_data_store_group = buffer_data_store_inplace<std::vector<buffer_data_store_holder>>;
 
 	class const_buffer
 	{
 	public:
-		const_buffer() = default;
+		static const byte empty_data[sizeof(void *)];
+
+		const_buffer() :data_(empty_data), size_(0) {}
 		const_buffer(const const_buffer &) = default;
-		const_buffer(const char *data, size_t size) :data_(data), size_(size) {}
+		const_buffer(const byte *data, size_t size) :data_(data), size_(size) {}
 		template <typename T> explicit const_buffer(const T &data) :data_(data.data()), size_(data.size()) {}
 
-		const char *data() const { return data_; }
+		const byte *data() const { return data_; }
 		size_t size() const { return size_; }
+
+		const_buffer after_consume(size_t size) const { if (size <= size_) return const_buffer(data_ + size, size_ - size); return const_buffer(); }
 	protected:
-		const char *data_;
+		const byte *data_;
 		size_t size_;
+	};
+
+	struct buffer_with_data_store
+	{
+		const_buffer buffer;
+		buffer_data_store_holder holder;
 	};
 
 	class mutable_buffer
@@ -48,16 +102,16 @@ namespace prxsocket
 	public:
 		mutable_buffer() = default;
 		mutable_buffer(const mutable_buffer &) = default;
-		mutable_buffer(char *data, size_t size) :data_(data), size_(size) {}
+		mutable_buffer(byte *data, size_t size) :data_(data), size_(size) {}
 		template <typename T> explicit mutable_buffer(T &data) :data_(data.data()), size_(data.size()) {}
 
-		char *data() const { return data_; }
+		byte *data() const { return data_; }
 		size_t size() const { return size_; }
 	protected:
-		char *data_;
+		byte *data_;
 		size_t size_;
 	};
-
+	
 	template <typename T, typename Container = std::deque<T>>
 	class buffer_sequence
 	{
@@ -121,7 +175,7 @@ namespace prxsocket
 		template <typename ReturnType>
 		ReturnType truncate(size_t size)
 		{
-			ReturnType truncated;
+			ReturnType truncated{};
 			while (!list_.empty() && truncated.size_total() < size)
 			{
 				value_type &next = list_.front();
@@ -180,7 +234,7 @@ namespace prxsocket
 		const_buffer_sequence truncate(size_t size) { return buffer_sequence<const_buffer>::truncate<const_buffer_sequence>(size); }
 		void truncate(const_buffer_sequence &truncated, size_t size) { return buffer_sequence<const_buffer>::truncate<const_buffer_sequence>(truncated, size); }
 
-		size_t gather(char *dst, size_t dst_size)
+		size_t gather(byte *dst, size_t dst_size)
 		{
 			size_t copied = 0;
 			while (!list_.empty() && copied < dst_size)
@@ -217,7 +271,7 @@ namespace prxsocket
 		mutable_buffer_sequence truncate(size_t size) { return buffer_sequence<mutable_buffer>::truncate<mutable_buffer_sequence>(size); }
 		void truncate(mutable_buffer_sequence &truncated, size_t size) { return buffer_sequence<mutable_buffer>::truncate<mutable_buffer_sequence>(truncated, size); }
 
-		size_t scatter(const char *src, size_t src_size)
+		size_t scatter(const byte *src, size_t src_size)
 		{
 			size_t copied = 0;
 			while (!list_.empty() && copied < src_size)
@@ -245,5 +299,8 @@ namespace prxsocket
 	};
 
 }
+
+#define PRXSOCKET_MAKE_INPLACE_BUFFER(buffer_type, buffer_data_ref_name, buffer_holder_name, ...) buffer_data_store_holder buffer_holder_name(new prxsocket::buffer_data_store_inplace<buffer_type>(__VA_ARGS__)); \
+	buffer_type &buffer_data_ref_name = static_cast<prxsocket::buffer_data_store_inplace<buffer_type> *>(buffer_holder_name.get())->get();
 
 #endif

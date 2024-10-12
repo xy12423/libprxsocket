@@ -29,7 +29,7 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 
 namespace prxsocket
 {
-	namespace http_helper
+	namespace http_utils
 	{
 
 		class http_header
@@ -108,6 +108,8 @@ namespace prxsocket
 
 			container_type headers;
 			hash_table_type header_names;
+
+			std::string parse_buffer;
 		};
 
 	}

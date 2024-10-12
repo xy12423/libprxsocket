@@ -17,8 +17,8 @@ You should have received a copy of the GNU General Public License
 along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LIBPRXSOCKET_H_CRYPTO_BASE
-#define LIBPRXSOCKET_H_CRYPTO_BASE
+#ifndef LIBPRXSOCKET_H_CRYPTO_INTERFACE
+#define LIBPRXSOCKET_H_CRYPTO_INTERFACE
 
 #include "buffer.h"
 
@@ -36,14 +36,14 @@ namespace prxsocket
 
 		virtual size_t key_size() const = 0;
 		virtual size_t iv_size() const = 0;
-		virtual const char *iv() const = 0;
+		virtual const byte *iv() const = 0;
 		//Set or reset key, generate iv
-		virtual void set_key(const char *key) = 0;
+		virtual void set_key(const byte *key) = 0;
 		//Set or reset key and iv
-		virtual void set_key_iv(const char *key, const char *iv) = 0;
+		virtual void set_key_iv(const byte *key, const byte *iv) = 0;
 
-		virtual void encrypt(std::vector<char> &dst, const char *src, size_t src_size) = 0;
-		virtual void encrypt(std::vector<char> &dst, const_buffer_sequence &src, size_t src_size) = 0;
+		virtual void encrypt(std::vector<byte> &dst, const byte *src, size_t src_size) = 0;
+		virtual void encrypt(std::vector<byte> &dst, const_buffer_sequence &src, size_t src_size) = 0;
 	};
 
 	class decryptor
@@ -53,15 +53,15 @@ namespace prxsocket
 
 		virtual size_t key_size() const = 0;
 		virtual size_t iv_size() const = 0;
-		virtual const char *iv() const = 0;
+		virtual const byte *iv() const = 0;
 		//Set or reset key, generate iv
-		virtual void set_key(const char *key) = 0;
+		virtual void set_key(const byte *key) = 0;
 		//Set or reset key and iv
-		virtual void set_key_iv(const char *key, const char *iv) = 0;
+		virtual void set_key_iv(const byte *key, const byte *iv) = 0;
 
-		virtual void decrypt(std::vector<char> &dst, const char *src, size_t src_size) = 0;
-		virtual size_t decrypt(mutable_buffer dst, std::vector<char> &dst_last, const char *src, size_t src_size) = 0;
-		virtual void decrypt(mutable_buffer_sequence &dst, std::vector<char> &dst_last, const char *src, size_t src_size) = 0;
+		virtual void decrypt(std::vector<byte> &dst, const byte *src, size_t src_size) = 0;
+		virtual size_t decrypt(mutable_buffer dst, std::vector<byte> &dst_last, const byte *src, size_t src_size) = 0;
+		virtual void decrypt(mutable_buffer_sequence &dst, std::vector<byte> &dst_last, const byte *src, size_t src_size) = 0;
 	};
 
 }

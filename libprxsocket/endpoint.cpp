@@ -22,22 +22,6 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 
 using namespace prxsocket;
 
-size_t endpoint::from_socks5(const char *data)
-{
-	size_t size = addr_.from_socks5(data);
-	if (size == 0)
-		return 0;
-	port_ = ((uint8_t)(data[size]) << 8) | (uint8_t)(data[size + 1]);
-	return size + 2;
-}
-
-void endpoint::to_socks5(std::string &ret) const
-{
-	addr_.to_socks5(ret);
-	uint16_t port_be = boost::endian::native_to_big((uint16_t)port_);
-	ret.append((char *)&port_be, sizeof(port_be));
-}
-
 std::string endpoint::to_string() const
 {
 	if (addr_.type() == address::UNDEFINED)

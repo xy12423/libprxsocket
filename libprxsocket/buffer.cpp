@@ -18,6 +18,6 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "stdafx.h"
-#include "socket_base.h"
+#include "buffer.h"
 
 using namespace prxsocket;

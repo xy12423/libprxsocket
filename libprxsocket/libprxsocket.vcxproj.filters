@@ -24,40 +24,16 @@
     <ClCompile Include="socket_base.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="socket_raw.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="socket_socks5.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="socks5_base.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="socket_http.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="http_header.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="socket_ss.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="socket_obfs_websock.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="endpoint.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="socket_ss_crypto.cpp">
+    <ClCompile Include="buffer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="socket_ssr_auth.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="socket_ssr_obfs.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="socket_vmess.cpp">
+    <ClCompile Include="socket_obfs_websock.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -74,49 +50,22 @@
     <ClInclude Include="socket_base.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="socket_raw.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="socket_socks5.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="socks5_base.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="stdafx.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="socket_http.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="http_header.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="socket_ss.h">
+    <ClInclude Include="crypto_interface.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="crypto_rng.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="socket_obfs_websock.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="crypto_base.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="socket_ss_crypto.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="socket_transparent.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="socket_ssr_auth.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="socket_ssr_obfs.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="random_generator.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="socket_vmess.h">
+    <ClInclude Include="crypto_evp.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

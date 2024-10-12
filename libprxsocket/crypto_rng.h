@@ -17,15 +17,14 @@ You should have received a copy of the GNU General Public License
 along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LIBPRXSOCKET_H_RANDOM_GENERATOR
-#define LIBPRXSOCKET_H_RANDOM_GENERATOR
+#ifndef LIBPRXSOCKET_H_CRYPTO_RNG
+#define LIBPRXSOCKET_H_CRYPTO_RNG
 
 #ifndef _LIBPRXSOCKET_BUILD
 #include <cstdint>
 #include <vector>
 
-#include <cryptopp/cryptlib.h>
-#include <cryptopp/osrng.h>
+#include <openssl/rand.h>
 #endif
 
 namespace prxsocket
@@ -36,8 +35,7 @@ namespace prxsocket
 	public:
 		static void random_bytes(void *dst, size_t dst_size)
 		{
-			thread_local CryptoPP::AutoSeededRandomPool prng;
-			prng.GenerateBlock((CryptoPP::byte *)dst, dst_size);
+			RAND_bytes((unsigned char *)dst, dst_size);
 		}
 
 		static void random_bytes(std::vector<char> &dst, size_t rnd_size)

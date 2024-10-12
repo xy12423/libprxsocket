@@ -20,7 +20,7 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 #include "stdafx.h"
 #include "http_header.h"
 
-using namespace prxsocket::http_helper;
+using namespace prxsocket::http_utils;
 
 constexpr char http_header::SPECIAL_NAME_IDENTIFIER;
 constexpr const char *http_header::NAME_START_LINE_TYPE, *http_header::START_LINE_TYPE_REQUEST, *http_header::START_LINE_TYPE_STATUS;
@@ -108,8 +108,7 @@ bool http_header::parse_http_request(const std::string &line)
 	size_t pos2 = line.find(' ', pos + 1);
 	if (pos2 == std::string::npos)
 		return false;
-	//TODO: use a better comparator
-	if (line.substr(pos2 + 1) != "HTTP/1.1")
+	if (line.compare(pos2 + 1, line.size() - (pos2 + 1), "HTTP/1.1") != 0)
 		return false;
 
 	append(NAME_REQUEST_METHOD, line.substr(0, pos));
@@ -134,19 +133,25 @@ bool http_header::parse(const char *src, size_t src_size, size_t &size_read)
 {
 	size_read = 0;
 	const char *itr = src, *itr_end = src + src_size;
-	std::string buf, val;
+	const char *itr_buf = itr;
+	std::string &buf = parse_buffer, val;
 	bool first_line_parsed = (count(NAME_START_LINE_TYPE) > 0);
 
 	for (; itr != itr_end; ++itr)
 	{
 		if (*itr == '\n')
 		{
-			size_t size_line = buf.size() + 1;
-
+			if (itr < itr_buf)
+			{
+				assert(false, "Buffer overflow in http_header::parse");
+				throw std::out_of_range("Buffer overflow in http_header::parse");
+			}
+			buf.append(itr_buf, itr - itr_buf);
+			itr_buf = itr + 1;
 			trim(buf);
 			if (buf.empty())
 			{
-				size_read += size_line;
+				size_read = itr + 1 - src;
 				return true;
 			}
 
@@ -157,7 +162,6 @@ bool http_header::parse(const char *src, size_t src_size, size_t &size_read)
 					first_line_parsed = true;
 					append(NAME_START_LINE_TYPE, START_LINE_TYPE_STATUS);
 					buf.clear();
-					size_read += size_line;
 					continue;
 				}
 				else if (parse_http_request(buf))
@@ -165,7 +169,6 @@ bool http_header::parse(const char *src, size_t src_size, size_t &size_read)
 					first_line_parsed = true;
 					append(NAME_START_LINE_TYPE, START_LINE_TYPE_REQUEST);
 					buf.clear();
-					size_read += size_line;
 					continue;
 				}
 				else
@@ -176,17 +179,15 @@ bool http_header::parse(const char *src, size_t src_size, size_t &size_read)
 				throw std::invalid_argument("Invalid character in HTTP header");
 			size_t pos = buf.find(':');
 			if (pos == std::string::npos)
-				return false;
+				throw std::invalid_argument("HTTP header field without value");
 			val.assign(buf, pos + 1, std::string::npos);
 			buf.erase(pos);
 			rtrim(buf);
 			ltrim(val);
 			append(std::move(buf), std::move(val));
 			buf.clear();
-			size_read += size_line;
 		}
-		else
-			buf.push_back(*itr);
 	}
+	size_read = itr - src;
 	return false;
 }

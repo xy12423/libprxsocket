@@ -38,8 +38,6 @@ namespace prxsocket
 		template <typename T> void set_addr(T &&addr) { addr_ = std::forward<T>(addr); }
 		void set_port(port_type port) { port_ = port; }
 
-		size_t from_socks5(const char *data);
-		void to_socks5(std::string &ret) const;
 		std::string to_string() const;
 		std::string to_uri_string() const;
 

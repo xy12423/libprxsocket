@@ -137,8 +137,6 @@ namespace prxsocket
 
 		bool is_any() const;
 
-		size_t from_socks5(const char *data);
-		void to_socks5(std::string &ret) const;
 		std::string to_string() const;
 		std::string to_uri_string() const;
 

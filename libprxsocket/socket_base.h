@@ -54,11 +54,15 @@ namespace prxsocket
 	class prx_tcp_socket
 	{
 	public:
-		using transfer_callback = std::function<void(error_code, size_t)>;
+		static constexpr size_t transfer_size_unlimited = std::numeric_limits<size_t>::max();
+		using transfer_data_callback = std::function<void(error_code, const_buffer, buffer_data_store_holder &&)>;
 
-		using shutdown_type = size_t;
-		static constexpr shutdown_type shutdown_send = 0x01, shutdown_receive = 0x02;
-		static constexpr shutdown_type shutdown_both = shutdown_send | shutdown_receive;
+		enum shutdown_type : uint_fast32_t
+		{
+			shutdown_send    = 0x01,
+			shutdown_receive = 0x02,
+			shutdown_both    = shutdown_send | shutdown_receive,
+		};
 
 		prx_tcp_socket() = default;
 		prx_tcp_socket(const prx_tcp_socket &) = delete;
@@ -80,39 +84,19 @@ namespace prxsocket
 		virtual void connect(const endpoint &endpoint, error_code &ec) = 0;
 		virtual void async_connect(const endpoint &endpoint, null_callback &&complete_handler) = 0;
 
-		virtual void send(const_buffer buffer, size_t &transferred, error_code &ec) = 0;
-		virtual void async_send(const_buffer buffer, transfer_callback &&complete_handler) = 0;
-		virtual void recv(mutable_buffer buffer, size_t &transferred, error_code &ec) = 0;
-		virtual void async_recv(mutable_buffer buffer, transfer_callback &&complete_handler) = 0;
-		virtual void read(mutable_buffer buffer, error_code &ec);
-		virtual void async_read(mutable_buffer buffer, null_callback &&complete_handler);
-		virtual void write(const_buffer buffer, error_code &ec);
-		virtual void async_write(const_buffer buffer, null_callback &&complete_handler);
-		virtual void read(mutable_buffer_sequence &&buffer, error_code &ec) = 0;
-		virtual void async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler) = 0;
-		virtual void write(const_buffer_sequence &&buffer, error_code &ec) = 0;
-		virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) = 0;
+		virtual size_t send_size_max() = 0;
+		virtual void send(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, error_code &ec) = 0;
+		virtual void async_send(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, null_callback &&complete_handler) = 0;
+		virtual void send_partial(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, error_code &ec) = 0;
+		virtual void async_send_partial(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, null_callback &&complete_handler) = 0;
+
+		virtual void recv(const_buffer &buffer, buffer_data_store_holder &buffer_data_holder, error_code &ec) = 0;
+		virtual void async_recv(transfer_data_callback &&complete_handler) = 0;
 
 		virtual void shutdown(shutdown_type type, error_code &ec) = 0;
 		virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) = 0;
 		virtual void close(error_code &ec) = 0;
 		virtual void async_close(null_callback &&complete_handler) = 0;
-
-#ifndef _LIBPRXSOCKET_STRICT
-		void local_endpoint(endpoint &endpoint);
-		void remote_endpoint(endpoint &endpoint);
-		void open();
-		void bind(const endpoint &endpoint);
-		void connect(const endpoint &endpoint);
-		void send(const_buffer buffer, size_t &transferred);
-		void recv(mutable_buffer buffer, size_t &transferred);
-		void read(mutable_buffer buffer);
-		void write(const_buffer buffer);
-		void read(mutable_buffer_sequence &&buffer);
-		void write(const_buffer_sequence &&buffer);
-		void shutdown(shutdown_type type);
-		void close();
-#endif
 	};
 
 	class prx_udp_socket
@@ -146,17 +130,6 @@ namespace prxsocket
 
 		virtual void close(error_code &ec) = 0;
 		virtual void async_close(null_callback &&complete_handler) = 0;
-
-#ifndef _LIBPRXSOCKET_STRICT
-		void local_endpoint(endpoint &endpoint);
-		void open();
-		void bind(const endpoint &endpoint);
-		void send_to(const endpoint &endpoint, const_buffer buffer);
-		void send_to(const endpoint &endpoint, const_buffer_sequence &&buffer);
-		void recv_from(endpoint &endpoint, mutable_buffer buffer, size_t &transferred);
-		void recv_from(endpoint &endpoint, mutable_buffer_sequence &&buffer, size_t &transferred);
-		void close();
-#endif
 	};
 
 	class prx_listener
@@ -188,15 +161,6 @@ namespace prxsocket
 
 		virtual void close(error_code &ec) = 0;
 		virtual void async_close(null_callback &&complete_handler) = 0;
-
-#ifndef _LIBPRXSOCKET_STRICT
-		void local_endpoint(endpoint &endpoint);
-		void open();
-		void bind(const endpoint &endpoint);
-		void listen();
-		void accept(std::unique_ptr<prx_tcp_socket> &socket);
-		void close();
-#endif
 	};
 
 }

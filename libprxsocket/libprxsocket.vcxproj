@@ -29,26 +29,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -90,7 +90,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_WIN32_WINNT=0x0601;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\usr\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\usr\include;C:\usr\lib\$(Platform)\$(Configuration)\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -110,7 +110,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_WIN32_WINNT=0x0501;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\usr\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\usr\include;C:\usr\lib\$(Platform)\$(Configuration)\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -132,7 +132,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_WIN32_WINNT=0x0501;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\usr\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\usr\include;C:\usr\lib\$(Platform)\$(Configuration)\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -157,7 +157,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_WIN32_WINNT=0x0501;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\usr\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\usr\include;C:\usr\lib\$(Platform)\$(Configuration)\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -174,19 +174,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="address.cpp" />
+    <ClCompile Include="buffer.cpp" />
     <ClCompile Include="endpoint.cpp" />
     <ClCompile Include="http_header.cpp" />
     <ClCompile Include="socket_base.cpp" />
-    <ClCompile Include="socket_http.cpp" />
-    <ClCompile Include="socket_raw.cpp" />
-    <ClCompile Include="socket_socks5.cpp" />
-    <ClCompile Include="socket_ss.cpp" />
     <ClCompile Include="socket_obfs_websock.cpp" />
-    <ClCompile Include="socket_ssr_auth.cpp" />
-    <ClCompile Include="socket_ssr_obfs.cpp" />
-    <ClCompile Include="socket_ss_crypto.cpp" />
-    <ClCompile Include="socket_vmess.cpp" />
-    <ClCompile Include="socks5_base.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -197,22 +189,13 @@
   <ItemGroup>
     <ClInclude Include="address.h" />
     <ClInclude Include="buffer.h" />
-    <ClInclude Include="crypto_base.h" />
+    <ClInclude Include="crypto_evp.h" />
+    <ClInclude Include="crypto_interface.h" />
     <ClInclude Include="endpoint.h" />
     <ClInclude Include="http_header.h" />
-    <ClInclude Include="random_generator.h" />
+    <ClInclude Include="crypto_rng.h" />
     <ClInclude Include="socket_base.h" />
-    <ClInclude Include="socket_http.h" />
-    <ClInclude Include="socket_raw.h" />
-    <ClInclude Include="socket_socks5.h" />
-    <ClInclude Include="socket_ss.h" />
     <ClInclude Include="socket_obfs_websock.h" />
-    <ClInclude Include="socket_ssr_auth.h" />
-    <ClInclude Include="socket_ssr_obfs.h" />
-    <ClInclude Include="socket_ss_crypto.h" />
-    <ClInclude Include="socket_transparent.h" />
-    <ClInclude Include="socket_vmess.h" />
-    <ClInclude Include="socks5_base.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

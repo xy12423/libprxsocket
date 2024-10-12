@@ -22,11 +22,12 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 
 #include "socket_base.h"
 #include "http_header.h"
+#include "crypto_evp.h"
 
 #ifndef _LIBPRXSOCKET_BUILD
-#include <cryptopp/cryptlib.h>
-#include <cryptopp/aes.h>
-#include <cryptopp/modes.h>
+
+#include <array>
+
 #endif
 
 namespace prxsocket
@@ -35,117 +36,131 @@ namespace prxsocket
 	class obfs_websock_tcp_socket final : public prx_tcp_socket
 	{
 		enum { STATE_INIT, STATE_OK };
-		static constexpr size_t SYM_BLOCK_SIZE = 16;
-		static constexpr size_t SHA1_SIZE = 20;
-		static constexpr size_t SEND_SIZE_PREF = 0x1F00;
-		static constexpr size_t SEND_SIZE_MAX = 0x1F80;
-		static constexpr size_t RECV_BUF_SIZE = 0x2000;
+		static constexpr size_t SYM_KEY_SIZE = 32, SYM_IV_SIZE = 16, SYM_BLOCK_SIZE = 16;
+		static constexpr size_t WS_FRAME_PAYLOAD_LENGTH_MAX = 0x100000;
 
-		static constexpr size_t transfer_size(size_t buffer_size) { return buffer_size > SEND_SIZE_MAX ? SEND_SIZE_PREF : buffer_size; }
+		struct ws_unpack_state
+		{
+			struct
+			{
+				byte data[14];
+				size_t size_read = 0;
+			} header_temp;
+
+			size_t payload_length = 0;
+			bool mask = false;
+
+			struct
+			{
+				size_t size_left;
+				std::array<byte, 4> masking_key;
+			} payload_temp;
+
+			std::vector<byte> payload;
+		};
+
 	public:
-		obfs_websock_tcp_socket(std::unique_ptr<prx_tcp_socket> &&_socket, const std::string &_key)
-			:socket_(std::move(_socket)), recv_buf_(std::make_unique<char[]>(RECV_BUF_SIZE)),
-			key_(SYM_BLOCK_SIZE), iv_(SYM_BLOCK_SIZE)
+		obfs_websock_tcp_socket(std::unique_ptr<prx_tcp_socket> &&_socket, const std::vector<byte> &_key)
+			:socket_(std::move(_socket)), key_{}, iv_{}
 		{
-			constexpr size_t block_size = SYM_BLOCK_SIZE;
-			memcpy(key_.data(), _key.data(), std::min(block_size, _key.size()));
+			memcpy(key_, _key.data(), std::min(sizeof(key_), _key.size()));
 		}
-		obfs_websock_tcp_socket(std::unique_ptr<prx_tcp_socket> &&_socket, const std::string &_key, const std::string &_iv)
-			:state_(STATE_OK),
-			socket_(std::move(_socket)), recv_buf_(std::make_unique<char[]>(RECV_BUF_SIZE)),
-			key_(SYM_BLOCK_SIZE), iv_(SYM_BLOCK_SIZE)
+		obfs_websock_tcp_socket(std::unique_ptr<prx_tcp_socket> &&_socket, const std::vector<byte> &_key, const std::vector<byte> &_iv, buffer_with_data_store &&left_over)
+			:state_(STATE_OK), mask_send_(false),
+			socket_(std::move(_socket)), key_{}, iv_{},
+			recv_buf_(std::move(left_over))
 		{
-			constexpr size_t block_size = SYM_BLOCK_SIZE;
-			memcpy(key_.data(), _key.data(), std::min(block_size, _key.size()));
-			memcpy(iv_.data(), _iv.data(), std::min(block_size, _iv.size()));
-			e_.SetKeyWithIV(key_, SYM_BLOCK_SIZE, iv_);
-			d_.SetKeyWithIV(key_, SYM_BLOCK_SIZE, iv_);
+			memcpy(key_, _key.data(), std::min(sizeof(key_), _key.size()));
+			memcpy(iv_, _iv.data(), std::min(sizeof(iv_), _iv.size()));
+			encryptor_.init(key_, sizeof(key_), iv_, sizeof(iv_));
+			decryptor_.init(key_, sizeof(key_), iv_, sizeof(iv_));
 		}
-		virtual ~obfs_websock_tcp_socket() override {}
+		~obfs_websock_tcp_socket() override {}
 
 		virtual bool is_open() override { return socket_->is_open(); }
 		virtual bool is_connected() override { return state_ >= STATE_OK && socket_->is_connected(); }
 
-		virtual void local_endpoint(endpoint &ep, error_code &ec) override { return socket_->local_endpoint(ep, ec); }
-		virtual void remote_endpoint(endpoint &ep, error_code &ec) override { return socket_->remote_endpoint(ep, ec); }
+		virtual void local_endpoint(endpoint &endpoint, error_code &ec) override { return socket_->local_endpoint(endpoint, ec); }
+		virtual void remote_endpoint(endpoint &endpoint, error_code &ec) override { return socket_->remote_endpoint(endpoint, ec); }
 
 		virtual void open(error_code &ec) override { return socket_->open(ec); }
-		virtual void async_open(null_callback &&complete_handler) override { socket_->async_open(std::move(complete_handler)); }
+		virtual void async_open(null_callback &&complete_handler) override { return socket_->async_open(std::move(complete_handler)); }
 
 		virtual void bind(const endpoint &endpoint, error_code &ec) override { return socket_->bind(endpoint, ec); }
-		virtual void async_bind(const endpoint &endpoint, null_callback &&complete_handler) override { socket_->async_bind(endpoint, std::move(complete_handler)); }
+		virtual void async_bind(const endpoint &endpoint, null_callback &&complete_handler) override { return socket_->async_bind(endpoint, std::move(complete_handler)); }
 
 		virtual void connect(const endpoint &endpoint, error_code &ec) override;
 		virtual void async_connect(const endpoint &endpoint, null_callback &&complete_handler) override;
 
-		virtual void send(const_buffer buffer, size_t &transferred, error_code &ec) override;
-		virtual void async_send(const_buffer buffer, transfer_callback &&complete_handler) override;
-		virtual void recv(mutable_buffer buffer, size_t &transferred, error_code &ec) override;
-		virtual void async_recv(mutable_buffer buffer, transfer_callback &&complete_handler) override;
-		virtual void read(mutable_buffer_sequence &&buffer, error_code &ec) override;
-		virtual void async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler) override;
-		virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
-		virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
+		virtual size_t send_size_max() override;
+		virtual void send(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, error_code &ec) override;
+		virtual void async_send(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, null_callback &&complete_handler) override;
+		virtual void send_partial(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, error_code &ec) override;
+		virtual void async_send_partial(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, null_callback &&complete_handler) override;
+
+		virtual void recv(const_buffer &buffer, buffer_data_store_holder &buffer_data_holder, error_code &ec) override;
+		virtual void async_recv(transfer_data_callback &&complete_handler) override;
 
 		virtual void shutdown(shutdown_type type, error_code &ec) override;
 		virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) override;
 		virtual void close(error_code &ec) override;
 		virtual void async_close(null_callback &&complete_handler) override;
 	private:
-		void reset_send() {}
-		void reset_recv() { dec_buf_.clear(); dec_ptr_ = 0; }
+		void send_websocket_req(const std::shared_ptr<null_callback> &callback);
+		void recv_websocket_resp(const std::shared_ptr<http_utils::http_header> &header, const std::shared_ptr<null_callback> &callback);
+
+		static std::vector<byte> pack_ws_frame_header(size_t payload_length, std::array<byte, 4> *mask);
+		std::vector<byte> pack_ws_frame(const_buffer payload_final);
+
+		bool unpack_ws_frame_header(ws_unpack_state &state, const_buffer &payload);
+		bool unpack_ws_frame_payload(ws_unpack_state &state, const_buffer &payload);
+		void async_recv_process_frame_header(const std::shared_ptr<ws_unpack_state> &state, const_buffer buffer, buffer_data_store_holder &&buffer_holder, const std::shared_ptr<transfer_data_callback> &callback);
+		void async_recv_process_frame_payload(const std::shared_ptr<ws_unpack_state> &state, const_buffer buffer, buffer_data_store_holder &&buffer_holder, const std::shared_ptr<transfer_data_callback> &callback);
+
+		template <class T> static void final_crypto(T &crypto)
+		{
+			byte final[SYM_BLOCK_SIZE]{};
+			size_t final_size = sizeof(final);
+			if (!crypto.final(final, final_size)) [[unlikely]]
+			{
+				std::vector<byte> final_vec;
+				crypto.final(final_vec);
+			}
+		}
+		void reset_send() { send_buf_.clear(); final_crypto(encryptor_); }
+		void reset_recv() { recv_buf_.buffer = const_buffer(); recv_buf_.holder.reset(); final_crypto(decryptor_); }
 		void reset() { reset_send(); reset_recv(); state_ = STATE_INIT; }
 
-		void encode(std::string &dst, const char *src, size_t size);
-		void decode(std::string &dst, const char *src, size_t size);
-
-		void send_websocket_req(const std::shared_ptr<null_callback> &callback);
-		void recv_websocket_resp(const std::shared_ptr<null_callback> &callback, const std::shared_ptr<http_helper::http_header> &header, size_t recv_buf_ptr = 0, size_t recv_buf_ptr_end = 0);
-
-		error_code recv_data();
-		void async_recv_data(null_callback &&complete_handler);
-		void async_recv_data_size_16(const std::shared_ptr<null_callback> &callback);
-		void async_recv_data_size_64(const std::shared_ptr<null_callback> &callback);
-		void async_recv_data_body(const std::shared_ptr<null_callback> &callback, size_t size);
-		size_t read_data(char *buf, size_t size);
-
-		void async_read(const std::shared_ptr<mutable_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
-		void async_write(const std::shared_ptr<const_buffer_sequence> &buffer, const std::shared_ptr<null_callback> &callback);
-
 		int state_ = STATE_INIT;
+		bool mask_send_ = true;
 
 		std::unique_ptr<prx_tcp_socket> socket_;
-		std::string send_buf_;
-		std::unique_ptr<char[]> recv_buf_;
-		std::string dec_buf_;
-		size_t dec_ptr_ = 0;
+		byte key_[SYM_KEY_SIZE], iv_[SYM_IV_SIZE];
+		evp::encryptor<evp::cipher_aes_256_gcm> encryptor_;
+		evp::decryptor<evp::cipher_aes_256_gcm> decryptor_;
 
-		CryptoPP::CBC_Mode<CryptoPP::AES>::Encryption e_;
-		CryptoPP::CBC_Mode<CryptoPP::AES>::Decryption d_;
-		CryptoPP::SecByteBlock key_, iv_;
+		std::vector<buffer_with_data_store> send_buf_;
+		buffer_with_data_store recv_buf_;
 	};
 
-	class obfs_websock_listener final : public prx_listener
+	class obfs_websock_listener : public prx_listener
 	{
 	private:
-		static constexpr size_t SYM_BLOCK_SIZE = 16;
-		static constexpr size_t RECV_BUF_SIZE = 0x400;
+		static constexpr size_t SYM_KEY_SIZE = 32, SYM_IV_SIZE = 16, SYM_BLOCK_SIZE = 16;
 
 		struct accept_session {
 			accept_session(std::unique_ptr<prx_tcp_socket> &&socket);
 
 			std::unique_ptr<prx_tcp_socket> socket_accept;
 
-			std::unique_ptr<char[]> recv_buf;
-			size_t recv_buf_ptr, recv_buf_ptr_end;
-
-			http_helper::http_header header;
-			std::string iv, sec_accept;
+			http_utils::http_header header;
+			buffer_with_data_store recv_buf_left_over;
+			std::vector<byte> iv_vec;
+			std::string sec_accept;
 		};
 	public:
-		obfs_websock_listener(std::unique_ptr<prx_listener> &&_acceptor, const std::string &_key)
-			:acceptor_(std::move(_acceptor)),
-			key_(_key)
+		obfs_websock_listener(std::unique_ptr<prx_listener> &&_acceptor, const std::vector<byte> &_key)
+			:acceptor_(std::move(_acceptor)), key_vec_(_key)
 		{
 		}
 		virtual ~obfs_websock_listener() override {}
@@ -170,15 +185,12 @@ namespace prxsocket
 		virtual void close(error_code &ec) override { return acceptor_->close(ec); }
 		virtual void async_close(null_callback &&complete_handler) override { acceptor_->async_close(std::move(complete_handler)); }
 	private:
-		void recv_websocket_req(
-			const std::shared_ptr<accept_callback> &callback,
-			const std::shared_ptr<accept_session> &accept_session
-		);
-		void send_websocket_resp(const std::shared_ptr<accept_callback> &callback, const std::shared_ptr<accept_session> &accept_session);
+		void recv_websocket_req(const std::shared_ptr<accept_session> &accept_session, const std::shared_ptr<accept_callback> &callback);
+		void send_websocket_resp(const std::shared_ptr<accept_session> &accept_session, const std::shared_ptr<accept_callback> &callback);
 
 		std::unique_ptr<prx_listener> acceptor_;
 
-		std::string key_;
+		std::vector<byte> key_vec_;
 	};
 
 }
