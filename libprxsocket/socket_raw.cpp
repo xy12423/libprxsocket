@@ -99,8 +99,8 @@ void raw_tcp_socket::set_keep_alive()
 #if defined _WIN32 || defined WIN32 || defined OS_WIN64 || defined _WIN64 || defined WIN64 || defined WINNT
 	// use windows-specific time
 	int32_t timeout = timeout_milli;
-	setsockopt(socket_.native_handle(), SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
-	setsockopt(socket_.native_handle(), SOL_SOCKET, SO_SNDTIMEO, (const char*)&timeout, sizeof(timeout));
+	setsockopt(socket_.native_handle(), SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof(timeout));
+	setsockopt(socket_.native_handle(), SOL_SOCKET, SO_SNDTIMEO, (const char *)&timeout, sizeof(timeout));
 #else
 	// assume everything else is posix
 	struct timeval tv;
@@ -185,25 +185,25 @@ void raw_tcp_socket::bind(const endpoint &ep, error_code &err)
 	asio::ip::address native_addr;
 	switch (addr.type())
 	{
-		case address::V4:
-		{
-			check_protocol(asio::ip::tcp::v4());
-			native_addr = asio::ip::address_v4(addr.v4().to_ulong());
-			break;
-		}
-		case address::V6:
-		{
-			check_protocol(asio::ip::tcp::v6());
-			std::array<uint8_t, address_v6::ADDR_SIZE> addr_byte;
-			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::ADDR_SIZE);
-			native_addr = asio::ip::address_v6(addr_byte);
-			break;
-		}
-		default:
-		{
-			err = ERR_UNSUPPORTED;
-			return;
-		}
+	case address::V4:
+	{
+		check_protocol(asio::ip::tcp::v4());
+		native_addr = asio::ip::address_v4(addr.v4().to_ulong());
+		break;
+	}
+	case address::V6:
+	{
+		check_protocol(asio::ip::tcp::v6());
+		std::array<uint8_t, address_v6::ADDR_SIZE> addr_byte{};
+		memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::ADDR_SIZE);
+		native_addr = asio::ip::address_v6(addr_byte);
+		break;
+	}
+	default:
+	{
+		err = ERR_UNSUPPORTED;
+		return;
+	}
 	}
 	socket_.bind(asio::ip::tcp::endpoint(native_addr, ep.port()), ec);
 	binded_ = !ec;
@@ -230,32 +230,32 @@ void raw_tcp_socket::connect(const endpoint &ep, error_code &err)
 	asio::ip::address native_addr;
 	switch (addr.type())
 	{
-		case address::V4:
-		{
-			if (!binded_)
-				check_protocol(asio::ip::tcp::v4());
-			native_addr = asio::ip::address_v4(addr.v4().to_ulong());
-			break;
-		}
-		case address::V6:
-		{
-			if (!binded_)
-				check_protocol(asio::ip::tcp::v6());
-			std::array<uint8_t, address_v6::ADDR_SIZE> addr_byte;
-			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::ADDR_SIZE);
-			native_addr = asio::ip::address_v6(addr_byte);
-			break;
-		}
-		case address::STR:
-		{
-			connect_addr_str(ep.addr().str().data(), ep.port(), err);
-			return;
-		}
-		default:
-		{
-			err = ERR_UNSUPPORTED;
-			return;
-		}
+	case address::V4:
+	{
+		if (!binded_)
+			check_protocol(asio::ip::tcp::v4());
+		native_addr = asio::ip::address_v4(addr.v4().to_ulong());
+		break;
+	}
+	case address::V6:
+	{
+		if (!binded_)
+			check_protocol(asio::ip::tcp::v6());
+		std::array<uint8_t, address_v6::ADDR_SIZE> addr_byte{};
+		memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::ADDR_SIZE);
+		native_addr = asio::ip::address_v6(addr_byte);
+		break;
+	}
+	case address::STR:
+	{
+		connect_addr_str(ep.addr().str().data(), ep.port(), err);
+		return;
+	}
+	default:
+	{
+		err = ERR_UNSUPPORTED;
+		return;
+	}
 	}
 	socket_.connect(asio::ip::tcp::endpoint(native_addr, ep.port()), ec);
 	if (ec)
@@ -300,32 +300,32 @@ void raw_tcp_socket::async_connect(const endpoint &ep, null_callback &&complete_
 	asio::ip::address native_addr;
 	switch (addr.type())
 	{
-		case address::V4:
-		{
-			if (!binded_)
-				check_protocol(asio::ip::tcp::v4());
-			native_addr = asio::ip::address_v4(addr.v4().to_ulong());
-			break;
-		}
-		case address::V6:
-		{
-			if (!binded_)
-				check_protocol(asio::ip::tcp::v6());
-			std::array<uint8_t, address_v6::ADDR_SIZE> addr_byte;
-			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::ADDR_SIZE);
-			native_addr = asio::ip::address_v6(addr_byte);
-			break;
-		}
-		case address::STR:
-		{
-			async_connect_addr_str(ep.addr().str().data(), ep.port(), std::make_shared<null_callback>(std::move(complete_handler)));
-			return;
-		}
-		default:
-		{
-			complete_handler(ERR_UNSUPPORTED);
-			return;
-		}
+	case address::V4:
+	{
+		if (!binded_)
+			check_protocol(asio::ip::tcp::v4());
+		native_addr = asio::ip::address_v4(addr.v4().to_ulong());
+		break;
+	}
+	case address::V6:
+	{
+		if (!binded_)
+			check_protocol(asio::ip::tcp::v6());
+		std::array<uint8_t, address_v6::ADDR_SIZE> addr_byte{};
+		memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::ADDR_SIZE);
+		native_addr = asio::ip::address_v6(addr_byte);
+		break;
+	}
+	case address::STR:
+	{
+		async_connect_addr_str(ep.addr().str().data(), ep.port(), std::make_shared<null_callback>(std::move(complete_handler)));
+		return;
+	}
+	default:
+	{
+		complete_handler(ERR_UNSUPPORTED);
+		return;
+	}
 	}
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
 	socket_.async_connect(asio::ip::tcp::endpoint(native_addr, ep.port()),
@@ -352,7 +352,7 @@ void raw_tcp_socket::async_connect_addr_str(const std::string &addr, port_type p
 			return;
 		}
 		asio::async_connect(socket_, itr, asio::ip::tcp::resolver::iterator(),
-			[this](const boost::system::error_code&, asio::ip::tcp::resolver::iterator itr)->asio::ip::tcp::resolver::iterator
+			[this](const boost::system::error_code &, asio::ip::tcp::resolver::iterator itr)->asio::ip::tcp::resolver::iterator
 		{
 			if (!binded_)
 				check_protocol(itr->endpoint().protocol());
@@ -371,97 +371,16 @@ void raw_tcp_socket::async_connect_addr_str(const std::string &addr, port_type p
 	});
 }
 
-void raw_tcp_socket::send(const_buffer buffer, size_t &transferred, error_code &err)
+size_t prxsocket::raw_tcp_socket::send_size_max()
 {
-	err = 0;
-	transferred = socket_.send(asio::buffer(buffer.data(), buffer.size()), 0, ec);
-	if (ec)
-	{
-		socket_.shutdown(socket_.shutdown_send, ec);
-		err = ERR_OPERATION_FAILURE;
-	}
+	return 1360;
 }
 
-void raw_tcp_socket::async_send(const_buffer buffer, transfer_callback &&complete_handler)
-{
-	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
-	socket_.async_send(asio::buffer(buffer.data(), buffer.size()),
-		[this, callback](const boost::system::error_code &e, std::size_t transferred)
-	{
-		if (e)
-		{
-			socket_.shutdown(socket_.shutdown_send, ec);
-			(*callback)(ERR_OPERATION_FAILURE, transferred);
-		}
-		else
-		{
-			(*callback)(0, transferred);
-		}
-	});
-}
-
-void raw_tcp_socket::recv(mutable_buffer buffer, size_t &transferred, error_code &err)
-{
-	err = 0;
-	transferred = socket_.receive(asio::buffer(buffer.data(), buffer.size()), 0, ec);
-	if (ec)
-	{
-		socket_.shutdown(socket_.shutdown_receive, ec);
-		err = ERR_OPERATION_FAILURE;
-	}
-}
-
-void raw_tcp_socket::async_recv(mutable_buffer buffer, transfer_callback &&complete_handler)
-{
-	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
-	socket_.async_receive(asio::buffer(buffer.data(), buffer.size()),
-		[this, callback](const boost::system::error_code &e, std::size_t transferred)
-	{
-		if (e)
-		{
-			socket_.shutdown(socket_.shutdown_receive, ec);
-			(*callback)(ERR_OPERATION_FAILURE, transferred);
-		}
-		else
-		{
-			(*callback)(0, transferred);
-		}
-	});
-}
-
-void prxsocket::raw_tcp_socket::read(mutable_buffer buffer, error_code &err)
-{
-	err = 0;
-	asio::read(socket_, asio::buffer(buffer.data(), buffer.size()), ec);
-	if (ec)
-	{
-		socket_.shutdown(socket_.shutdown_receive, ec);
-		err = ERR_OPERATION_FAILURE;
-	}
-}
-
-void prxsocket::raw_tcp_socket::async_read(mutable_buffer buffer, null_callback &&complete_handler)
-{
-	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	asio::async_read(socket_, asio::buffer(buffer.data(), buffer.size()),
-		[this, callback](const boost::system::error_code &e, std::size_t)
-	{
-		if (e)
-		{
-			socket_.shutdown(socket_.shutdown_receive, ec);
-			(*callback)(ERR_OPERATION_FAILURE);
-		}
-		else
-		{
-			(*callback)(0);
-		}
-	});
-}
-
-void prxsocket::raw_tcp_socket::write(const_buffer buffer, error_code &err)
+void prxsocket::raw_tcp_socket::send(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, error_code &err)
 {
 	err = 0;
 	asio::write(socket_, asio::buffer(buffer.data(), buffer.size()), ec);
+	buffer_data_holder.reset();
 	if (ec)
 	{
 		socket_.shutdown(socket_.shutdown_send, ec);
@@ -469,78 +388,71 @@ void prxsocket::raw_tcp_socket::write(const_buffer buffer, error_code &err)
 	}
 }
 
-void prxsocket::raw_tcp_socket::async_write(const_buffer buffer, null_callback &&complete_handler)
+void prxsocket::raw_tcp_socket::async_send(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, null_callback &&complete_handler)
 {
-	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
+	using argument_pair = std::pair<buffer_data_store_holder, null_callback>;
+	std::shared_ptr<argument_pair> arguments_shared = std::make_shared<argument_pair>(std::make_pair(std::move(buffer_data_holder), std::move(complete_handler)));
 	asio::async_write(socket_, asio::buffer(buffer.data(), buffer.size()),
-		[this, callback](const boost::system::error_code &e, std::size_t)
+		[this, arguments_shared](const boost::system::error_code &e, std::size_t)
 	{
+		arguments_shared->first.reset();
 		if (e)
 		{
 			socket_.shutdown(socket_.shutdown_send, ec);
-			(*callback)(ERR_OPERATION_FAILURE);
+			(arguments_shared->second)(ERR_OPERATION_FAILURE);
 		}
 		else
 		{
-			(*callback)(0);
+			(arguments_shared->second)(0);
 		}
 	});
 }
 
-void raw_tcp_socket::read(mutable_buffer_sequence &&buffers, error_code &err)
+void prxsocket::raw_tcp_socket::send_partial(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, error_code &err)
 {
+	return send(buffer, std::move(buffer_data_holder), err);
+}
+
+void prxsocket::raw_tcp_socket::async_send_partial(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, null_callback &&complete_handler)
+{
+	return async_send_partial(buffer, std::move(buffer_data_holder), std::move(complete_handler));
+}
+
+void prxsocket::raw_tcp_socket::recv(const_buffer &buffer, buffer_data_store_holder &buffer_data_holder, error_code &err)
+{
+	PRXSOCKET_MAKE_INPLACE_BUFFER(recv_buffer_type, data, data_holder);
 	err = 0;
-	asio::read(socket_, to_raw_buffers(buffers), ec);
+	size_t transferred = socket_.receive(asio::buffer(data.data(), data.size()), 0, ec);
 	if (ec)
 	{
 		socket_.shutdown(socket_.shutdown_receive, ec);
 		err = ERR_OPERATION_FAILURE;
+		return;
 	}
+	buffer = const_buffer(data.data(), transferred);
+	buffer_data_holder = std::move(data_holder);
 }
 
-void raw_tcp_socket::async_read(mutable_buffer_sequence &&buffers, null_callback &&complete_handler)
+void prxsocket::raw_tcp_socket::async_recv(transfer_data_callback &&complete_handler)
 {
-	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	asio::async_read(socket_, to_raw_buffers(buffers),
-		[this, callback](const boost::system::error_code &e, std::size_t)
+	using argument_pair = std::pair<buffer_data_store_holder, transfer_data_callback>;
+	std::shared_ptr<argument_pair> arguments_shared = std::make_shared<argument_pair>(std::make_pair(
+		buffer_data_store_holder(new prxsocket::buffer_data_store_inplace<recv_buffer_type>()),
+		std::move(complete_handler)
+	));
+	recv_buffer_type &data = static_cast<prxsocket::buffer_data_store_inplace<recv_buffer_type> *>(arguments_shared->first.get())->get();
+	socket_.async_receive(asio::buffer(data.data(), data.size()),
+		[this, arguments_shared](const boost::system::error_code &e, std::size_t transferred)
 	{
 		if (e)
 		{
 			socket_.shutdown(socket_.shutdown_receive, ec);
-			(*callback)(ERR_OPERATION_FAILURE);
+			(arguments_shared->second)(ERR_OPERATION_FAILURE, const_buffer(), buffer_data_store_holder());
 		}
 		else
 		{
-			(*callback)(0);
-		}
-	});
-}
-
-void raw_tcp_socket::write(const_buffer_sequence &&buffers, error_code &err)
-{
-	err = 0;
-	asio::write(socket_, to_raw_buffers(buffers), ec);
-	if (ec)
-	{
-		socket_.shutdown(socket_.shutdown_send, ec);
-		err = ERR_OPERATION_FAILURE;
-	}
-}
-
-void raw_tcp_socket::async_write(const_buffer_sequence &&buffers, null_callback &&complete_handler)
-{
-	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
-	asio::async_write(socket_, to_raw_buffers(buffers),
-		[this, callback](const boost::system::error_code &e, std::size_t)
-	{
-		if (e)
-		{
-			socket_.shutdown(socket_.shutdown_send, ec);
-			(*callback)(ERR_OPERATION_FAILURE);
-		}
-		else
-		{
-			(*callback)(0);
+			recv_buffer_type &data = static_cast<prxsocket::buffer_data_store_inplace<recv_buffer_type> *>(arguments_shared->first.get())->get();
+			(arguments_shared->second)(0, const_buffer(data.data(), transferred), std::move(arguments_shared->first));
 		}
 	});
 }
@@ -655,27 +567,27 @@ void raw_udp_socket::bind(const endpoint &ep, error_code &err)
 	asio::ip::address native_addr;
 	switch (addr.type())
 	{
-		case address::V4:
-		{
-			socket_.close(ec);
-			socket_.open(asio::ip::udp::v4(), ec);
-			native_addr = asio::ip::address_v4(addr.v4().to_ulong());
-			break;
-		}
-		case address::V6:
-		{
-			socket_.close(ec);
-			socket_.open(asio::ip::udp::v6(), ec);
-			std::array<uint8_t, address_v6::ADDR_SIZE> addr_byte;
-			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::ADDR_SIZE);
-			native_addr = asio::ip::address_v6(addr_byte);
-			break;
-		}
-		default:
-		{
-			err = ERR_UNSUPPORTED;
-			return;
-		}
+	case address::V4:
+	{
+		socket_.close(ec);
+		socket_.open(asio::ip::udp::v4(), ec);
+		native_addr = asio::ip::address_v4(addr.v4().to_ulong());
+		break;
+	}
+	case address::V6:
+	{
+		socket_.close(ec);
+		socket_.open(asio::ip::udp::v6(), ec);
+		std::array<uint8_t, address_v6::ADDR_SIZE> addr_byte{};
+		memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::ADDR_SIZE);
+		native_addr = asio::ip::address_v6(addr_byte);
+		break;
+	}
+	default:
+	{
+		err = ERR_UNSUPPORTED;
+		return;
+	}
 	}
 	socket_.bind(asio::ip::udp::endpoint(native_addr, ep.port()), ec);
 	if (ec)
@@ -842,63 +754,63 @@ error_code raw_udp_socket::to_udp_ep(const endpoint &ep, asio::ip::udp::endpoint
 	const address &addr = ep.addr();
 	switch (addr.type())
 	{
-		case address::V4:
-		{
-			result = asio::ip::udp::endpoint(asio::ip::address_v4(addr.v4().to_ulong()), ep.port());
-			break;
-		}
-		case address::V6:
-		{
-			std::array<uint8_t, address_v6::ADDR_SIZE> addr_byte;
-			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::ADDR_SIZE);
-			result = asio::ip::udp::endpoint(asio::ip::address_v6(addr_byte), ep.port());
-			break;
-		}
-		case address::STR:
-		{
-			result = *resolver_.resolve(asio::ip::udp::resolver::query(addr.str().data(), std::to_string(ep.port())), ec);
-			if (ec)
-				return ERR_UNRESOLVED_HOST;
-			break;
-		}
-		default:
-			return ERR_UNSUPPORTED;
+	case address::V4:
+	{
+		result = asio::ip::udp::endpoint(asio::ip::address_v4(addr.v4().to_ulong()), ep.port());
+		break;
+	}
+	case address::V6:
+	{
+		std::array<uint8_t, address_v6::ADDR_SIZE> addr_byte{};
+		memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::ADDR_SIZE);
+		result = asio::ip::udp::endpoint(asio::ip::address_v6(addr_byte), ep.port());
+		break;
+	}
+	case address::STR:
+	{
+		result = *resolver_.resolve(asio::ip::udp::resolver::query(addr.str().data(), std::to_string(ep.port())), ec);
+		if (ec)
+			return ERR_UNRESOLVED_HOST;
+		break;
+	}
+	default:
+		return ERR_UNSUPPORTED;
 	}
 	return 0;
 }
 
-void raw_udp_socket::async_to_udp_ep(const endpoint &ep, std::function<void(error_code, const asio::ip::udp::endpoint&)> &&complete_handler)
+void raw_udp_socket::async_to_udp_ep(const endpoint &ep, std::function<void(error_code, const asio::ip::udp::endpoint &)> &&complete_handler)
 {
 	const address &addr = ep.addr();
 	switch (addr.type())
 	{
-		case address::V4:
+	case address::V4:
+	{
+		complete_handler(0, asio::ip::udp::endpoint(asio::ip::address_v4(addr.v4().to_ulong()), ep.port()));
+		break;
+	}
+	case address::V6:
+	{
+		std::array<uint8_t, address_v6::ADDR_SIZE> addr_byte{};
+		memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::ADDR_SIZE);
+		complete_handler(0, asio::ip::udp::endpoint(asio::ip::address_v6(addr_byte), ep.port()));
+		break;
+	}
+	case address::STR:
+	{
+		auto callback = std::make_shared<std::function<void(error_code, const asio::ip::udp::endpoint &)>>(std::move(complete_handler));
+		resolver_.async_resolve(asio::ip::udp::resolver::query(addr.str().data(), std::to_string(ep.port())),
+			[callback](const boost::system::error_code &e, asio::ip::udp::resolver::iterator itr)
 		{
-			complete_handler(0, asio::ip::udp::endpoint(asio::ip::address_v4(addr.v4().to_ulong()), ep.port()));
-			break;
-		}
-		case address::V6:
-		{
-			std::array<uint8_t, address_v6::ADDR_SIZE> addr_byte;
-			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::ADDR_SIZE);
-			complete_handler(0, asio::ip::udp::endpoint(asio::ip::address_v6(addr_byte), ep.port()));
-			break;
-		}
-		case address::STR:
-		{
-			auto callback = std::make_shared<std::function<void(error_code, const asio::ip::udp::endpoint&)>>(std::move(complete_handler));
-			resolver_.async_resolve(asio::ip::udp::resolver::query(addr.str().data(), std::to_string(ep.port())),
-				[callback](const boost::system::error_code &e, asio::ip::udp::resolver::iterator itr)
-			{
-				if (e)
-					(*callback)(ERR_UNRESOLVED_HOST, asio::ip::udp::endpoint());
-				else
-					(*callback)(0, *itr);
-			});
-			break;
-		}
-		default:
-			complete_handler(ERR_UNSUPPORTED, asio::ip::udp::endpoint());
+			if (e)
+				(*callback)(ERR_UNRESOLVED_HOST, asio::ip::udp::endpoint());
+			else
+				(*callback)(0, *itr);
+		});
+		break;
+	}
+	default:
+		complete_handler(ERR_UNSUPPORTED, asio::ip::udp::endpoint());
 	}
 }
 
@@ -949,21 +861,21 @@ void raw_listener::bind(const endpoint &ep, error_code &err)
 	asio::ip::address native_addr;
 	switch (addr.type())
 	{
-		case address::V4:
-			acceptor_.close(ec);
-			acceptor_.open(asio::ip::tcp::v4(), ec);
-			native_addr = asio::ip::address_v4(addr.v4().to_ulong());
-			break;
-		case address::V6:
-			acceptor_.close(ec);
-			acceptor_.open(asio::ip::tcp::v6(), ec);
-			std::array<uint8_t, address_v6::ADDR_SIZE> addr_byte;
-			memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::ADDR_SIZE);
-			native_addr = asio::ip::address_v6(addr_byte);
-			break;
-		default:
-			err = ERR_UNSUPPORTED;
-			return;
+	case address::V4:
+		acceptor_.close(ec);
+		acceptor_.open(asio::ip::tcp::v4(), ec);
+		native_addr = asio::ip::address_v4(addr.v4().to_ulong());
+		break;
+	case address::V6:
+		acceptor_.close(ec);
+		acceptor_.open(asio::ip::tcp::v6(), ec);
+		std::array<uint8_t, address_v6::ADDR_SIZE> addr_byte{};
+		memcpy(addr_byte.data(), addr.v6().to_bytes(), address_v6::ADDR_SIZE);
+		native_addr = asio::ip::address_v6(addr_byte);
+		break;
+	default:
+		err = ERR_UNSUPPORTED;
+		return;
 	}
 	acceptor_.bind(asio::ip::tcp::endpoint(native_addr, ep.port()), ec);
 	if (ec)
@@ -1025,7 +937,7 @@ void raw_listener::async_accept(accept_callback &&complete_handler)
 
 void raw_listener::close(error_code &err)
 {
-	acceptor_.close(ec); 
+	acceptor_.close(ec);
 	err = (ec ? ERR_OPERATION_FAILURE : 0);
 }
 

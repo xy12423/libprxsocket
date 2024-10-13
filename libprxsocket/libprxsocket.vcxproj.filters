@@ -36,6 +36,9 @@
     <ClCompile Include="socket_obfs_websock.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="socket_raw.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="address.h">
@@ -69,6 +72,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="socket_transparent.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="socket_raw.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
