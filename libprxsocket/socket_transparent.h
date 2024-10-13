@@ -42,31 +42,27 @@ namespace prxsocket
 		virtual void remote_endpoint(endpoint &endpoint, error_code &ec) override { return socket_->remote_endpoint(endpoint, ec); }
 
 		virtual void open(error_code &ec) override { return socket_->open(ec); }
-		virtual void async_open(null_callback &&complete_handler) override { socket_->async_open(std::move(complete_handler)); }
+		virtual void async_open(null_callback &&complete_handler) override { return socket_->async_open(std::move(complete_handler)); }
 
 		virtual void bind(const endpoint &endpoint, error_code &ec) override { return socket_->bind(endpoint, ec); }
-		virtual void async_bind(const endpoint &endpoint, null_callback &&complete_handler) override { socket_->async_bind(endpoint, std::move(complete_handler)); }
+		virtual void async_bind(const endpoint &endpoint, null_callback &&complete_handler) override { return socket_->async_bind(endpoint, std::move(complete_handler)); }
 
 		virtual void connect(const endpoint &endpoint, error_code &ec) override { return socket_->connect(endpoint, ec); }
-		virtual void async_connect(const endpoint &endpoint, null_callback &&complete_handler) override { socket_->async_connect(endpoint, std::move(complete_handler)); }
+		virtual void async_connect(const endpoint &endpoint, null_callback &&complete_handler) override { return socket_->async_connect(endpoint, std::move(complete_handler)); }
 
-		virtual void send(const_buffer buffer, size_t &transferred, error_code &ec) override { return socket_->send(buffer, transferred, ec); }
-		virtual void async_send(const_buffer buffer, transfer_callback &&complete_handler) override { socket_->async_send(buffer, std::move(complete_handler)); }
-		virtual void recv(mutable_buffer buffer, size_t &transferred, error_code &ec) override { return socket_->recv(buffer, transferred, ec); }
-		virtual void async_recv(mutable_buffer buffer, transfer_callback &&complete_handler) override { socket_->async_recv(buffer, std::move(complete_handler)); }
-		virtual void read(mutable_buffer buffer, error_code &ec) override { return socket_->read(buffer, ec); }
-		virtual void async_read(mutable_buffer buffer, null_callback &&complete_handler) override { socket_->async_read(buffer, std::move(complete_handler)); }
-		virtual void write(const_buffer buffer, error_code &ec) override { return socket_->write(buffer, ec); }
-		virtual void async_write(const_buffer buffer, null_callback &&complete_handler) override { socket_->async_write(buffer, std::move(complete_handler)); }
-		virtual void read(mutable_buffer_sequence &&buffer, error_code &ec) override { return socket_->read(std::move(buffer), ec); }
-		virtual void async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler) override { socket_->async_read(std::move(buffer), std::move(complete_handler)); }
-		virtual void write(const_buffer_sequence &&buffer, error_code &ec) override { return socket_->write(std::move(buffer), ec); }
-		virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override { socket_->async_write(std::move(buffer), std::move(complete_handler)); }
+		virtual size_t send_size_max() override { return socket_->send_size_max(); }
+		virtual void send(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, error_code &ec) override { return socket_->send(buffer, std::move(buffer_data_holder), ec); }
+		virtual void async_send(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, null_callback &&complete_handler) override { return socket_->async_send(buffer, std::move(buffer_data_holder), std::move(complete_handler)); }
+		virtual void send_partial(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, error_code &ec) override { return socket_->send_partial(buffer, std::move(buffer_data_holder), ec); }
+		virtual void async_send_partial(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, null_callback &&complete_handler) override { return socket_->async_send_partial(buffer, std::move(buffer_data_holder), std::move(complete_handler)); }
+
+		virtual void recv(const_buffer &buffer, buffer_data_store_holder &buffer_data_holder, error_code &ec) override { return socket_->recv(buffer, buffer_data_holder, ec); }
+		virtual void async_recv(transfer_data_callback &&complete_handler) override { return socket_->async_recv(std::move(complete_handler)); }
 
 		virtual void shutdown(shutdown_type type, error_code &ec) override { return socket_->shutdown(type, ec); }
-		virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) override { socket_->async_shutdown(type, std::move(complete_handler)); }
+		virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) override { return socket_->async_shutdown(type, std::move(complete_handler)); }
 		virtual void close(error_code &ec) override { return socket_->close(ec); }
-		virtual void async_close(null_callback &&complete_handler) override { socket_->async_close(std::move(complete_handler)); }
+		virtual void async_close(null_callback &&complete_handler) override { return socket_->async_close(std::move(complete_handler)); }
 	protected:
 		std::unique_ptr<BaseTcpSocket> socket_;
 	};
