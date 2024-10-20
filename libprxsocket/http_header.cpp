@@ -20,7 +20,7 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 #include "stdafx.h"
 #include "http_header.h"
 
-using namespace prxsocket::http_utils;
+using namespace prxsocket::http;
 
 constexpr char http_header::SPECIAL_NAME_IDENTIFIER;
 constexpr const char *http_header::NAME_START_LINE_TYPE, *http_header::START_LINE_TYPE_REQUEST, *http_header::START_LINE_TYPE_STATUS;

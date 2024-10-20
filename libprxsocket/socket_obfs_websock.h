@@ -107,7 +107,7 @@ namespace prxsocket
 		virtual void async_close(null_callback &&complete_handler) override;
 	private:
 		void send_websocket_req(const std::shared_ptr<null_callback> &callback);
-		void recv_websocket_resp(const std::shared_ptr<http_utils::http_header> &header, const std::shared_ptr<null_callback> &callback);
+		void recv_websocket_resp(const std::shared_ptr<http::http_header> &header, const std::shared_ptr<null_callback> &callback);
 
 		static std::vector<byte> pack_ws_frame_header(size_t payload_length, std::array<byte, 4> *mask);
 		std::vector<byte> pack_ws_frame(const_buffer payload_final);
@@ -153,7 +153,7 @@ namespace prxsocket
 
 			std::unique_ptr<prx_tcp_socket> socket_accept;
 
-			http_utils::http_header header;
+			http::http_header header;
 			buffer_with_data_store recv_buf_left_over;
 			std::vector<byte> iv_vec;
 			std::string sec_accept;

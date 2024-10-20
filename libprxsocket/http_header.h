@@ -29,7 +29,7 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 
 namespace prxsocket
 {
-	namespace http_utils
+	namespace http
 	{
 
 		class http_header

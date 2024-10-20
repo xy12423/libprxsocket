@@ -22,7 +22,7 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 #include "crypto_rng.h"
 
 using namespace prxsocket;
-using namespace prxsocket::http_utils;
+using namespace prxsocket::http;
 
 namespace
 {
