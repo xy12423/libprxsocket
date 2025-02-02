@@ -33,9 +33,14 @@ namespace prxsocket
 {
 
 	using error_code = int;
+	struct error_code_or_op_result
+	{
+		int code;
+	};
 	using null_callback = std::function<void(error_code)>;
 
-	enum {
+	enum
+	{
 		ERR_OPERATION_FAILURE = 1,
 		ERR_UNRESOLVED_HOST = 4,
 		ERR_CONNECTION_REFUSED = 5,
@@ -43,6 +48,12 @@ namespace prxsocket
 		ERR_BAD_ARG_LOCAL = 9,
 		ERR_BAD_ARG_REMOTE = 10,
 		ERR_ALREADY_IN_STATE = 11,
+	};
+	enum
+	{
+		OPRESULT_CONTINUE = 0,
+		OPRESULT_COMPLETED = -1,
+		OPRESULT_ERROR = -2,
 	};
 
 	class socket_exception : public std::runtime_error
@@ -92,6 +103,8 @@ namespace prxsocket
 
 		virtual void recv(const_buffer &buffer, buffer_data_store_holder &buffer_data_holder, error_code &ec) = 0;
 		virtual void async_recv(transfer_data_callback &&complete_handler) = 0;
+		virtual void recv_until(buffer_with_data_store &leftover, std::function<error_code_or_op_result(const_buffer &)> &&data_handler, error_code_or_op_result &ec_or_result);
+		virtual void async_recv_until(buffer_with_data_store &&leftover, std::function<error_code_or_op_result(const_buffer &)> &&data_handler, std::function<void(error_code_or_op_result, buffer_with_data_store &&)> &&complete_handler);
 
 		virtual void shutdown(shutdown_type type, error_code &ec) = 0;
 		virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) = 0;

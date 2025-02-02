@@ -373,7 +373,7 @@ void raw_tcp_socket::async_connect_addr_str(const std::string &addr, port_type p
 
 size_t prxsocket::raw_tcp_socket::send_size_max()
 {
-	return 1360;
+	return MSS;
 }
 
 void prxsocket::raw_tcp_socket::send(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, error_code &err)

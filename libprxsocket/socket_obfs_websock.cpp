@@ -786,7 +786,7 @@ bool prxsocket::obfs_websock_tcp_socket::unpack_ws_frame_payload(ws_unpack_state
 		payload = payload.after_consume(size_process);
 	}
 
-	if (payload_temp.size_left == 0) [[unlikely]]
+	if (payload_temp.size_left == 0)
 	{
 		// payload_size validation
 		if (state.payload.size() != state.payload_length)
@@ -816,72 +816,66 @@ bool prxsocket::obfs_websock_tcp_socket::unpack_ws_frame_payload(ws_unpack_state
 
 void prxsocket::obfs_websock_tcp_socket::recv(const_buffer &buffer, buffer_data_store_holder &buffer_data_holder, error_code &ec)
 {
-	const_buffer buffer_recv;
-	buffer_data_store_holder buffer_recv_holder;
-	if (recv_buf_.buffer.size() > 0)
-	{
-		buffer_recv = recv_buf_.buffer;
-		recv_buf_.buffer = const_buffer();
-		buffer_recv_holder.swap(recv_buf_.holder);
-	}
-
 	ws_unpack_state state;
-	bool header_parsed = false;
-	try
+
+	error_code_or_op_result ec_or_result{};
+	socket_->recv_until(recv_buf_, [this, &state](const_buffer &buffer_recv)
 	{
-		if (buffer_recv.size() > 0)
+		try
 		{
-			header_parsed = unpack_ws_frame_header(state, buffer_recv);
-			assert(header_parsed || buffer_recv.size() == 0);
+			bool header_parsed = unpack_ws_frame_header(state, buffer_recv);
+			return error_code_or_op_result{ header_parsed ? OPRESULT_COMPLETED : OPRESULT_CONTINUE };
 		}
-		while (!header_parsed)
+		catch (const std::exception &)
 		{
-			socket_->recv(buffer_recv, buffer_recv_holder, ec);
-			if (ec)
-			{
-				reset_recv();
-				return;
-			}
-			header_parsed = unpack_ws_frame_header(state, buffer_recv);
-			assert(header_parsed || buffer_recv.size() == 0);
+			return error_code_or_op_result{ OPRESULT_ERROR };
 		}
-	}
-	catch (const std::exception &)
+	}, ec_or_result);
+	if (ec_or_result.code == OPRESULT_ERROR) [[unlikely]]
 	{
 		shutdown(shutdown_receive, ec);
 		ec = ERR_OPERATION_FAILURE;
 		return;
 	}
-
-	try
+	if (ec_or_result.code != OPRESULT_COMPLETED) [[unlikely]]
 	{
-		state.payload.reserve(state.payload_length + SYM_BLOCK_SIZE);
-		if (state.payload_temp.size_left > 0 && buffer_recv.size() > 0)
-		{
-			unpack_ws_frame_payload(state, buffer_recv);
-			assert(state.payload_temp.size_left == 0 || buffer_recv.size() == 0);
-		}
-		while (state.payload_temp.size_left > 0)
-		{
-			socket_->recv(buffer_recv, buffer_recv_holder, ec);
-			if (ec)
-			{
-				reset_recv();
-				return;
-			}
-			unpack_ws_frame_payload(state, buffer_recv);
-			assert(state.payload_temp.size_left == 0 || buffer_recv.size() == 0);
-		}
-	}
-	catch (const std::exception &)
-	{
-		shutdown(shutdown_receive, ec);
-		ec = ERR_OPERATION_FAILURE;
+		ec = ec_or_result.code;
+		if (ec == 0)
+			ec = ERR_OPERATION_FAILURE;
+		reset_recv();
 		return;
 	}
 
-	if (buffer_recv.size() > 0)
-		recv_buf_ = buffer_with_data_store{ buffer_recv, std::move(buffer_recv_holder) };
+	state.payload.reserve(state.payload_length + SYM_BLOCK_SIZE);
+	if (state.payload_temp.size_left > 0) [[likely]]
+	{
+		socket_->recv_until(recv_buf_, [this, &state](const_buffer &buffer_recv)
+		{
+			try
+			{
+				unpack_ws_frame_payload(state, buffer_recv);
+				return error_code_or_op_result{ state.payload_temp.size_left == 0 ? OPRESULT_COMPLETED : OPRESULT_CONTINUE };
+			}
+			catch (const std::exception &)
+			{
+				return error_code_or_op_result{ OPRESULT_ERROR };
+			}
+		}, ec_or_result);
+		if (ec_or_result.code == OPRESULT_ERROR) [[unlikely]]
+		{
+			shutdown(shutdown_receive, ec);
+			ec = ERR_OPERATION_FAILURE;
+			return;
+		}
+		if (ec_or_result.code != OPRESULT_COMPLETED) [[unlikely]]
+		{
+			ec = ec_or_result.code;
+			if (ec == 0)
+				ec = ERR_OPERATION_FAILURE;
+			reset_recv();
+			return;
+		}
+	}
 
 	PRXSOCKET_MAKE_INPLACE_BUFFER(std::vector<byte>, data_unpacked, data_unpacked_holder, std::move(state.payload));
 	buffer = const_buffer(data_unpacked);
@@ -893,120 +887,76 @@ void prxsocket::obfs_websock_tcp_socket::recv(const_buffer &buffer, buffer_data_
 void prxsocket::obfs_websock_tcp_socket::async_recv(transfer_data_callback &&complete_handler)
 {
 	std::shared_ptr<transfer_data_callback> callback = std::make_shared<transfer_data_callback>(std::move(complete_handler));
-	if (recv_buf_.buffer.size() > 0)
+	std::shared_ptr<ws_unpack_state> state = std::make_shared<ws_unpack_state>();
+	socket_->async_recv_until(std::move(recv_buf_), [this, state](const_buffer &buffer_recv)
 	{
-		async_recv_process_frame_header(std::make_shared<ws_unpack_state>(), recv_buf_.buffer, std::move(recv_buf_.holder), callback);
-	}
-	else
-	{
-		socket_->async_recv([this, callback](error_code ec, const_buffer buffer, buffer_data_store_holder &&buffer_holder)
+		try
 		{
-			if (ec)
-			{
-				reset_recv();
-				(*callback)(ec, buffer, std::move(buffer_holder));
-				return;
-			}
-			async_recv_process_frame_header(std::make_shared<ws_unpack_state>(), buffer, std::move(buffer_holder), callback);
-		});
-	}
+			bool header_parsed = unpack_ws_frame_header(*state, buffer_recv);
+			return error_code_or_op_result{ header_parsed ? OPRESULT_COMPLETED : OPRESULT_CONTINUE };
+		}
+		catch (const std::exception &)
+		{
+			return error_code_or_op_result{ OPRESULT_ERROR };
+		}
+	}, [this, state, callback](error_code_or_op_result ec_or_result, buffer_with_data_store &&leftover)
+	{
+		if (ec_or_result.code == OPRESULT_ERROR) [[unlikely]]
+		{
+			async_shutdown(shutdown_receive, [callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, const_buffer(), buffer_data_store_holder()); });
+			return;
+		}
+		if (ec_or_result.code != OPRESULT_COMPLETED) [[unlikely]]
+		{
+			reset_recv();
+			(*callback)(ec_or_result.code != 0 ? ec_or_result.code : ERR_OPERATION_FAILURE, leftover.buffer, std::move(leftover.holder));
+			return;
+		}
+		async_recv_frame_payload(state, std::move(leftover), callback);
+	});
 }
 
-void prxsocket::obfs_websock_tcp_socket::async_recv_process_frame_header(const std::shared_ptr<ws_unpack_state> &state,
-	const_buffer buffer_recv, buffer_data_store_holder &&buffer_holder,
+void prxsocket::obfs_websock_tcp_socket::async_recv_frame_payload(const std::shared_ptr<ws_unpack_state> &state,
+	buffer_with_data_store &&leftover,
 	const std::shared_ptr<transfer_data_callback> &callback)
 {
-	buffer_data_store_holder buffer_recv_holder(std::move(buffer_holder));
-
-	bool header_parsed;
-	try
-	{
-		header_parsed = unpack_ws_frame_header(*state, buffer_recv);
-		assert(header_parsed || buffer_recv.size() == 0);
-	}
-	catch (const std::exception &)
-	{
-		async_shutdown(shutdown_receive, [callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, const_buffer(), buffer_data_store_holder()); });
-		return;
-	}
-
-	if (!header_parsed)
-	{
-		socket_->async_recv([this, state, callback](error_code ec, const_buffer buffer, buffer_data_store_holder &&buffer_holder)
-		{
-			if (ec)
-			{
-				reset_recv();
-				(*callback)(ec, buffer, std::move(buffer_holder));
-				return;
-			}
-			async_recv_process_frame_header(state, buffer, std::move(buffer_holder), callback);
-		});
-		return;
-	}
-
 	if (state->payload_temp.size_left == 0) [[unlikely]]
 	{
-		if (buffer_recv.size() > 0)
-			recv_buf_ = buffer_with_data_store{ buffer_recv, std::move(buffer_recv_holder) };
+		recv_buf_ = std::move(leftover);
 		(*callback)(0, const_buffer(), buffer_data_store_holder());
 		return;
 	}
 	state->payload.reserve(state->payload_length + SYM_BLOCK_SIZE);
-	if (buffer_recv.size() > 0)
+	socket_->async_recv_until(std::move(leftover), [this, state](const_buffer &buffer_recv)
 	{
-		async_recv_process_frame_payload(state, buffer_recv, std::move(buffer_recv_holder), callback);
-	}
-	else
-	{
-		socket_->async_recv([this, state, callback](error_code ec, const_buffer buffer, buffer_data_store_holder &&buffer_holder)
+		try
 		{
-			if (ec)
-			{
-				reset_recv();
-				(*callback)(ec, buffer, std::move(buffer_holder));
-				return;
-			}
-			async_recv_process_frame_payload(state, buffer, std::move(buffer_holder), callback);
-		});
-	}
-}
-
-void prxsocket::obfs_websock_tcp_socket::async_recv_process_frame_payload(const std::shared_ptr<ws_unpack_state> &state, const_buffer buffer_recv, buffer_data_store_holder &&buffer_holder, const std::shared_ptr<transfer_data_callback> &callback)
-{
-	buffer_data_store_holder buffer_recv_holder(std::move(buffer_holder));
-
-	try
-	{
-		unpack_ws_frame_payload(*state, buffer_recv);
-		assert(state->payload_temp.size_left == 0 || buffer_recv.size() == 0);
-	}
-	catch (const std::exception &)
-	{
-		async_shutdown(shutdown_receive, [callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, const_buffer(), buffer_data_store_holder()); });
-		return;
-	}
-
-	if (state->payload_temp.size_left > 0)
-	{
-		socket_->async_recv([this, state, callback](error_code ec, const_buffer buffer, buffer_data_store_holder &&buffer_holder)
+			unpack_ws_frame_payload(*state, buffer_recv);
+			return error_code_or_op_result{ state->payload_temp.size_left == 0 ? OPRESULT_COMPLETED : OPRESULT_CONTINUE };
+		}
+		catch (const std::exception &)
 		{
-			if (ec)
-			{
-				reset_recv();
-				(*callback)(ec, buffer, std::move(buffer_holder));
-				return;
-			}
-			async_recv_process_frame_payload(state, buffer, std::move(buffer_holder), callback);
-		});
-		return;
-	}
+			return error_code_or_op_result{ OPRESULT_ERROR };
+		}
+	}, [this, state, callback](error_code_or_op_result ec_or_result, buffer_with_data_store &&leftover)
+	{
+		if (ec_or_result.code == OPRESULT_ERROR) [[unlikely]]
+		{
+			async_shutdown(shutdown_receive, [callback](error_code) { (*callback)(ERR_OPERATION_FAILURE, const_buffer(), buffer_data_store_holder()); });
+			return;
+		}
+		if (ec_or_result.code != OPRESULT_COMPLETED) [[unlikely]]
+		{
+			reset_recv();
+			(*callback)(ec_or_result.code != 0 ? ec_or_result.code : ERR_OPERATION_FAILURE, leftover.buffer, std::move(leftover.holder));
+			return;
+		}
 
-	if (buffer_recv.size() > 0)
-		recv_buf_ = buffer_with_data_store{ buffer_recv, std::move(buffer_recv_holder) };
+		recv_buf_ = std::move(leftover);
 
-	PRXSOCKET_MAKE_INPLACE_BUFFER(std::vector<byte>, data_unpacked, data_unpacked_holder, std::move(state->payload));
-	(*callback)(0, const_buffer(data_unpacked), std::move(data_unpacked_holder));
+		PRXSOCKET_MAKE_INPLACE_BUFFER(std::vector<byte>, data_unpacked, data_unpacked_holder, std::move(state->payload));
+		(*callback)(0, const_buffer(data_unpacked), std::move(data_unpacked_holder));
+	});
 }
 
 void prxsocket::obfs_websock_tcp_socket::shutdown(shutdown_type type, error_code &ec)

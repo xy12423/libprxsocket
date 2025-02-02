@@ -114,8 +114,7 @@ namespace prxsocket
 
 		bool unpack_ws_frame_header(ws_unpack_state &state, const_buffer &payload);
 		bool unpack_ws_frame_payload(ws_unpack_state &state, const_buffer &payload);
-		void async_recv_process_frame_header(const std::shared_ptr<ws_unpack_state> &state, const_buffer buffer, buffer_data_store_holder &&buffer_holder, const std::shared_ptr<transfer_data_callback> &callback);
-		void async_recv_process_frame_payload(const std::shared_ptr<ws_unpack_state> &state, const_buffer buffer, buffer_data_store_holder &&buffer_holder, const std::shared_ptr<transfer_data_callback> &callback);
+		void async_recv_frame_payload(const std::shared_ptr<ws_unpack_state> &state, buffer_with_data_store &&leftover, const std::shared_ptr<transfer_data_callback> &callback);
 
 		template <class T> static void final_crypto(T &crypto)
 		{
@@ -148,7 +147,8 @@ namespace prxsocket
 	private:
 		static constexpr size_t SYM_KEY_SIZE = 32, SYM_IV_SIZE = 16, SYM_BLOCK_SIZE = 16;
 
-		struct accept_session {
+		struct accept_session
+		{
 			accept_session(std::unique_ptr<prx_tcp_socket> &&socket);
 
 			std::unique_ptr<prx_tcp_socket> socket_accept;

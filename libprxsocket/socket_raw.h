@@ -31,8 +31,9 @@ namespace prxsocket
 
 	class raw_tcp_socket final : public prx_tcp_socket
 	{
-		using recv_buffer_type = std::array<byte, 1500>;
 	public:
+		static constexpr size_t MSS = 1360;
+
 		raw_tcp_socket(boost::asio::io_context &iosrv) :socket_(iosrv), resolver_(iosrv) {}
 		raw_tcp_socket(boost::asio::ip::tcp::socket &&native_socket, bool is_connected = false) :socket_(std::move(native_socket)), resolver_(socket_.get_executor()), connected_(is_connected) { set_keep_alive(); }
 		virtual ~raw_tcp_socket() override {}
@@ -66,6 +67,8 @@ namespace prxsocket
 		virtual void close(error_code &ec) override;
 		virtual void async_close(null_callback &&complete_handler) override;
 	private:
+		using recv_buffer_type = std::array<byte, MSS>;
+
 		void set_keep_alive();
 
 		void check_protocol(const boost::asio::ip::tcp::endpoint::protocol_type &protocol);
