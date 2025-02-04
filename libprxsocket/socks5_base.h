@@ -28,20 +28,19 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 
 namespace prxsocket
 {
-	namespace socks5_helper
+	namespace socks5
 	{
-
 		using sockssel_callback = std::function<uint8_t(int, const uint8_t *)>;
-		using socksreq_callback = std::function<void(error_code, uint8_t, const endpoint&)>;
+		using socksreq_callback = std::function<void(error_code, uint8_t, const endpoint &)>;
 
 		class socks5_base
 		{
-			static constexpr char SOCKS_VERSION = 5;
+			static constexpr unsigned int SOCKS_VERSION = 5;
 		public:
-			enum { CONNECT = 1, BIND = 2, UDP_ASSOCIATE = 3, UDP_ASSOCIATE_OVER_TCP = 4 };
+			enum { CONNECT = 1, BIND = 2, UDP_ASSOCIATE = 3 };
 
 			socks5_base(std::unique_ptr<prx_tcp_socket> &&arg)
-				:socket_(std::move(arg)), available_methods_("\x00", 1)
+				:socket_(std::move(arg)), available_methods_{ byte{0} }
 			{
 			}
 			template <typename... T>
@@ -49,12 +48,6 @@ namespace prxsocket
 				: socket_(std::move(arg)), available_methods_(std::forward<T>(args)...)
 			{
 			}
-
-			template <typename... T> void open(T &&...args) { return socket_->open(std::forward<T>(args)...); }
-			template <typename... T> void async_open(T &&...args) { socket_->async_open(std::forward<T>(args)...); }
-
-			template <typename... T> void connect(T &&...args) { return socket_->connect(std::forward<T>(args)...); }
-			template <typename... T> void async_connect(T &&...args) { socket_->async_connect(std::forward<T>(args)...); }
 
 			error_code auth();
 			void async_auth(null_callback &&complete_handler);
@@ -67,40 +60,28 @@ namespace prxsocket
 
 			uint8_t get_auth_method() const { return auth_method_; }
 
-			error_code send_s5(uint8_t type, const endpoint &ep);
-			void async_send_s5(uint8_t type, const endpoint &ep, null_callback &&complete_handler);
+			static void make_s5_header(std::vector<byte> &req, uint8_t type, const endpoint &ep);
 
 			error_code recv_s5(uint8_t &resp, endpoint &result);
 			void async_recv_s5(socksreq_callback &&complete_handler);
 
-			static error_code parse_udp(const char *recv, size_t recv_size, endpoint &ep, const char *&data_start_at, size_t &data_size);
-
-			template <typename... T> void send(T &&...args) { return socket_->send(std::forward<T>(args)...); }
-			template <typename... T> void async_send(T &&...args) { return socket_->async_send(std::forward<T>(args)...); }
-			template <typename... T> void recv(T &&...args) { return socket_->recv(std::forward<T>(args)...); }
-			template <typename... T> void async_recv(T &&...args) { return socket_->async_recv(std::forward<T>(args)...); }
-			template <typename... T> void read(T &&...args) { return socket_->read(std::forward<T>(args)...); }
-			template <typename... T> void async_read(T &&...args) { return socket_->async_read(std::forward<T>(args)...); }
-			template <typename... T> void write(T &&...args) { return socket_->write(std::forward<T>(args)...); }
-			template <typename... T> void async_write(T &&...args) { return socket_->async_write(std::forward<T>(args)...); }
-
-			template <typename... T> void shutdown(T &&...args) { return socket_->shutdown(std::forward<T>(args)...); }
-			template <typename... T> void async_shutdown(T &&...args) { return socket_->async_shutdown(std::forward<T>(args)...); }
-			template <typename... T> void close(T &&...args) { reset(); return socket_->close(std::forward<T>(args)...); }
-			template <typename... T> void async_close(T &&...args) { reset(); return socket_->async_close(std::forward<T>(args)...); }
+			static error_code parse_udp(const byte *recv, size_t recv_size, endpoint &ep, const byte *&data_start_at, size_t &data_size);
 		protected:
+			void read(mutable_buffer buffer, error_code &ec);
+			void async_read(mutable_buffer buffer, null_callback &&complete_handler);
+
 			void reset() { auth_method_ = 0xFF; }
 
 			std::unique_ptr<prx_tcp_socket> socket_;
+			buffer_with_data_store socket_recv_buf_;
 		private:
 			void async_auth_recv(const std::shared_ptr<null_callback> &callback);
-			void async_select_recv_body(const std::shared_ptr<sockssel_callback> &selector, const std::shared_ptr<std::array<char, 257>> &method_avail, const std::shared_ptr<null_callback> &callback);
-			void async_select_send(const std::shared_ptr<null_callback> &callback);
-			void async_recv_s5_body(const std::shared_ptr<std::array<char, 263>> &resp_data, const std::shared_ptr<socksreq_callback> &callback);
 
-			void close() { error_code err; close(err); }
+			void async_recv_s5_body(const std::shared_ptr<std::array<byte, 263>> &resp_data, const std::shared_ptr<socksreq_callback> &callback);
 
-			std::string available_methods_;
+			void close() { error_code err; socket_->close(err); }
+
+			std::vector<byte> available_methods_;
 			uint8_t auth_method_ = 0xFF;
 		};
 
