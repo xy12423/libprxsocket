@@ -103,8 +103,8 @@ namespace prxsocket
 
 		virtual void recv(const_buffer &buffer, buffer_data_store_holder &buffer_data_holder, error_code &ec) = 0;
 		virtual void async_recv(transfer_data_callback &&complete_handler) = 0;
-		virtual void recv_until(buffer_with_data_store &leftover, std::function<error_code_or_op_result(const_buffer &)> &&data_handler, error_code_or_op_result &ec_or_result);
-		virtual void async_recv_until(buffer_with_data_store &&leftover, std::function<error_code_or_op_result(const_buffer &)> &&data_handler, std::function<void(error_code_or_op_result, buffer_with_data_store &&)> &&complete_handler);
+		void recv_until(buffer_with_data_store &leftover, std::function<error_code_or_op_result(const_buffer &)> &&data_handler, error_code_or_op_result &ec_or_result);
+		void async_recv_until(buffer_with_data_store &&leftover, std::function<error_code_or_op_result(const_buffer &)> &&data_handler, std::function<void(error_code_or_op_result, buffer_with_data_store &&)> &&complete_handler);
 
 		virtual void shutdown(shutdown_type type, error_code &ec) = 0;
 		virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) = 0;

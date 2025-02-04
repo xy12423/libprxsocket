@@ -114,7 +114,7 @@ namespace prxsocket
 
 		bool unpack_ws_frame_header(ws_unpack_state &state, const_buffer &payload);
 		bool unpack_ws_frame_payload(ws_unpack_state &state, const_buffer &payload);
-		void async_recv_frame_payload(const std::shared_ptr<ws_unpack_state> &state, buffer_with_data_store &&leftover, const std::shared_ptr<transfer_data_callback> &callback);
+		void async_recv_frame_payload(const std::shared_ptr<std::pair<ws_unpack_state, transfer_data_callback>> &state_callback, buffer_with_data_store &&leftover);
 
 		template <class T> static void final_crypto(T &crypto)
 		{

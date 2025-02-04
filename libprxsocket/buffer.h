@@ -46,6 +46,8 @@ namespace prxsocket
 		buffer_data_store &operator=(const buffer_data_store &) = delete;
 		buffer_data_store &operator=(buffer_data_store &&) = delete;
 		virtual ~buffer_data_store() = default;
+	protected:
+		buffer_data_store() = default;
 	};
 	using buffer_data_store_holder = boost::intrusive_ptr<buffer_data_store>;
 
@@ -86,6 +88,14 @@ namespace prxsocket
 		size_t size() const { return size_; }
 
 		const_buffer after_consume(size_t size) const { if (size <= size_) return const_buffer(data_ + size, size_ - size); return const_buffer(); }
+
+		static size_t consume(void *dst, size_t size, const_buffer &buffer)
+		{
+			size_t size_read = std::min(size, buffer.size());
+			memcpy(dst, buffer.data(), size_read);
+			buffer = buffer.after_consume(size_read);
+			return size_read;
+		}
 	protected:
 		const byte *data_;
 		size_t size_;
