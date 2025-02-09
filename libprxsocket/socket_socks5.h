@@ -25,7 +25,7 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 namespace prxsocket
 {
 
-	class socks5_tcp_socket final : public prx_tcp_socket, private socks5_helper::socks5_base
+	class socks5_tcp_socket final : public prx_tcp_socket, private socks5::socks5_base
 	{
 		enum { STATE_INIT, STATE_OPEN, STATE_CONNECTED };
 
@@ -56,18 +56,14 @@ namespace prxsocket
 		virtual void connect(const endpoint &endpoint, error_code &ec) override;
 		virtual void async_connect(const endpoint &endpoint, null_callback &&complete_handler) override;
 
-		virtual void send(const_buffer buffer, size_t &transferred, error_code &ec) override;
-		virtual void async_send(const_buffer buffer, transfer_callback &&complete_handler) override;
-		virtual void recv(mutable_buffer buffer, size_t &transferred, error_code &ec) override;
-		virtual void async_recv(mutable_buffer buffer, transfer_callback &&complete_handler) override;
-		virtual void read(mutable_buffer buffer, error_code &ec) override;
-		virtual void async_read(mutable_buffer buffer, null_callback &&complete_handler) override;
-		virtual void write(const_buffer buffer, error_code &ec) override;
-		virtual void async_write(const_buffer buffer, null_callback &&complete_handler) override;
-		virtual void read(mutable_buffer_sequence &&buffer, error_code &ec) override;
-		virtual void async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler) override;
-		virtual void write(const_buffer_sequence &&buffer, error_code &ec) override;
-		virtual void async_write(const_buffer_sequence &&buffer, null_callback &&complete_handler) override;
+		virtual size_t send_size_max() override;
+		virtual void send(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, error_code &ec) override;
+		virtual void async_send(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, null_callback &&complete_handler) override;
+		virtual void send_partial(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, error_code &ec) override;
+		virtual void async_send_partial(const_buffer buffer, buffer_data_store_holder &&buffer_data_holder, null_callback &&complete_handler) override;
+
+		virtual void recv(const_buffer &buffer, buffer_data_store_holder &buffer_data_holder, error_code &ec) override;
+		virtual void async_recv(transfer_data_callback &&complete_handler) override;
 
 		virtual void shutdown(shutdown_type type, error_code &ec) override;
 		virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) override;
@@ -81,18 +77,14 @@ namespace prxsocket
 		endpoint server_ep_, local_ep_, remote_ep_;
 	};
 
-	class socks5_udp_socket final : public prx_udp_socket, private socks5_helper::socks5_base
+	class socks5_udp_socket final : public prx_udp_socket, private socks5::socks5_base
 	{
 		enum { STATE_INIT, STATE_ASSOCIATED };
 
 		static constexpr size_t UDP_BUF_SIZE = 0x10000;
 	public:
 		socks5_udp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, std::unique_ptr<prx_udp_socket> &&base_udp_socket, const endpoint &_server_ep)
-			:socks5_base(std::move(base_socket), "\x80\x00", 2), server_ep_(_server_ep), udp_socket_(std::move(base_udp_socket)), udp_recv_buf_(std::make_unique<char[]>(UDP_BUF_SIZE))
-		{
-		}
-		socks5_udp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const endpoint &_server_ep)
-			:socks5_base(std::move(base_socket), "\x80", 1), server_ep_(_server_ep), udp_recv_buf_(std::make_unique<char[]>(UDP_BUF_SIZE))
+			:socks5_base(std::move(base_socket), "\x00", 1), server_ep_(_server_ep), udp_socket_(std::move(base_udp_socket)), udp_recv_buf_(std::make_unique<byte[]>(UDP_BUF_SIZE))
 		{
 		}
 		virtual ~socks5_udp_socket() override {}
@@ -132,7 +124,7 @@ namespace prxsocket
 
 		endpoint server_ep_, udp_server_ep_, udp_recv_ep_, udp_local_ep_;
 		std::unique_ptr<prx_udp_socket> udp_socket_;
-		std::unique_ptr<char[]> udp_recv_buf_;
+		std::unique_ptr<byte[]> udp_recv_buf_;
 	};
 
 	class socks5_listener final : public prx_listener

@@ -52,9 +52,6 @@ namespace prxsocket
 			error_code auth();
 			void async_auth(null_callback &&complete_handler);
 
-			error_code select(sockssel_callback &&selector);
-			void async_select(sockssel_callback &&selector, null_callback &&complete_handler);
-
 			error_code open_and_auth(const endpoint &server_ep);
 			void async_open_and_auth(const endpoint &server_ep, null_callback &&complete_handler);
 
@@ -70,16 +67,14 @@ namespace prxsocket
 			void read(mutable_buffer buffer, error_code &ec);
 			void async_read(mutable_buffer buffer, null_callback &&complete_handler);
 
-			void reset() { auth_method_ = 0xFF; }
+			void reset() { socket_recv_buf_.buffer = const_buffer(); socket_recv_buf_.holder.reset(); auth_method_ = 0xFF; }
 
 			std::unique_ptr<prx_tcp_socket> socket_;
 			buffer_with_data_store socket_recv_buf_;
 		private:
 			void async_auth_recv(const std::shared_ptr<null_callback> &callback);
 
-			void async_recv_s5_body(const std::shared_ptr<std::array<byte, 263>> &resp_data, const std::shared_ptr<socksreq_callback> &callback);
-
-			void close() { error_code err; socket_->close(err); }
+			void close() { reset(); error_code err; socket_->close(err); }
 
 			std::vector<byte> available_methods_;
 			uint8_t auth_method_ = 0xFF;
