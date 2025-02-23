@@ -45,28 +45,23 @@ namespace prxsocket
 		virtual void connect(const endpoint &endpoint, error_code &ec) override;
 		virtual void async_connect(const endpoint &endpoint, null_callback &&complete_handler) override;
 
-		virtual void recv(mutable_buffer buffer, size_t &transferred, error_code &ec) override;
-		virtual void async_recv(mutable_buffer buffer, transfer_callback &&complete_handler) override;
-		virtual void read(mutable_buffer buffer, error_code &ec) override;
-		virtual void async_read(mutable_buffer buffer, null_callback &&complete_handler) override;
-		virtual void read(mutable_buffer_sequence &&buffer, error_code &ec) override;
-		virtual void async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler) override;
+		virtual void recv(const_buffer &buffer, buffer_data_store_holder &buffer_data_holder, error_code &ec) override;
+		virtual void async_recv(transfer_data_callback &&complete_handler) override;
 
 		virtual void shutdown(shutdown_type type, error_code &ec) override;
 		virtual void async_shutdown(shutdown_type type, null_callback &&complete_handler) override;
 		virtual void close(error_code &ec) override;
 		virtual void async_close(null_callback &&complete_handler) override;
 	private:
-		void reset_recv() { recv_buf_ptr_ = recv_buf_ptr_end_ = 0; }
+		void reset_recv() { recv_buf_.buffer = const_buffer(); recv_buf_.holder.reset(); }
 		void reset() { reset_recv(); state_ = STATE_INIT; }
 		void send_http_req(const std::shared_ptr<null_callback> &callback);
-		void recv_http_resp(const std::shared_ptr<null_callback> &callback, const std::shared_ptr<http_helper::http_header> &header);
+		void recv_http_resp(const std::shared_ptr<null_callback> &callback, const std::shared_ptr<http::http_header> &header);
 
 		int state_ = STATE_INIT;
 
 		endpoint server_ep_, remote_ep_;
-		std::unique_ptr<char[]> recv_buf_;
-		size_t recv_buf_ptr_ = 0, recv_buf_ptr_end_ = 0;
+		buffer_with_data_store recv_buf_;
 	};
 
 }

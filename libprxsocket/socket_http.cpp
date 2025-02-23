@@ -21,9 +21,9 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 #include "socket_http.h"
 
 using namespace prxsocket;
-using namespace prxsocket::http_helper;
+using namespace prxsocket::http;
 
-void http_tcp_socket::connect(const endpoint &ep, error_code &err)
+void prxsocket::http_tcp_socket::connect(const endpoint &ep, error_code &err)
 {
 	socket_->connect(server_ep_, err);
 	if (err)
@@ -31,36 +31,52 @@ void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 
 	try
 	{
+		PRXSOCKET_MAKE_INPLACE_BUFFER(std::string, http_req, http_req_holder);
 		std::string host = ep.to_uri_string();
-		std::string http_req;
 		http_req.append("CONNECT ");
 		http_req.append(host);
 		http_req.append(" HTTP/1.1\r\nHost: ");
 		http_req.append(host);
 		http_req.append("\r\n\r\n");
 
-		socket_->write(const_buffer(http_req), err);
+		socket_->send(const_buffer(http_req), std::move(http_req_holder), err);
 		if (err)
 		{
 			reset();
 			return;
 		}
 
+		recv_buf_.buffer = const_buffer();
+		recv_buf_.holder.reset();
 		http_header header;
-		size_t size_read, size_parsed;
-		bool finished;
-		recv_buf_ptr_ = recv_buf_ptr_end_ = 0;
-		while (finished = header.parse(recv_buf_.get() + recv_buf_ptr_, recv_buf_ptr_end_ - recv_buf_ptr_, size_parsed), recv_buf_ptr_ += size_parsed, !finished)
+		error_code_or_op_result ec_or_result;
+		socket_->recv_until(recv_buf_, [this, &header](const_buffer &buffer_recv)
 		{
-			if (recv_buf_ptr_end_ >= RECV_BUF_SIZE)
-				throw(std::runtime_error("HTTP response too long"));
-			socket_->recv(mutable_buffer(recv_buf_.get() + recv_buf_ptr_end_, RECV_BUF_SIZE - recv_buf_ptr_end_), size_read, err);
-			if (err)
+			try
 			{
-				reset();
-				return;
+				size_t size_parsed;
+				bool header_parsed = header.parse(reinterpret_cast<const char *>(buffer_recv.data()), buffer_recv.size(), size_parsed);
+				buffer_recv = buffer_recv.after_consume(size_parsed);
+				return error_code_or_op_result{ header_parsed ? OPRESULT_COMPLETED : OPRESULT_CONTINUE };
 			}
-			recv_buf_ptr_end_ += size_read;
+			catch (const std::exception &)
+			{
+				return error_code_or_op_result{ OPRESULT_ERROR };
+			}
+		}, ec_or_result);
+		if (ec_or_result.code == OPRESULT_ERROR) [[unlikely]]
+		{
+			shutdown(shutdown_both, err);
+			err = ERR_OPERATION_FAILURE;
+			return;
+		}
+		if (ec_or_result.code != OPRESULT_COMPLETED) [[unlikely]]
+		{
+			err = ec_or_result.code;
+			if (err == 0)
+				err = ERR_OPERATION_FAILURE;
+			reset();
+			return;
 		}
 
 		if (header.at(http_header::NAME_STATUS_CODE) != "200")
@@ -77,7 +93,7 @@ void http_tcp_socket::connect(const endpoint &ep, error_code &err)
 	state_ = STATE_OK;
 }
 
-void http_tcp_socket::async_connect(const endpoint &ep, null_callback &&complete_handler)
+void prxsocket::http_tcp_socket::async_connect(const endpoint &ep, null_callback &&complete_handler)
 {
 	remote_ep_ = ep;
 	std::shared_ptr<null_callback> callback = std::make_shared<null_callback>(std::move(complete_handler));
@@ -93,18 +109,41 @@ void http_tcp_socket::async_connect(const endpoint &ep, null_callback &&complete
 	});
 }
 
-void http_tcp_socket::send_http_req(const std::shared_ptr<null_callback> &callback)
+void prxsocket::http_tcp_socket::recv(const_buffer &buffer, buffer_data_store_holder &buffer_data_holder, error_code &ec)
 {
-	std::shared_ptr<std::string> http_req = std::make_shared<std::string>();
+	if (recv_buf_.buffer.size() > 0) [[unlikely]]
+	{
+		buffer = recv_buf_.buffer;
+		recv_buf_.buffer = const_buffer();
+		buffer_data_holder = std::move(recv_buf_.holder);
+		return;
+	}
+	return socket_->recv(buffer, buffer_data_holder, ec);
+}
+
+void prxsocket::http_tcp_socket::async_recv(transfer_data_callback &&complete_handler)
+{
+	if (recv_buf_.buffer.size() > 0) [[unlikely]]
+	{
+		const_buffer buffer = recv_buf_.buffer;
+		recv_buf_.buffer = const_buffer();
+		complete_handler(0, buffer, buffer_data_store_holder(std::move(recv_buf_.holder)));
+		return;
+	}
+	return socket_->async_recv(std::move(complete_handler));
+}
+
+void prxsocket::http_tcp_socket::send_http_req(const std::shared_ptr<null_callback> &callback)
+{
+	PRXSOCKET_MAKE_INPLACE_BUFFER(std::string, http_req, http_req_holder);
 	try
 	{
 		std::string host = remote_ep_.to_uri_string();
-
-		http_req->append("CONNECT ");
-		http_req->append(host);
-		http_req->append(" HTTP/1.1\r\nHost: ");
-		http_req->append(host);
-		http_req->append("\r\n\r\n");
+		http_req.append("CONNECT ");
+		http_req.append(host);
+		http_req.append(" HTTP/1.1\r\nHost: ");
+		http_req.append(host);
+		http_req.append("\r\n\r\n");
 	}
 	catch (const std::exception &)
 	{
@@ -113,7 +152,7 @@ void http_tcp_socket::send_http_req(const std::shared_ptr<null_callback> &callba
 		return;
 	}
 
-	socket_->async_write(const_buffer(*http_req),
+	socket_->async_send(const_buffer(http_req), std::move(http_req_holder),
 		[this, http_req, callback](error_code err)
 	{
 		if (err)
@@ -122,144 +161,48 @@ void http_tcp_socket::send_http_req(const std::shared_ptr<null_callback> &callba
 			(*callback)(err);
 			return;
 		}
-		recv_buf_ptr_ = recv_buf_ptr_end_ = 0;
+		recv_buf_.buffer = const_buffer();
+		recv_buf_.holder.reset();
 		recv_http_resp(callback, std::make_shared<http_header>());
 	});
 }
 
-void http_tcp_socket::recv_http_resp(const std::shared_ptr<null_callback> &callback, const std::shared_ptr<http_header> &header)
+void prxsocket::http_tcp_socket::recv_http_resp(const std::shared_ptr<null_callback> &callback, const std::shared_ptr<http_header> &header)
 {
-	socket_->async_recv(mutable_buffer(recv_buf_.get() + recv_buf_ptr_end_, RECV_BUF_SIZE - recv_buf_ptr_end_),
-		[this, callback, header](error_code err, size_t transferred)
+	socket_->async_recv_until(std::move(recv_buf_), [this, header](const_buffer &buffer_recv)
 	{
-		if (err)
-		{
-			reset();
-			(*callback)(err);
-			return;
-		}
-
 		try
 		{
-			recv_buf_ptr_end_ += transferred;
 			size_t size_parsed;
-			bool finished = header->parse(recv_buf_.get() + recv_buf_ptr_, recv_buf_ptr_end_ - recv_buf_ptr_, size_parsed);
-			recv_buf_ptr_ += size_parsed;
-			if (!finished)
-			{
-				if (recv_buf_ptr_end_ >= RECV_BUF_SIZE)
-					throw(std::runtime_error("HTTP response too long"));
-				recv_http_resp(callback, header);
-				return;
-			}
-
-			if (header->at(http_header::NAME_STATUS_CODE) != "200")
-				throw(std::runtime_error("HTTP request failed"));
-			state_ = STATE_OK;
-			(*callback)(0);
+			bool header_parsed = header->parse(reinterpret_cast<const char *>(buffer_recv.data()), buffer_recv.size(), size_parsed);
+			buffer_recv = buffer_recv.after_consume(size_parsed);
+			return error_code_or_op_result{ header_parsed ? OPRESULT_COMPLETED : OPRESULT_CONTINUE };
 		}
 		catch (const std::exception &)
 		{
-			reset();
-			(*callback)(ERR_OPERATION_FAILURE);
+			return error_code_or_op_result{ OPRESULT_ERROR };
 		}
+	}, [this, callback, header](error_code_or_op_result ec_or_result, buffer_with_data_store &&leftover)
+	{
+		if (ec_or_result.code == OPRESULT_ERROR) [[unlikely]]
+		{
+			async_shutdown(shutdown_both, [callback](error_code) { (*callback)(ERR_OPERATION_FAILURE); });
+			return;
+		}
+		if (ec_or_result.code != OPRESULT_COMPLETED) [[unlikely]]
+		{
+			reset();
+			(*callback)(ec_or_result.code != 0 ? ec_or_result.code : ERR_OPERATION_FAILURE);
+			return;
+		}
+		if (header->at(http_header::NAME_STATUS_CODE) != "200")
+			throw(std::runtime_error("HTTP request failed"));
+		state_ = STATE_OK;
+		(*callback)(0);
 	});
 }
 
-void http_tcp_socket::recv(mutable_buffer buffer, size_t &transferred, error_code &err)
-{
-	err = 0;
-	if (recv_buf_ptr_ < recv_buf_ptr_end_)
-	{
-		transferred = std::min(buffer.size(), recv_buf_ptr_end_ - recv_buf_ptr_);
-		memcpy(buffer.data(), recv_buf_.get() + recv_buf_ptr_, transferred);
-		recv_buf_ptr_ += transferred;
-		return;
-	}
-	socket_->recv(buffer, transferred, err);
-}
-
-void http_tcp_socket::async_recv(mutable_buffer buffer, transfer_callback &&complete_handler)
-{
-	if (recv_buf_ptr_ < recv_buf_ptr_end_)
-	{
-		size_t transferred = std::min(buffer.size(), recv_buf_ptr_end_ - recv_buf_ptr_);
-		memcpy(buffer.data(), recv_buf_.get() + recv_buf_ptr_, transferred);
-		recv_buf_ptr_ += transferred;
-		complete_handler(0, transferred);
-		return;
-	}
-	socket_->async_recv(buffer, std::move(complete_handler));
-}
-
-void prxsocket::http_tcp_socket::read(mutable_buffer buffer, error_code &err)
-{
-	err = 0;
-	if (recv_buf_ptr_ < recv_buf_ptr_end_)
-	{
-		size_t transferred = std::min(buffer.size(), recv_buf_ptr_end_ - recv_buf_ptr_);
-		memcpy(buffer.data(), recv_buf_.get() + recv_buf_ptr_, transferred);
-		recv_buf_ptr_ += transferred;
-		if (buffer.size() == transferred)
-			return;
-		buffer = mutable_buffer(buffer.data() + transferred, buffer.size() - transferred);
-	}
-	socket_->read(buffer, err);
-}
-
-void prxsocket::http_tcp_socket::async_read(mutable_buffer buffer, null_callback &&complete_handler)
-{
-	if (recv_buf_ptr_ < recv_buf_ptr_end_)
-	{
-		size_t transferred = std::min(buffer.size(), recv_buf_ptr_end_ - recv_buf_ptr_);
-		memcpy(buffer.data(), recv_buf_.get() + recv_buf_ptr_, transferred);
-		recv_buf_ptr_ += transferred;
-		if (buffer.size() == transferred)
-		{
-			complete_handler(0);
-			return;
-		}
-		buffer = mutable_buffer(buffer.data() + transferred, buffer.size() - transferred);
-	}
-	socket_->async_read(buffer, std::move(complete_handler));
-}
-
-void http_tcp_socket::read(mutable_buffer_sequence &&buffer, error_code &err)
-{
-	err = 0;
-	if (buffer.empty())
-		return;
-	if (recv_buf_ptr_ < recv_buf_ptr_end_)
-	{
-		size_t transferred = buffer.scatter(recv_buf_.get() + recv_buf_ptr_, recv_buf_ptr_end_ - recv_buf_ptr_);
-		recv_buf_ptr_ += transferred;
-		if (buffer.empty())
-			return;
-	}
-	socket_->read(std::move(buffer), err);
-}
-
-void http_tcp_socket::async_read(mutable_buffer_sequence &&buffer, null_callback &&complete_handler)
-{
-	if (buffer.empty())
-	{
-		complete_handler(0);
-		return;
-	}
-	if (recv_buf_ptr_ < recv_buf_ptr_end_)
-	{
-		size_t transferred = buffer.scatter(recv_buf_.get() + recv_buf_ptr_, recv_buf_ptr_end_ - recv_buf_ptr_);
-		recv_buf_ptr_ += transferred;
-		if (buffer.empty())
-		{
-			complete_handler(0);
-			return;
-		}
-	}
-	socket_->async_read(std::move(buffer), std::move(complete_handler));
-}
-
-void http_tcp_socket::shutdown(shutdown_type type, error_code &ec)
+void prxsocket::http_tcp_socket::shutdown(shutdown_type type, error_code &ec)
 {
 	//if (type & shutdown_send)
 	//	reset_send();
@@ -268,7 +211,7 @@ void http_tcp_socket::shutdown(shutdown_type type, error_code &ec)
 	socket_->shutdown(type, ec);
 }
 
-void http_tcp_socket::async_shutdown(shutdown_type type, null_callback &&complete_handler)
+void prxsocket::http_tcp_socket::async_shutdown(shutdown_type type, null_callback &&complete_handler)
 {
 	//if (type & shutdown_send)
 	//	reset_send();
@@ -277,13 +220,13 @@ void http_tcp_socket::async_shutdown(shutdown_type type, null_callback &&complet
 	socket_->async_shutdown(type, std::move(complete_handler));
 }
 
-void http_tcp_socket::close(error_code &ec)
+void prxsocket::http_tcp_socket::close(error_code &ec)
 {
 	reset();
 	return socket_->close(ec);
 }
 
-void http_tcp_socket::async_close(null_callback &&complete_handler)
+void prxsocket::http_tcp_socket::async_close(null_callback &&complete_handler)
 {
 	reset();
 	socket_->async_close(std::move(complete_handler));
