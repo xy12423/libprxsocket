@@ -43,7 +43,7 @@ namespace prxsocket
 		{
 			struct
 			{
-				byte data[14];
+				byte data[14] = {};
 				size_t size_read = 0;
 			} header_temp;
 
@@ -52,7 +52,7 @@ namespace prxsocket
 
 			struct
 			{
-				size_t size_left;
+				size_t size_left = 0;
 				std::array<byte, 4> masking_key;
 			} payload_temp;
 

@@ -169,8 +169,8 @@ namespace prxsocket
 				if (out_size < in_size + block_size)
 					return false;
 				// If reaches here: out_size >= in_size + block_size, which is the maximum possible size required by any kind of cipher
-				int inl = in_size;
-				int outl = out_size < int_max ? out_size : int_max;
+				int inl = static_cast<int>(in_size);
+				int outl = out_size < int_max ? static_cast<int>(out_size) : int_max;
 				if (!CipherOperations::Update(ctx_, (unsigned char *)out, &outl, (unsigned char *)in, inl))
 					return false;
 				return true;
@@ -190,14 +190,14 @@ namespace prxsocket
 				if (in_size < 0 || in_size > (size_t)(int_max - block_size))
 					return false;
 				// If reaches here: 0 <= in_size <= int_max - block_size, 0 <= in_size + block_size <= int_max <= size_t_max
-				int out_size = in_size + block_size; // maximum possible size required by any kind of cipher
+				int out_size = static_cast<int>(in_size + block_size); // maximum possible size required by any kind of cipher
 				if (out.size() > std::numeric_limits<size_t>::max() - out_size)
 					return false;
 				// If reaches here: out.size() <= size_t_max - out_size, out.size() + out_size <= size_t_max
 				size_t out_size_old = out.size();
 				out.resize(out_size_old + out_size);
 				byte *out_ptr = out.data() + out_size_old;
-				int inl = in_size;
+				int inl = static_cast<int>(in_size);
 				int outl = out_size;
 				if (!CipherOperations::Update(ctx_, (unsigned char *)out_ptr, &outl, (unsigned char *)in, inl))
 				{
@@ -220,7 +220,7 @@ namespace prxsocket
 					return false;
 				if (out_size < block_size)
 					return false;
-				int outl = out_size < int_max ? out_size : int_max;
+				int outl = out_size < int_max ? static_cast<int>(out_size) : int_max;
 				if (!CipherOperations::Final(ctx_, (unsigned char *)out, &outl))
 					return false;
 				return true;

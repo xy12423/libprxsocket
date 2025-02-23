@@ -143,7 +143,7 @@ bool http_header::parse(const char *src, size_t src_size, size_t &size_read)
 		{
 			if (itr < itr_buf)
 			{
-				assert(false, "Buffer overflow in http_header::parse");
+				assert(false);
 				throw std::out_of_range("Buffer overflow in http_header::parse");
 			}
 			buf.append(itr_buf, itr - itr_buf);

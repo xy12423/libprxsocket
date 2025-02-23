@@ -505,7 +505,7 @@ void prxsocket::socks5_udp_socket::async_recv_from(endpoint &ep, mutable_buffer 
 			uint16_t size = (uint8_t)udp_recv_buf_[0] | ((uint8_t)udp_recv_buf_[1] << 8u);
 			if (size > UDP_BUF_SIZE)
 			{
-				async_skip(size - 2, callback);
+				async_skip((size_t)size - 2, callback);
 				return;
 			}
 			async_read(mutable_buffer(udp_recv_buf_.get() + 2, size - 2),

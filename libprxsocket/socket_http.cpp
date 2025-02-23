@@ -39,7 +39,7 @@ void prxsocket::http_tcp_socket::connect(const endpoint &ep, error_code &err)
 		http_req.append(host);
 		http_req.append("\r\n\r\n");
 
-		socket_->send(const_buffer(http_req), std::move(http_req_holder), err);
+		socket_->send(const_buffer(reinterpret_cast<const byte *>(http_req.data()), http_req.size()), std::move(http_req_holder), err);
 		if (err)
 		{
 			reset();
@@ -152,7 +152,7 @@ void prxsocket::http_tcp_socket::send_http_req(const std::shared_ptr<null_callba
 		return;
 	}
 
-	socket_->async_send(const_buffer(http_req), std::move(http_req_holder),
+	socket_->async_send(const_buffer(reinterpret_cast<const byte *>(http_req.data()), http_req.size()), std::move(http_req_holder),
 		[this, http_req, callback](error_code err)
 	{
 		if (err)

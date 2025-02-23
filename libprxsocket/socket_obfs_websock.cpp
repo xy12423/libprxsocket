@@ -600,7 +600,7 @@ std::vector<byte> prxsocket::obfs_websock_tcp_socket::pack_ws_frame(const_buffer
 		throw std::runtime_error("Encryption failed");
 	// Process payload padding
 	byte padding[SYM_BLOCK_SIZE];
-	memset(padding, padding_size, sizeof(padding));
+	memset(padding, static_cast<int>(padding_size), sizeof(padding));
 	for (size_t padded = 0; padded < padding_size;)
 	{
 		size_t n = std::min(sizeof(padding), padding_size - padded);

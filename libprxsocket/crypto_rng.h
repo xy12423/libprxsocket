@@ -35,7 +35,8 @@ namespace prxsocket
 	public:
 		static void random_bytes(void *dst, size_t dst_size)
 		{
-			RAND_bytes((unsigned char *)dst, dst_size);
+			assert(dst_size < INT_MAX);
+			RAND_bytes((unsigned char *)dst, static_cast<int>(dst_size));
 		}
 
 		static void random_bytes(std::vector<char> &dst, size_t rnd_size)

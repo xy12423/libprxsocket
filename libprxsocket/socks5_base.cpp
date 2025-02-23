@@ -242,6 +242,8 @@ namespace
 		case 4:
 			size_needed = 22;
 			break;
+		default:
+			throw std::invalid_argument("Invalid ATYP");
 		}
 		if (state.resp_size_read < size_needed)
 		{
@@ -299,6 +301,7 @@ error_code socks5_base::recv_s5(uint8_t &resp, endpoint &result)
 	}
 	resp = state.resp_code;
 	result = state.resp_ep;
+	return 0;
 }
 
 void socks5_base::async_recv_s5(socksreq_callback &&complete_handler)

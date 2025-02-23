@@ -35,7 +35,7 @@ namespace prxsocket
 			:socks5_base(std::move(base_socket)), server_ep_(server_endpoint)
 		{
 		}
-		socks5_tcp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const endpoint &server_endpoint, const std::string &methods)
+		socks5_tcp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, const endpoint &server_endpoint, const std::vector<byte> &methods)
 			:socks5_base(std::move(base_socket), methods), server_ep_(server_endpoint)
 		{
 		}
@@ -84,7 +84,7 @@ namespace prxsocket
 		static constexpr size_t UDP_BUF_SIZE = 0x10000;
 	public:
 		socks5_udp_socket(std::unique_ptr<prx_tcp_socket> &&base_socket, std::unique_ptr<prx_udp_socket> &&base_udp_socket, const endpoint &_server_ep)
-			:socks5_base(std::move(base_socket), "\x00", 1), server_ep_(_server_ep), udp_socket_(std::move(base_udp_socket)), udp_recv_buf_(std::make_unique<byte[]>(UDP_BUF_SIZE))
+			:socks5_base(std::move(base_socket)), server_ep_(_server_ep), udp_socket_(std::move(base_udp_socket)), udp_recv_buf_(std::make_unique<byte[]>(UDP_BUF_SIZE))
 		{
 		}
 		virtual ~socks5_udp_socket() override {}
@@ -131,7 +131,7 @@ namespace prxsocket
 	{
 	public:
 		socks5_listener(std::function<std::unique_ptr<prx_tcp_socket>()> &&_gen_socket, const endpoint &_server_ep)
-			:server_ep_(_server_ep), local_ep_(0ul, 0), methods_("\x80\x00", 2), gen_socket_(std::move(_gen_socket))
+			:server_ep_(_server_ep), local_ep_(0ul, 0), methods_{ byte{0x80}, byte{0x00} }, gen_socket_(std::move(_gen_socket))
 		{
 		}
 		virtual ~socks5_listener() override {}
@@ -161,7 +161,7 @@ namespace prxsocket
 		bool listening_ = false;
 
 		endpoint server_ep_, local_ep_;
-		std::string methods_;
+		std::vector<byte> methods_;
 
 		std::function<std::unique_ptr<prx_tcp_socket>()> gen_socket_;
 		std::unique_ptr<socks5_tcp_socket> cur_socket_;
