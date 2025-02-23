@@ -410,7 +410,7 @@ void prxsocket::obfs_websock_tcp_socket::async_connect(const endpoint &ep, null_
 	});
 }
 
-void obfs_websock_tcp_socket::send_websocket_req(const std::shared_ptr<null_callback> &callback)
+void prxsocket::obfs_websock_tcp_socket::send_websocket_req(const std::shared_ptr<null_callback> &callback)
 {
 	PRXSOCKET_MAKE_INPLACE_BUFFER(std::string, http_req, http_req_holder);
 	try
@@ -448,7 +448,7 @@ void obfs_websock_tcp_socket::send_websocket_req(const std::shared_ptr<null_call
 	});
 }
 
-void obfs_websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<http_header> &header, const std::shared_ptr<null_callback> &callback)
+void prxsocket::obfs_websock_tcp_socket::recv_websocket_resp(const std::shared_ptr<http_header> &header, const std::shared_ptr<null_callback> &callback)
 {
 	socket_->async_recv([this, header, callback](error_code ec, const_buffer resp_buf, buffer_data_store_holder &&resp_holder)
 	{
