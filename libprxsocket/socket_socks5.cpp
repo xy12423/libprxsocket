@@ -175,18 +175,8 @@ void prxsocket::socks5_tcp_socket::async_close(null_callback &&complete_handler)
 
 void prxsocket::socks5_udp_socket::local_endpoint(endpoint &ep, error_code &err)
 {
-	err = 0;
-	if (!is_open())
-	{
-		err = ERR_OPERATION_FAILURE;
-		return;
-	}
-	if (get_auth_method() != 0x80)
-	{
-		err = ERR_UNSUPPORTED;
-		return;
-	}
-	ep = udp_local_ep_;
+	err = ERR_UNSUPPORTED;
+	return;
 }
 
 void prxsocket::socks5_udp_socket::open(error_code &err)
@@ -201,22 +191,14 @@ void prxsocket::socks5_udp_socket::async_open(null_callback &&complete_handler)
 
 void prxsocket::socks5_udp_socket::bind(const endpoint &ep, error_code &err)
 {
-	if (get_auth_method() != 0x80 && get_auth_method() != 0xFF)
-	{
-		err = ERR_UNSUPPORTED;
-		return;
-	}
-	open(ep, err);
+	err = ERR_UNSUPPORTED;
+	return;
 }
 
 void prxsocket::socks5_udp_socket::async_bind(const endpoint &ep, null_callback &&complete_handler)
 {
-	if (get_auth_method() != 0x80 && get_auth_method() != 0xFF)
-	{
-		complete_handler(ERR_UNSUPPORTED);
-		return;
-	}
-	async_open(ep, std::move(complete_handler));
+	complete_handler(ERR_UNSUPPORTED);
+	return;
 }
 
 void prxsocket::socks5_udp_socket::open(const endpoint &ep, error_code &err)
@@ -242,7 +224,7 @@ void prxsocket::socks5_udp_socket::open(const endpoint &ep, error_code &err)
 		reset();
 		return;
 	}
-	if (!ep.addr().is_any() && get_auth_method() != 0x80)
+	if (!ep.addr().is_any())
 	{
 		reset();
 		err = ERR_OPERATION_FAILURE;
@@ -270,22 +252,6 @@ void prxsocket::socks5_udp_socket::open(const endpoint &ep, error_code &err)
 		reset();
 		err = rep;
 		return;
-	}
-
-	if (get_auth_method() == 0x80)
-	{
-		err = recv_s5(rep, udp_local_ep_);
-		if (err)
-		{
-			reset();
-			return;
-		}
-		if (rep != 0)
-		{
-			reset();
-			err = rep;
-			return;
-		}
 	}
 
 	state_ = STATE_ASSOCIATED;
@@ -327,7 +293,7 @@ void prxsocket::socks5_udp_socket::async_open_continue(const endpoint &ep, const
 			(*callback)(err);
 			return;
 		}
-		if (get_auth_method() != 0x80 && !ep.addr().is_any())
+		if (!ep.addr().is_any())
 		{
 			reset();
 			(*callback)(ERR_OPERATION_FAILURE);
@@ -360,33 +326,8 @@ void prxsocket::socks5_udp_socket::async_open_continue(const endpoint &ep, const
 				}
 				udp_server_ep_ = ep;
 
-				if (get_auth_method() == 0x80)
-				{
-					async_recv_s5([this, callback](error_code err, uint8_t rep, const endpoint &ep)
-					{
-						if (err)
-						{
-							reset();
-							(*callback)(err);
-							return;
-						}
-						if (rep != 0)
-						{
-							reset();
-							(*callback)(rep);
-							return;
-						}
-						udp_local_ep_ = ep;
-
-						state_ = STATE_ASSOCIATED;
-						(*callback)(0);
-					});
-				}
-				else
-				{
-					state_ = STATE_ASSOCIATED;
-					(*callback)(0);
-				}
+				state_ = STATE_ASSOCIATED;
+				(*callback)(0);
 			});
 		});
 	});
@@ -408,57 +349,18 @@ void prxsocket::socks5_udp_socket::recv_from(endpoint &ep, mutable_buffer buffer
 	transferred = 0;
 
 	size_t udp_recv_size;
-	if (udp_socket_)
+	if (!socket_->is_connected())
 	{
-		if (!socket_->is_connected())
-		{
-			reset();
-			err = ERR_OPERATION_FAILURE;
-			return;
-		}
-		udp_socket_->recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), UDP_BUF_SIZE), udp_recv_size, err);
-		if (err)
-		{
-			if (!udp_socket_->is_open())
-				reset();
-			return;
-		}
+		reset();
+		err = ERR_OPERATION_FAILURE;
+		return;
 	}
-	else
+	udp_socket_->recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), UDP_BUF_SIZE), udp_recv_size, err);
+	if (err)
 	{
-		read(mutable_buffer(udp_recv_buf_.get(), 2), err);
-		if (err)
-		{
+		if (!udp_socket_->is_open())
 			reset();
-			return;
-		}
-		uint16_t size = (uint8_t)udp_recv_buf_[0] | ((uint8_t)udp_recv_buf_[1] << 8u);
-		if (size > UDP_BUF_SIZE)
-		{
-			//Skip
-			size -= 2;
-			while (size > 0)
-			{
-				size_t size_read = std::min((size_t)size, UDP_BUF_SIZE);
-				read(mutable_buffer(udp_recv_buf_.get(), size_read), err);
-				if (err)
-				{
-					reset();
-					return;
-				}
-				size -= (uint16_t)size_read;
-			}
-			err = ERR_OPERATION_FAILURE;
-			return;
-		}
-		read(mutable_buffer(udp_recv_buf_.get() + 2, size - 2), err);
-		if (err)
-		{
-			reset();
-			return;
-		}
-		udp_recv_buf_[0] = udp_recv_buf_[1] = byte{ 0 };
-		udp_recv_size = size;
+		return;
 	}
 	
 	err = parse_udp(udp_recv_size, ep, buffer, transferred);
@@ -468,62 +370,26 @@ void prxsocket::socks5_udp_socket::async_recv_from(endpoint &ep, mutable_buffer 
 {
 	std::shared_ptr<transfer_callback> callback = std::make_shared<transfer_callback>(std::move(complete_handler));
 
-	if (udp_socket_)
+	if (!socket_->is_connected())
 	{
-		if (!socket_->is_connected())
+		reset();
+		(*callback)(ERR_OPERATION_FAILURE, 0);
+		return;
+	}
+	udp_socket_->async_recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), UDP_BUF_SIZE),
+		[this, &ep, buffer, callback](error_code err, size_t udp_recv_size)
+	{
+		if (err)
 		{
-			reset();
-			(*callback)(ERR_OPERATION_FAILURE, 0);
+			if (!udp_socket_->is_open())
+				reset();
+			(*callback)(err, 0);
 			return;
 		}
-		udp_socket_->async_recv_from(udp_recv_ep_, mutable_buffer(udp_recv_buf_.get(), UDP_BUF_SIZE),
-			[this, &ep, buffer, callback](error_code err, size_t udp_recv_size)
-		{
-			if (err)
-			{
-				if (!udp_socket_->is_open())
-					reset();
-				(*callback)(err, 0);
-				return;
-			}
-			size_t transferred;
-			err = parse_udp(udp_recv_size, ep, buffer, transferred);
-			(*callback)(err, transferred);
-		});
-	}
-	else
-	{
-		async_read(mutable_buffer(udp_recv_buf_.get(), 2),
-			[this, &ep, buffer, callback](error_code err)
-		{
-			if (err)
-			{
-				reset();
-				(*callback)(err, 0);
-				return;
-			}
-			uint16_t size = (uint8_t)udp_recv_buf_[0] | ((uint8_t)udp_recv_buf_[1] << 8u);
-			if (size > UDP_BUF_SIZE)
-			{
-				async_skip((size_t)size - 2, callback);
-				return;
-			}
-			async_read(mutable_buffer(udp_recv_buf_.get() + 2, size - 2),
-				[this, size, &ep, buffer, callback](error_code err)
-			{
-				if (err)
-				{
-					reset();
-					(*callback)(err, 0);
-					return;
-				}
-				udp_recv_buf_[0] = udp_recv_buf_[1] = byte{ 0 };
-				size_t transferred;
-				err = parse_udp(size, ep, buffer, transferred);
-				(*callback)(err, transferred);
-			});
-		});
-	}
+		size_t transferred;
+		err = parse_udp(udp_recv_size, ep, buffer, transferred);
+		(*callback)(err, transferred);
+	});
 }
 
 void prxsocket::socks5_udp_socket::send_to(const endpoint &ep, const_buffer_sequence &&buffers, error_code &err)

@@ -222,10 +222,11 @@ namespace
 
 	bool parse_s5(recv_s5_state &state, const_buffer &recv_buffer)
 	{
-		if (state.resp_size_read < 7)
+		constexpr size_t resp_size_min = 7;
+		if (state.resp_size_read < resp_size_min)
 		{
-			state.resp_size_read += const_buffer::consume(state.resp_head + state.resp_size_read, 7 - state.resp_size_read, recv_buffer);
-			if (state.resp_size_read < 7)
+			state.resp_size_read += const_buffer::consume(state.resp_head + state.resp_size_read, resp_size_min - state.resp_size_read, recv_buffer);
+			if (state.resp_size_read < resp_size_min)
 				return false;
 		}
 
@@ -237,7 +238,7 @@ namespace
 			size_needed = 10;
 			break;
 		case 3:
-			size_needed = static_cast<size_t>(7) + std::to_integer<unsigned char>(state.resp_head[4]);
+			size_needed = resp_size_min + std::to_integer<unsigned char>(state.resp_head[4]);
 			break;
 		case 4:
 			size_needed = 22;
