@@ -21,3 +21,5 @@ along with libprxsocket. If not, see <https://www.gnu.org/licenses/>.
 #include "buffer.h"
 
 using namespace prxsocket;
+
+const byte const_buffer::empty_data[sizeof(void *)] = {};
