@@ -173,6 +173,11 @@ namespace prxsocket
 				int outl = out_size < int_max ? static_cast<int>(out_size) : int_max;
 				if (!CipherOperations::Update(ctx_, (unsigned char *)out, &outl, (unsigned char *)in, inl))
 					return false;
+
+				if (outl < 0)
+					return false;
+				out_size = outl;
+
 				return true;
 			}
 
@@ -223,6 +228,11 @@ namespace prxsocket
 				int outl = out_size < int_max ? static_cast<int>(out_size) : int_max;
 				if (!CipherOperations::Final(ctx_, (unsigned char *)out, &outl))
 					return false;
+
+				if (outl < 0)
+					return false;
+				out_size = outl;
+
 				return true;
 			}
 

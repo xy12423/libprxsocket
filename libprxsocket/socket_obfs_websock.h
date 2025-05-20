@@ -36,6 +36,7 @@ namespace prxsocket
 	class obfs_websock_tcp_socket final : public prx_tcp_socket
 	{
 		enum { STATE_INIT, STATE_OK };
+		// SYM_BLOCK_SIZE is actually not required for AES-256-GCM (does not require padding); we use it to reserve some extra safe space in certain operations
 		static constexpr size_t SYM_KEY_SIZE = 32, SYM_IV_SIZE = 16, SYM_BLOCK_SIZE = 16;
 		static constexpr size_t WS_FRAME_PAYLOAD_LENGTH_MAX = 0x100000;
 

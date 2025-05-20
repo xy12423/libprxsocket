@@ -262,7 +262,8 @@ namespace
 		case 3:
 		{
 			uint8_t addr_len = std::to_integer<uint8_t>(state.resp_head[4]);
-			state.resp_ep = endpoint(address_str((const char *)(state.resp_head + 5), addr_len), static_cast<port_type>((std::to_integer<unsigned int>(state.resp_head[8]) << 8) | std::to_integer<unsigned int>(state.resp_head[9])));
+			size_t port_offset = (resp_size_min - 2) + addr_len;
+			state.resp_ep = endpoint(address_str((const char *)(state.resp_head + 5), addr_len), static_cast<port_type>((std::to_integer<unsigned int>(state.resp_head[port_offset]) << 8) | std::to_integer<unsigned int>(state.resp_head[port_offset + 1])));
 			break;
 		}
 		case 4:
@@ -365,7 +366,8 @@ error_code socks5_base::parse_udp(const byte *udp_recv_buf, size_t udp_recv_size
 			uint8_t addr_len = std::to_integer<uint8_t>(udp_recv_buf[4]);
 			if (udp_recv_size < static_cast<size_t>(7) + addr_len)
 				return ERR_OPERATION_FAILURE;
-			ep = endpoint(address_str((const char *)(udp_recv_buf + 5), addr_len), static_cast<port_type>((std::to_integer<unsigned int>(udp_recv_buf[8]) << 8) | std::to_integer<unsigned int>(udp_recv_buf[9])));
+			size_t port_offset = static_cast<size_t>(5) + addr_len;
+			ep = endpoint(address_str((const char *)(udp_recv_buf + 5), addr_len), static_cast<port_type>((std::to_integer<unsigned int>(udp_recv_buf[port_offset]) << 8) | std::to_integer<unsigned int>(udp_recv_buf[port_offset + 1])));
 			header_size = static_cast<size_t>(7) + addr_len;
 			break;
 		}

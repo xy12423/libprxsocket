@@ -571,21 +571,19 @@ std::vector<byte> prxsocket::obfs_websock_tcp_socket::pack_ws_frame_header(size_
 
 std::vector<byte> prxsocket::obfs_websock_tcp_socket::pack_ws_frame(const_buffer payload_final)
 {
-	// Calculate total payload size, and padding size (for block cipher)
+	// Calculate total payload size
 	size_t payload_size = payload_final.size();
 	if (!send_buf_.empty())
 		for (const auto &p : send_buf_)
 			payload_size += p.buffer.size();
-	size_t padding_size = pkcs7_padding_size(payload_size, encryptor_.block_size());
-	if (padding_size < 0 || padding_size > std::numeric_limits<unsigned char>::max())
-		throw std::runtime_error("Padding would be too long");
+	// AES-256-GCM does not need padding
 
 	// Build header
 	static_assert(sizeof(uint32_t) == 4);
 	std::array<byte, 4> mask{};
 	if (mask_send_)
 		random_generator::random_bytes(mask.data(), mask.size());
-	std::vector<byte> ws_frame = pack_ws_frame_header(payload_size + padding_size, mask_send_ ? &mask : nullptr);
+	std::vector<byte> ws_frame = pack_ws_frame_header(payload_size, mask_send_ ? &mask : nullptr);
 
 	// Process payload data
 	size_t ws_frame_payload_start = ws_frame.size();
@@ -598,19 +596,9 @@ std::vector<byte> prxsocket::obfs_websock_tcp_socket::pack_ws_frame(const_buffer
 	}
 	if (!encryptor_.update(ws_frame, payload_final.data(), payload_final.size()))
 		throw std::runtime_error("Encryption failed");
-	// Process payload padding
-	byte padding[SYM_BLOCK_SIZE];
-	memset(padding, static_cast<int>(padding_size), sizeof(padding));
-	for (size_t padded = 0; padded < padding_size;)
-	{
-		size_t n = std::min(sizeof(padding), padding_size - padded);
-		if (!encryptor_.update(ws_frame, padding, n))
-			throw std::runtime_error("Encryption padding failed");
-		padded += n;
-	}
 	// Verify length
 	size_t ws_frame_payload_end = ws_frame.size();
-	if (ws_frame_payload_end - ws_frame_payload_start != payload_size + padding_size)
+	if (ws_frame_payload_end - ws_frame_payload_start != payload_size)
 		throw std::runtime_error("Cipher text length and plain text length does not match");
 
 	// Mask
@@ -733,6 +721,8 @@ bool prxsocket::obfs_websock_tcp_socket::unpack_ws_frame_header(ws_unpack_state 
 			throw std::overflow_error("payload_length too big");
 		state.payload_length = payload_length;
 		state.mask = has_mask;
+
+		state.payload_temp.size_left = payload_length;
 		if (has_mask)
 			memcpy(state.payload_temp.masking_key.data(), header.data + 10, 4);
 		break;
@@ -747,6 +737,8 @@ bool prxsocket::obfs_websock_tcp_socket::unpack_ws_frame_header(ws_unpack_state 
 			throw std::overflow_error("payload_length too big");
 		state.payload_length = payload_length;
 		state.mask = has_mask;
+
+		state.payload_temp.size_left = payload_length;
 		if (has_mask)
 			memcpy(state.payload_temp.masking_key.data(), header.data + 4, 4);
 		break;
@@ -755,6 +747,8 @@ bool prxsocket::obfs_websock_tcp_socket::unpack_ws_frame_header(ws_unpack_state 
 	{
 		state.payload_length = payload_len;
 		state.mask = has_mask;
+
+		state.payload_temp.size_left = payload_len;
 		if (has_mask)
 			memcpy(state.payload_temp.masking_key.data(), header.data + 2, 4);
 		break;
@@ -783,8 +777,6 @@ bool prxsocket::obfs_websock_tcp_socket::unpack_ws_frame_payload(ws_unpack_state
 		// payload_size validation
 		if (state.payload.size() != state.payload_length)
 			throw std::runtime_error("Payload has different size from payload_size");
-		if (state.payload.size() % SYM_BLOCK_SIZE != 0)
-			throw std::runtime_error("Payload contains incomplete block");
 
 		// Decryption & validation
 		static_assert(WS_FRAME_PAYLOAD_LENGTH_MAX + SYM_BLOCK_SIZE <= std::numeric_limits<size_t>::max());
@@ -796,11 +788,7 @@ bool prxsocket::obfs_websock_tcp_socket::unpack_ws_frame_payload(ws_unpack_state
 			throw std::runtime_error("Decrypted payload has different size from payload_size");
 		state.payload.resize(plaintext_size);
 
-		// Remove padding
-		size_t padding_length = std::to_integer<unsigned int>(state.payload.back());
-		if (padding_length > state.payload.size())
-			throw std::overflow_error("padding_length bigger than plaintext size");
-		state.payload.resize(state.payload.size() - padding_length);
+		// AES-256-GCM does not need padding
 		return true;
 	}
 	return false;
