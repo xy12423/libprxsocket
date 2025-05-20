@@ -117,18 +117,8 @@ namespace prxsocket
 		bool unpack_ws_frame_payload(ws_unpack_state &state, const_buffer &payload);
 		void async_recv_frame_payload(const std::shared_ptr<std::pair<ws_unpack_state, transfer_data_callback>> &state_callback, buffer_with_data_store &&leftover);
 
-		template <class T> static void final_crypto(T &crypto)
-		{
-			byte final[SYM_BLOCK_SIZE]{};
-			size_t final_size = sizeof(final);
-			if (!crypto.final(final, final_size)) [[unlikely]]
-			{
-				std::vector<byte> final_vec;
-				crypto.final(final_vec);
-			}
-		}
-		void reset_send() { send_buf_.clear(); final_crypto(encryptor_); }
-		void reset_recv() { recv_buf_.buffer = const_buffer(); recv_buf_.holder.reset(); final_crypto(decryptor_); }
+		void reset_send() { send_buf_.clear(); encryptor_.reset(); }
+		void reset_recv() { recv_buf_.buffer = const_buffer(); recv_buf_.holder.reset(); decryptor_.reset(); }
 		void reset() { reset_send(); reset_recv(); state_ = STATE_INIT; }
 
 		int state_ = STATE_INIT;

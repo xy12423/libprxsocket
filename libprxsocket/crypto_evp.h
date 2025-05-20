@@ -133,6 +133,14 @@ namespace prxsocket
 		public:
 			int block_size() const { return EVP_CIPHER_get_block_size(Cipher::shared_cipher()); }
 
+			bool reset()
+			{
+				if (!ctx_)
+					return false;
+				EVP_CIPHER_CTX_reset(ctx_);
+				return true;
+			}
+
 			bool init(const byte *key, size_t key_size, const byte *iv, size_t iv_size)
 			{
 				if (!ctx_)
