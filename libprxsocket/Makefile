@@ -10,7 +10,7 @@ else
 	CXXFLAGS += -g3 -O0 -D_DEBUG
 endif
 
-objects = address.o endpoint.o socket_base.o http_header.o socket_http.o socket_raw.o socks5_base.o socket_socks5.o socket_ss.o socket_ss_crypto.o socket_ssr_auth.o socket_ssr_obfs.o socket_vmess.o socket_obfs_websock.o
+objects = address.o endpoint.o socket_base.o http_header.o socket_http.o socket_raw.o socks5_base.o socket_socks5.o socket_obfs_websock.o
 baseheaders = stdafx.h address.h endpoint.h buffer.h socket_base.h
 
 all : libprxsocket.a
@@ -36,7 +36,7 @@ socks5_base.o : $(baseheaders) socks5_base.h socks5_base.cpp
 	$(CXX) socks5_base.cpp $(CXXFLAGS) -o socks5_base.o
 socket_socks5.o : $(baseheaders) socks5_base.h socket_socks5.h socket_socks5.cpp
 	$(CXX) socket_socks5.cpp $(CXXFLAGS) -o socket_socks5.o
-socket_obfs_websock.o : $(baseheaders) random_generator.h socket_obfs_websock.h http_header.h socket_obfs_websock.cpp
+socket_obfs_websock.o : $(baseheaders) socket_obfs_websock.h http_header.h socket_obfs_websock.cpp
 	$(CXX) socket_obfs_websock.cpp $(CXXFLAGS) -o socket_obfs_websock.o
 
 clean :
